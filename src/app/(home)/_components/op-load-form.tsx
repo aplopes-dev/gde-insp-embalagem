@@ -1,0 +1,70 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { submitOpAction } from "../actions";
+
+const OpLoadForm = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const textStyleClasses =
+    "uppercase xl:h-16 exl:h-24 text-sm xl:text-2xl exl:text-4xl";
+
+  const {
+    register,
+    handleSubmit,
+    formState: { isDirty, isValid, errors },
+  } = useForm({
+    defaultValues: {
+      op: "",
+    },
+  });
+
+  const registerOptions = {
+    op: { required: "Código obrigatório" },
+  };
+
+  const handleRegistration = (data: any) => {
+    setIsLoading(true);
+    submitOpAction(data)
+      .then((_) => {
+        setIsLoading(false);
+      })
+      .catch((_) => {
+        setIsLoading(false);
+      });
+  };
+  const handleError = () => {};
+
+  return (
+    <form className="w-full" onSubmit={handleSubmit(handleRegistration, handleError)}>
+      <div className="flex">
+        <div className="flex flex-col w-full">
+          <Input
+            disabled={isLoading}
+            type="text"
+            {...register("op", registerOptions.op)}
+            className={cn(textStyleClasses, "rounded-none rounded-l-lg")}
+            placeholder="Código da OP"
+          />
+          <small className="text-red-500 p-2">
+            {errors?.op && errors.op.message}
+          </small>
+        </div>
+        <Button
+          disabled={!isDirty || !isValid || isLoading}
+          type="submit"
+          className={cn(textStyleClasses, "rounded-none rounded-r-lg")}
+        >
+          {isLoading && <Loader2 className={cn("h-4 w-4 lg:h-8 lg:w-8 exl:h-12 exl:w-12 animate-spin mr-2")} />}
+          Carregar
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default OpLoadForm;

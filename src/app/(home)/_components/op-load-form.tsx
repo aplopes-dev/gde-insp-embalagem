@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { submitOpAction } from "../actions";
 
 const OpLoadForm = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const textStyleClasses =
     "uppercase xl:h-16 exl:h-24 text-sm xl:text-2xl exl:text-4xl";
 

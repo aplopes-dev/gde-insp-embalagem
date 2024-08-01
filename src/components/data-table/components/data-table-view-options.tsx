@@ -16,14 +16,12 @@ interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
   label: string;
   toggleLabel: string;
-  tColumns: any;
 }
 
 export function DataTableViewOptions<TData>({
   table,
   label,
   toggleLabel,
-  tColumns,
 }: DataTableViewOptionsProps<TData>) {
   return (
     <DropdownMenu>
@@ -52,7 +50,7 @@ export function DataTableViewOptions<TData>({
                 checked={column.getIsVisible()}
                 onCheckedChange={(value) => column.toggleVisibility(!!value)}
               >
-                {tColumns(column.id)}
+                {column.columnDef.header?.toString()}
               </DropdownMenuCheckboxItem>
             );
           })}

@@ -51,8 +51,7 @@ export default function PaginationControl({
           />
         </PaginationItem>
         <PaginationItem className="px-2">
-          <span>
-            Página
+          <span title="Página">
             {` ${tableLib.getState().pagination.pageIndex + 1} / ${
               tableLib.getPageCount() > 0 ? tableLib.getPageCount() : 1
             }`}

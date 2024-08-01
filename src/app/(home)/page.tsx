@@ -1,5 +1,5 @@
 import Header from "../_components/header";
-import DailyOpList from "./_components/daily-op-list";
+import { DailyOpBoxTable } from "./_components/daily-op-box-table";
 import OpLoadForm from "./_components/op-load-form";
 
 export default function Home() {
@@ -12,7 +12,7 @@ export default function Home() {
         </h1>
         <OpLoadForm />
       </div>
-      <DailyOpList />
+      <DailyOpBoxTable />
     </div>
   );
 }

@@ -28,6 +28,7 @@ export function DailyOpBoxTable() {
   return (
     <ServerDataTable
       columns={columns}
+      className="m-2 lg:m-4 xl:m-6 exl:m-10"
       data={data as any[]}
       // data={data as CategoryType[]}
       loading={loading}

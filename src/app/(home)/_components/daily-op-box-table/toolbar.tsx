@@ -22,7 +22,7 @@ export function BoxOpDataTableToolbar<TData>({
   return (
     <div className="flex flex-col lg:flex-row justify-between">
       <div className="flex flex-1 flex-wrap gap-2">
-        {table.getColumn("name") && (
+        {table.getColumn("code") && (
           <DataTableDebounceTextFilter
             key={"code"}
             column={table.getColumn("code")}
@@ -42,7 +42,7 @@ export function BoxOpDataTableToolbar<TData>({
                 value: "finish",
               },
               {
-                label: "Com quegra",
+                label: "Com quebra",
                 value: "broked",
               },
             ]}
@@ -52,6 +52,13 @@ export function BoxOpDataTableToolbar<TData>({
           <DataTableDateFilter
             column={table.getColumn("createdAt")}
             title="Criado em"
+            localeCode="ptBR"
+          />
+        )}
+        {table.getColumn("packedAt") && (
+          <DataTableDateFilter
+            column={table.getColumn("packedAt")}
+            title="Embalado em"
             localeCode="ptBR"
           />
         )}

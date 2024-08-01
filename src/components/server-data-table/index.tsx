@@ -28,6 +28,7 @@ type ServerDataTableProps = {
   childs?: {
     toolbar?: React.ComponentType<any>;
   };
+  className?: string
 };
 
 export function ServerDataTable<TData, TValue>({
@@ -42,6 +43,7 @@ export function ServerDataTable<TData, TValue>({
   onColumnFiltersChange,
   columnFilters,
   childs,
+  className
 }: ServerDataTableProps) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
@@ -82,7 +84,7 @@ export function ServerDataTable<TData, TValue>({
   });
 
   return (
-    <LoadingContent loading={loading}>
+    <LoadingContent className={className} loading={loading}>
       {childs?.toolbar && <childs.toolbar table={tableLib} />}
       <div className="rounded-md border mt-3">
         <DataTable tableLib={tableLib} columns={columns} />

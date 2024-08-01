@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BoxType {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  capacity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Op Op[]
+}
+
+model BlisterType {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  slots       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Op Op[]
+}
+
+model ProductType {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Op Op[]
+}
+
+model Op {
+  id            Int      @id @default(autoincrement())
+  code          String
+  boxTypeId     Int
+  blisterTypeId Int
+  productTypeId Int
+  status        Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product ProductType @relation(fields: [productTypeId], references: [id])
+  box     BoxType     @relation(fields: [boxTypeId], references: [id])
+  blister BlisterType @relation(fields: [blisterTypeId], references: [id])
+
+  OpBox OpBox[]
+}
+
+model OpBox {
+  id        Int       @id @default(autoincrement())
+  opId      Int
+  code      String
+  status    Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  packedAt  DateTime?
+
+  op Op @relation(fields: [opId], references: [id], onDelete: Cascade)
+
+  OpBoxBlister OpBoxBlister[]
+}
+
+model OpBoxBlister {
+  id        Int      @id @default(autoincrement())
+  opBoxId   Int
+  code      String
+  quantity  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opBox OpBox @relation(fields: [opBoxId], references: [id], onDelete: Cascade)
+}

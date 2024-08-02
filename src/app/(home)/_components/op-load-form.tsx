@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { getOpByCode } from "../actions";
+import { getOpToProduceByCode } from "../actions";
 
 const OpLoadForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -36,9 +36,9 @@ const OpLoadForm = () => {
 
   const handleRegistration = ({ op }: any) => {
     setIsLoading(true);
-    getOpByCode(op)
+    getOpToProduceByCode(op)
       .then((res) => {
-        // opIsValid(res) && redirectAction(`/op/${res.Numero}`);
+        opIsValid(res) && redirectAction(`/op/${res.Numero}`);
         setIsLoading(false);
       })
       .catch((_) => {

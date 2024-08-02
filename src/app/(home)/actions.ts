@@ -6,7 +6,7 @@ import { getOwnFilterClauses } from "@/utils/filter";
 import OpBoxDto from "./types/op-box-dto";
 
 //TODO: Integrate with Nexin
-export async function getOpByCode(opCode: string) {
+export async function getOpToProduceByCode(opCode: string) {
   await delay(1000);
   return {
     id: 327117,

@@ -16,7 +16,11 @@ export function useActionPageApi({
     const res = getAction({ limit, skip, field, order, filters });
     const abort = () => {};
 
+    
+    
     res.then(([_data, _count]: any) => {
+      console.log("_data");
+      console.log(_data);
       setData(_data);
       setCount(_count);
       setLoading(false);

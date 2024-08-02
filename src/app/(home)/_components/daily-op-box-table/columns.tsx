@@ -15,22 +15,19 @@ export function useBoxOpColumns(): { columns: any[] } {
 
   const columns = [
     {
-      id: "op",
+      id: "opCode",
       header: "OP",
       enableSorting: false,
     },
     {
       id: "code",
-      header: "Caixa",
-      enableSorting: false,
+      header: "Embalagem",
+      enableSorting: true,
     },
     {
       id: "createdAt",
       header: "Criado em",
       enableSorting: true,
-      // meta: {
-      //   className: "flex-1 text-right",
-      // },
       cell: ({ row }) => {
         const formatted = new Date(
           row.getValue("createdAt")
@@ -40,7 +37,7 @@ export function useBoxOpColumns(): { columns: any[] } {
           year: "numeric",
         });
 
-        return <div className="md:text-right font-medium">{formatted}</div>;
+        return <div className="font-medium">{formatted}</div>;
       },
     },
     {
@@ -48,34 +45,40 @@ export function useBoxOpColumns(): { columns: any[] } {
       header: "Embalado em",
       enableSorting: true,
       cell: ({ row }) => {
-        const formatted = new Date(
-          row.getValue("createdAt")
-        ).toLocaleDateString("pt-BR", {
-          day: "numeric",
-          month: "numeric",
-          year: "numeric",
-        });
+        const value = row.getValue("packedAt");
+        const formatted = value
+          ? new Date(`${value}`).toLocaleDateString("pt-BR", {
+              day: "numeric",
+              month: "numeric",
+              year: "numeric",
+            })
+          : "";
 
-        return <div className="md:text-right font-medium">{formatted}</div>;
+        return <div className="font-medium">{formatted}</div>;
       },
     },
     {
-      id: "item",
+      id: "boxName",
+      header: "Caixa",
+      enableSorting: false,
+    },
+    {
+      id: "productName",
       header: "Item",
-      enableSorting: true,
-      enableColumnFilter: false,
+      enableSorting: false,
     },
     {
       id: "quantity",
       header: "Quantidade",
-      enableSorting: true,
+      meta: {
+        className: "flex-1 text-center",
+      },
+      enableSorting: false,
       enableColumnFilter: false,
-    },
-    {
-      id: "client",
-      header: "Cliente",
-      enableSorting: true,
-      enableColumnFilter: false,
+      cell: ({ row }) => {
+        const quantity = Number(row.getValue("quantity"));
+        return <div className="text-center">{quantity}</div>;
+      },
     },
     {
       id: "status",
@@ -85,10 +88,10 @@ export function useBoxOpColumns(): { columns: any[] } {
         className: "flex-1 text-center",
       },
       cell: ({ row }) => {
-        const enabled = row.getValue("enabled");
+        const status = row.getValue("status");
         return (
           <div className="flex justify-center">
-            {enabled == "enabled" ? <CheckIcon /> : <XIcon />}
+            {status == "enabled" ? <CheckIcon /> : <XIcon />}
           </div>
         );
       },

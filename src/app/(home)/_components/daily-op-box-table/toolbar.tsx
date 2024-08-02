@@ -26,7 +26,7 @@ export function BoxOpDataTableToolbar<TData>({
           <DataTableDebounceTextFilter
             key={"code"}
             column={table.getColumn("code")}
-            title="Código"
+            title="Código da embalagem"
             placeholder="Código da embalagem"
           />
         )}

@@ -2,13 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { submitOpAction } from "../actions";
-import { toast } from "@/components/ui/use-toast";
+import { getOpByCode } from "../actions";
 
 const OpLoadForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,19 +34,19 @@ const OpLoadForm = () => {
     op: { required: "Código obrigatório" },
   };
 
-  const handleRegistration = (data: any) => {
+  const handleRegistration = ({ op }: any) => {
     setIsLoading(true);
-    submitOpAction(data)
+    getOpByCode(op)
       .then((res) => {
-        opIsValid(res) && redirectAction(`/op/${res.Numero}`);
+        // opIsValid(res) && redirectAction(`/op/${res.Numero}`);
         setIsLoading(false);
       })
       .catch((_) => {
         toast({
           title: "Erro",
           description: "Falha ao carregar OP",
-          variant: "destructive"
-        })
+          variant: "destructive",
+        });
         setIsLoading(false);
       });
   };
@@ -101,7 +101,7 @@ function opIsValid({
   if (!QuantidadeAProduzir || QuantidadeAProduzir <= 0) {
     toast({
       title: "Alerta",
-      description: "Não existem itens à serem embalados"
+      description: "Não existem itens à serem embalados",
     });
     return false;
   }

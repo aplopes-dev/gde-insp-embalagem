@@ -58,7 +58,7 @@ const OpDisplay = ({
               day: "numeric",
               month: "numeric",
               year: "numeric",
-            })}
+            }) || '-'}
           </span>
         </div>
       </div>

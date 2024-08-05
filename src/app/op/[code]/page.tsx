@@ -13,10 +13,11 @@ export default function PackagingInspection({
     code: string;
   };
 }) {
-  const [data, setData] = useState();
+  const [data, setData] = useState<any>(undefined);
 
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
+    setData(opData);
   };
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function PackagingInspection({
       toast({
         title: "Erro",
         description: err.message,
-        variant: "destructive"
+        variant: "destructive",
       });
     });
   }, []);
@@ -36,14 +37,17 @@ export default function PackagingInspection({
       <Header />
       <div className="flex justify-center">
         <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%]">
-          <OpDisplay
-            code="123"
-            displayMessage="Verificando caixa"
-            displayColor="blue"
-            statusMessage="Pendente"
-            statusVariant="secondary"
-            startDate={new Date()}
-          />
+          {data && (
+            <OpDisplay
+              code={data.code}
+              displayMessage="Insira a caixa na esteira"
+              displayColor="blue"
+              statusMessage="Pendente"
+              statusVariant="secondary"
+              startDate={data.createdAt}
+              endDate={data.packedAt}
+            />
+          )}
         </div>
       </div>
     </div>

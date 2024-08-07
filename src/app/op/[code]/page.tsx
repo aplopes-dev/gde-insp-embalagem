@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import OpDisplay from "../_components/op-display";
 import { syncAndGetOpToProduceByCode } from "./actions";
 
+import { io } from "socket.io-client";
+
 export default function PackagingInspection({
   params: { code },
 }: {
@@ -14,6 +16,7 @@ export default function PackagingInspection({
   };
 }) {
   const [data, setData] = useState<any>(undefined);
+  const [message, setMessage] = useState("");
 
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
@@ -23,13 +26,25 @@ export default function PackagingInspection({
   useEffect(() => {
     loadData().catch((err: Error) => {
       console.log(err);
-
       toast({
         title: "Erro",
         description: err.message,
         variant: "destructive",
       });
     });
+    const socket = io("http://localhost:3001");
+    socket.on("notifyUser", (message) => {
+      setMessage(message);
+      toast({
+        title: "Nova",
+        description: `${message}`,
+      });
+    });
+    // Cleanup function to remove the event listener
+    return () => {
+      socket.off("notifyUser ");
+      socket.disconnect();
+    };
   }, []);
 
   return (

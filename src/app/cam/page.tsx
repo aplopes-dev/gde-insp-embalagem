@@ -1,27 +1,11 @@
-"use client";
-
-import { toast } from "@/components/ui/use-toast";
-import { useState } from "react";
-import { io } from "socket.io-client";
+import CamForm from "./_components/form";
 
 const Cam = () => {
-  const [message, setMessage] = useState("");
-  const sendNotification = () => {
-    const socket = io("http://localhost:3001");
-    socket.emit("notifyUser");
-    toast({
-      title: "Success",
-      description: "Notification Sent",
-    });
-  };
-
   return (
-    <div>
-      <div>
-        <p>Admin Page</p>
-      </div>
-      <div>
-        <button onClick={sendNotification}>Notify All Users</button>
+    <div className="container mt-16">
+      <h1 className="text-2xl">Configuração do simulador de validação</h1>
+      <div className="mt-8 lg:w-1/2">
+        <CamForm />
       </div>
     </div>
   );

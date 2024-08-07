@@ -16,7 +16,7 @@ export default function PackagingInspection({
   };
 }) {
   const [data, setData] = useState<any>(undefined);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState();
 
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
@@ -35,10 +35,6 @@ export default function PackagingInspection({
     const socket = io("http://localhost:3001");
     socket.on("notifyUser", (message) => {
       setMessage(message);
-      toast({
-        title: "Nova",
-        description: `${message}`,
-      });
     });
     // Cleanup function to remove the event listener
     return () => {
@@ -63,6 +59,7 @@ export default function PackagingInspection({
               endDate={data.packedAt}
             />
           )}
+          <pre>{JSON.stringify(message, null, 2)}</pre>
         </div>
       </div>
     </div>

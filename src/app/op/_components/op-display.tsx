@@ -34,8 +34,8 @@ const OpDisplay = ({
       </div>
       <div
         className={cn(
-          "text-white font-bold text-lg lg:text-2xl flex-auto w-full md:w-auto h-16 md:h-28 flex justify-center items-center order-last md:order-none mt-6 md:mt-0",
-          `bg-${displayColor}-600`
+          "text-white font-bold text-lg lg:text-2xl flex-auto w-full md:w-auto h-16 md:h-28 flex justify-center items-center order-last md:order-none mt-6 md:mt-0 bg-blue-600",
+          displayColor == 'blue' ? 'bg-blue-600' : 'bg-red-600'
         )}
       >
         {displayMessage}
@@ -58,7 +58,7 @@ const OpDisplay = ({
               day: "numeric",
               month: "numeric",
               year: "numeric",
-            }) || '-'}
+            }) || "-"}
           </span>
         </div>
       </div>

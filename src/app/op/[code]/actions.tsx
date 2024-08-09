@@ -62,5 +62,9 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     });
   }
 
-  return internalOp;
+  return {
+    ...internalOp,
+    quantityToProduce: externalOp.QuantidadeAProduzir,
+    blisterLimitPerBox: 10, //TODO: calculate dinamically
+  };
 }

@@ -18,14 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ObjectValidation, ValidableType } from "@/types/validation";
+import { ValidableType } from "@/types/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { io } from "socket.io-client";
 import { ValidationFormType, validationSchema } from "../schema";
 
 const CamForm = () => {
-  const sendNotification = (data: ObjectValidation) => {
+  const sendNotification = (data: any) => {
     const socket = io("http://localhost:3001");
     socket.emit("notifyUser", data);
   };
@@ -48,10 +48,8 @@ const CamForm = () => {
     const { code, name, type } = data;
     await sendNotification({
       type: type as ValidableType,
-      object: {
-        code,
-        name,
-      },
+      code,
+      name,
     });
   });
 

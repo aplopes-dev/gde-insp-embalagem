@@ -14,8 +14,8 @@ export async function getOpToProduceByCode(opCode: string) {
     Produto: "BL-03832070 LD - NEW",
     QuantidadeAProduzir: 1124,
     Embalagens: [
-      "Blister BL-03832070LD Rev.0 Antiestático",
-      "CAIXA 520X320X170 TRIPLEX",
+      "Blister BL-03832070LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
+      "CAIXA 520X320X170 TRIPLEX", //3 tipos
       "DIVISORIAS CX 520X320X170",
     ],
   };

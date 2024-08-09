@@ -2,7 +2,8 @@ export type ValidableType = "product" | "box" | "blister";
 
 export type ObjectValidation = {
   type: ValidableType;
-  object: Box | Blister | Item;
+  code: string;
+  name: string;
 };
 
 export type Box = {

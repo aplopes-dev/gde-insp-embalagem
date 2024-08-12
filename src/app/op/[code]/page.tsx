@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import OpDisplay from "../_components/op-display";
 import { syncAndGetOpToProduceByCode } from "./actions";
 
+import { useOnMountUnsafe } from "@/hooks/use-on-mount-unsafe";
 import { io } from "socket.io-client";
 
 type OpSyncType = {
@@ -55,50 +56,51 @@ export default function PackagingInspection({
 
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
-    console.log(opData);
     setData(opData);
   };
 
   useEffect(() => {
-    loadData().catch((err: Error) => {
-      console.log(err);
-      toast({
-        title: "Erro",
-        description: err.message,
-        variant: "destructive",
+    loadData()
+      .catch((err: Error) => {
+        console.log(err);
+        toast({
+          title: "Erro",
+          description: err.message,
+          variant: "destructive",
+        });
       });
-    });
   }, []);
 
   useEffect(() => {
-    console.log("data");
-    console.log(data);
-    const socket = io("http://localhost:3001");
-    socket.on("notifyUser", (message) => {
-      setMessage(message);
-      if (!message) {
-        setDisplayMessage("Insira a caixa")
-      }
-      if (inspections.length == 0) {
-        if (message.type == "box") {
-          setDisplayColor("blue");
-          console.log(data);
-          console.log(message.code, `${data?.boxTypeId}`);
-          if (message.code == `${data?.boxTypeId}`) {
-            setDisplayMessage("Caixa aprovada");
-          } else {
-            setDisplayMessage("Caixa incorreta");
-          }
-        } else {
-          setDisplayMessage("Objeto inválido");
-          setDisplayColor("red");
+    if (data) {
+      let socket: any;
+      socket = io("http://localhost:3001");
+      socket.on("notifyUser", (message: any) => {
+        setMessage(message);
+        if (!message) {
+          setDisplayMessage("Insira a caixa");
         }
-      }
-    });
-    return () => {
-      socket.off("notifyUser");
-      socket.disconnect();
-    };
+        if (inspections.length == 0) {
+          if (message.type == "box") {
+            setDisplayColor("blue");
+            console.log(data);
+            console.log(message.code, `${data?.boxTypeId}`);
+            if (message.code == `${data?.boxTypeId}`) {
+              setDisplayMessage("Caixa aprovada");
+            } else {
+              setDisplayMessage("Caixa incorreta");
+            }
+          } else {
+            setDisplayMessage("Objeto inválido");
+            setDisplayColor("red");
+          }
+        }
+      });
+      return () => {
+        socket.off("notifyUser");
+        socket.disconnect();
+      };
+    } 
   }, [data]);
 
   return (

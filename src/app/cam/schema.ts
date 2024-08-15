@@ -4,6 +4,7 @@ export const validationSchema = z.object({
   type: z.string(),
   code: z.string(),
   name: z.string(),
+  count: z.string()
 });
 
 

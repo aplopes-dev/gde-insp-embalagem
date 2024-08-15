@@ -10,4 +10,6 @@ export type OpBoxBlisterInspection = {
   code: string;
   status: string;
   quantity: number;
+  isValidItem?: boolean;
+  isValidQuantity?: boolean;
 };

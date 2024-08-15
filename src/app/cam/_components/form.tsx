@@ -36,6 +36,7 @@ const CamForm = () => {
       code: "",
       name: "",
       type: "",
+      count: "",
     },
     mode: "onChange",
   });
@@ -50,6 +51,7 @@ const CamForm = () => {
       type: type as ValidableType,
       code,
       name,
+      count: Number(data.count),
     });
   });
 
@@ -103,6 +105,19 @@ const CamForm = () => {
                 </Select>
               </FormControl>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="count"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Código</FormLabel>
+              <FormControl>
+                <Input placeholder="Insira a quantidade" {...field} />
+              </FormControl>
+              <FormMessage>{errors.code && errors.code.message}</FormMessage>
             </FormItem>
           )}
         />

@@ -65,6 +65,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
   return {
     ...internalOp,
     quantityToProduce: externalOp.QuantidadeAProduzir,
+    quantityPerBlister: 10, //TODO: get dinamically
     blisterLimitPerBox: 10, //TODO: calculate dinamically
   };
 }

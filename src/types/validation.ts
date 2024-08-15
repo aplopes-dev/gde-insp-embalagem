@@ -4,6 +4,7 @@ export type ObjectValidation = {
   type: ValidableType;
   code: string;
   name: string;
+  count: number;
 };
 
 export type Box = {

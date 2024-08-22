@@ -10,36 +10,42 @@ import {
 import { cn } from "@/lib/utils";
 import { OpBoxBlisterInspection } from "../types/op-box-inspection-dto";
 
-function getStatusColor(status: string) {
+function getStatusColor(status?: number) {
   switch (status) {
-    case "PENDING":
+    case 0:
       return "gray";
-    case "APPROVED":
+    case 1:
       return "green";
-    case "DISAPPROVED":
+    case 2:
       return "red";
+    default:
+      return "gray";
   }
 }
 
-function getStatusVariant(status: string) {
+function getStatusVariant(status?: number) {
   switch (status) {
-    case "PENDING":
+    case 0:
       return "secondary";
-    case "APPROVED":
+    case 1:
       return "success";
-    case "DISAPPROVED":
+    case 3:
       return "destructive";
+    default:
+      return "secondary";
   }
 }
 
-function getStatusName(status: string) {
+function getStatusName(status?: number) {
   switch (status) {
-    case "PENDING":
+    case 0:
       return "Pendente";
-    case "APPROVED":
+    case 1:
       return "Aprovado";
-    case "DISAPPROVED":
+    case 3:
       return "Reprovado";
+    default:
+      return "Pendente";
   }
 }
 
@@ -69,9 +75,9 @@ const BlisterDisplay = ({
                 `bg-${getStatusColor(data.status)}-300/20`,
                 targetIndex == index ? "border-4 border-blue-500" : ""
               )}
-              key={data.code}
+              key={data.id}
             >
-              <TableCell>{data.code}</TableCell>
+              <TableCell>{data.id}</TableCell>
               <TableCell
                 className={
                   targetIndex == index && data.isValidItem

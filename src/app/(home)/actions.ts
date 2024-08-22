@@ -11,14 +11,25 @@ export async function getOpToProduceByCode(opCode: string) {
   return {
     id: 327117,
     Numero: Number(opCode),
-    Produto: "BL-03832070 LD - NEW",
-    QuantidadeAProduzir: 1124,
+    Produto: "BL-05432070 LD",
+    QuantidadeAProduzir: 104,
     Embalagens: [
-      "Blister BL-03832070LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
+      "BL-05432070 LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
       "CAIXA 520X320X170 TRIPLEX", //3 tipos
       "DIVISORIAS CX 520X320X170",
     ],
   };
+  // return {
+  //   id: 327117,
+  //   Numero: Number(opCode),
+  //   Produto: "BL-03832070 LD - NEW",
+  //   QuantidadeAProduzir: 1124,
+  //   Embalagens: [
+  //     "Blister BL-03832070LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
+  //     "CAIXA 520X320X170 TRIPLEX", //3 tipos
+  //     "DIVISORIAS CX 520X320X170",
+  //   ],
+  // };
 }
 
 export async function getPaginatedBoxOp({

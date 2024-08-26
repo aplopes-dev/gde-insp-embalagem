@@ -48,7 +48,7 @@ const OpDisplay = ({
       >
         {displayMessage}
       </div>
-      <div className="flex flex-col p-1 gap-2 uppercase w-1/2 md:w-auto">
+      <div className="flex flex-col items-end p-1 gap-2 uppercase w-1/2 md:w-auto">
         <div>
           <span className="font-bold mr-1">Início:</span>
           <span>

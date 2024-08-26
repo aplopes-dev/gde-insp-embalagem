@@ -182,7 +182,7 @@ export async function persistBoxStatusWithBlisters(
     })
   );
 
-  if (finalizeOp)
+  if (finalizeOp) {
     queryCollection.push(
       prisma.op.update({
         data: {
@@ -194,6 +194,7 @@ export async function persistBoxStatusWithBlisters(
         },
       })
     );
+  }
 
   await prisma.$transaction(queryCollection);
 }

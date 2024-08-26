@@ -28,7 +28,7 @@ export default function PackagingInspection({
 }) {
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
-  const [message, setMessage] = useState<ObjectValidation>();
+  const [inspection, setInspection] = useState<ObjectValidation>();
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
 
@@ -45,7 +45,10 @@ export default function PackagingInspection({
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
     setData(opData);
-    if (opData.nextBox?.OpBoxBlister) {
+    if (opData.finishedAt) {
+      setDisplayMessage("OP Finalizada");
+      setDisplayColor("blue");
+    } else if (opData.nextBox?.OpBoxBlister) {
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -63,24 +66,14 @@ export default function PackagingInspection({
     }
   };
 
-  // useEffect(() => {
-  //   loadData().catch((err: Error) => {
-  //     console.log(err);
-  //     toast({
-  //       title: "Erro",
-  //       description: err.message,
-  //       variant: "destructive",
-  //     });
-  //   });
-  // }, []);
-
   useEffect(() => {
     let socket: any;
+
     loadData()
       .then((_) => {
         socket = io("http://localhost:3001");
         socket.on("notifyUser", (message: any) => {
-          setMessage(message);
+          setInspection(message);
         });
       })
       .catch((err: Error) => {
@@ -96,22 +89,21 @@ export default function PackagingInspection({
       socket?.disconnect();
     };
   }, []);
-  // }, [data]);
 
   useEffect(() => {
-    if (message)
+    if (!data?.finishedAt && inspection)
       switch (step) {
         case 0:
-          inspectBox(message);
+          inspectBox(inspection);
           break;
         case 1:
-          inspectBlister(message);
+          inspectBlister(inspection);
           break;
         case 2:
-          inspectQuantity(message);
+          inspectQuantity(inspection);
           break;
       }
-  }, [message]);
+  }, [inspection]);
 
   function inspectBox(message: ObjectValidation) {
     if (message.type == "box") {
@@ -138,7 +130,6 @@ export default function PackagingInspection({
 
   function inspectQuantity(message: ObjectValidation) {
     if (message.type == "product") {
-      //TODO: Consider that the last blister may have different amounts
       const pendingQuantity = quantityInBox - checkedQuantity;
       if (
         (message.count == data!.blisterType.slots &&
@@ -259,7 +250,7 @@ export default function PackagingInspection({
       <Header />
       <div className="flex justify-center">
         {data && (
-          <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col gap-8">
+          <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
             <OpDisplay
               code={data.opCode}
               boxesCount={data.totalBoxes}
@@ -271,38 +262,44 @@ export default function PackagingInspection({
               startDate={data?.createdAt || new Date()}
               endDate={data?.finishedAt}
             />
-            <div>
-              <h3 className="font-bold uppercase">Caixa</h3>
-              <BoxDisplay
-                name="CX202"
-                isTarget={step == 0}
-                description="20x40x20cm"
-                displayColor="blue"
-                statusText={getStatusName(box?.status) || ""}
-                statusVariant={getStatusVariant(box?.status) || "secondary"}
-              />
-            </div>
-            <div>
-              <div className="flex gap-4">
-                <div>
-                  <strong>Blister:</strong> {data.blisterType.name}
+            {!data.finishedAt && (
+              <>
+                <div className="mt-8">
+                  <h3 className="font-bold uppercase">Caixa</h3>
+                  <BoxDisplay
+                    name={data.boxType.name}
+                    isTarget={step == 0}
+                    description={data.boxType.description}
+                    displayColor="blue"
+                    statusText={getStatusName(box?.status) || ""}
+                    statusVariant={getStatusVariant(box?.status) || "secondary"}
+                  />
                 </div>
-                <div>
-                  <strong>Item:</strong> {data.productType.name}
+                <div className="mt-8">
+                  <div className="flex gap-4">
+                    <div>
+                      <strong>Blister:</strong> {data.blisterType.name}
+                    </div>
+                    <div>
+                      <strong>Item:</strong> {data.productType.name}
+                    </div>
+                    <div>
+                      <strong>Quantidade na Caixa:</strong> {quantityInBox}
+                    </div>
+                    <div>
+                      <strong>Quantidade verificada:</strong> {checkedQuantity}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <strong>Quantidade na Caixa:</strong> {quantityInBox}
+                <div className="mt-8">
+                  <h3 className="font-bold uppercase">Embalagem</h3>
+                  <BlisterDisplay
+                    blisters={blisters}
+                    targetIndex={targetBlister}
+                  />
                 </div>
-                <div>
-                  <strong>Quantidade verificada:</strong> {checkedQuantity}
-                  {/* <strong>Quantidade verificada:</strong> {verifiedQuantity} */}
-                </div>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold uppercase">Embalagem</h3>
-              <BlisterDisplay blisters={blisters} targetIndex={targetBlister} />
-            </div>
+              </>
+            )}
           </div>
         )}
       </div>

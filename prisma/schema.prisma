@@ -55,7 +55,7 @@ model Op {
   boxTypeId         Int
   blisterTypeId     Int
   productTypeId     Int
-  status            Int       @default(1)
+  status            Int       @default(0)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   finishedAt        DateTime?
@@ -72,7 +72,7 @@ model OpBox {
   id        Int       @id @default(autoincrement())
   opId      Int
   code      String
-  status    Int       @default(1)
+  status    Int       @default(0)
   createdAt DateTime  @default(now())
   packedAt  DateTime?
 

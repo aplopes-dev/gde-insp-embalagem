@@ -78,12 +78,6 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     });
   }
 
-  // const blisterType = await prisma.blisterType.findFirst({
-  //   where: {
-  //     id: internalOp.blisterTypeId,
-  //   },
-  // });
-
   const transaction = await prisma.$transaction([
     prisma.opBox.count({
       where: {

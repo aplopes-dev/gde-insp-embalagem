@@ -4,6 +4,15 @@ import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { getOwnFilterClauses } from "@/utils/filter";
 import OpBoxDto from "./types/op-box-dto";
+import { headers } from "next/headers";
+
+type JerpOpDto = {
+  id: number;
+  Numero: number;
+  Produto: string;
+  QuantidadeAProduzir: number;
+  Embalagens: string[];
+};
 
 //TODO: Integrate with Nexin
 export async function getOpToProduceByCode(opCode: string) {
@@ -19,17 +28,17 @@ export async function getOpToProduceByCode(opCode: string) {
       "DIVISORIAS CX 520X320X170",
     ],
   };
-  // return {
-  //   id: 327117,
-  //   Numero: Number(opCode),
-  //   Produto: "BL-03832070 LD - NEW",
-  //   QuantidadeAProduzir: 1124,
-  //   Embalagens: [
-  //     "Blister BL-03832070LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
-  //     "CAIXA 520X320X170 TRIPLEX", //3 tipos
-  //     "DIVISORIAS CX 520X320X170",
-  //   ],
-  // };
+  // const dynamicData = await fetch(
+  //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${opCode}`,
+  //   {
+  //     headers: {
+  //       authorization: `Bearer ${process.env.JERP_TOKEN}`,
+  //     },
+  //     cache: "no-store",
+  //   }
+  // );
+  // const data = await dynamicData.json();
+  // return data as JerpOpDto;
 }
 
 export async function getPaginatedBoxOp({

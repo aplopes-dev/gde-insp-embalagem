@@ -19,7 +19,7 @@ type ConfirmationDialogProps = {
   message?: string;
   open?: boolean;
   onOpenChange: (open: boolean) => void;
-  confirmationAction: () => {};
+  confirmationAction: () => void;
 };
 
 export default function ConfirmationDialog({

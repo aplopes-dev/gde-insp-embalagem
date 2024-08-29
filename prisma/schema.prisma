@@ -17,11 +17,11 @@ model BoxType {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  capacity    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  Op Op[]
+  Op          Op[]
+  BlisterType BlisterType[]
 }
 
 model BlisterType {
@@ -31,8 +31,11 @@ model BlisterType {
   slots       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  boxTypeId   Int
+  limitPerBox Int
 
-  Op Op[]
+  box BoxType @relation(fields: [boxTypeId], references: [id])
+  Op  Op[]
 }
 
 model ProductType {
@@ -47,14 +50,16 @@ model ProductType {
 }
 
 model Op {
-  id            Int      @id @default(autoincrement())
-  code          String
-  boxTypeId     Int
-  blisterTypeId Int
-  productTypeId Int
-  status        Int      @default(1)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                Int       @id @default(autoincrement())
+  code              String
+  boxTypeId         Int
+  blisterTypeId     Int
+  productTypeId     Int
+  status            Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  finishedAt        DateTime?
+  quantityToProduce Int
 
   product ProductType @relation(fields: [productTypeId], references: [id])
   box     BoxType     @relation(fields: [boxTypeId], references: [id])
@@ -67,9 +72,8 @@ model OpBox {
   id        Int       @id @default(autoincrement())
   opId      Int
   code      String
-  status    Int       @default(1)
+  status    Int       @default(0)
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
   packedAt  DateTime?
 
   op Op @relation(fields: [opId], references: [id], onDelete: Cascade)
@@ -78,12 +82,10 @@ model OpBox {
 }
 
 model OpBoxBlister {
-  id        Int      @id @default(autoincrement())
-  opBoxId   Int
-  code      String
-  quantity  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id       Int       @id @default(autoincrement())
+  opBoxId  Int
+  quantity Int       @default(0)
+  packedAt DateTime?
 
   opBox OpBox @relation(fields: [opBoxId], references: [id], onDelete: Cascade)
 }

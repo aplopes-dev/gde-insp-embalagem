@@ -5,7 +5,6 @@ import { DataTableSelectFilter } from "@/components/data-table/filters/data-tabl
 import { Button } from "@/components/ui/button";
 import { Table } from "@tanstack/react-table";
 import { XIcon } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
 
 interface BoxOpDataTableToolbarProps<TData> {
   table: Table<TData>;
@@ -15,9 +14,6 @@ export function BoxOpDataTableToolbar<TData>({
   table,
 }: BoxOpDataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
-
-  const router = useRouter();
-  const pathname = usePathname();
 
   return (
     <div className="flex flex-col lg:flex-row justify-between">

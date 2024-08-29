@@ -5,22 +5,23 @@ import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { getPaginatedBoxOp } from "../../actions";
+import { getPaginatedOp } from "../../actions";
 import { useBoxOpColumns } from "./columns";
-import { BoxOpDataTableToolbar } from "./toolbar";
+import { OpListToolbar } from "./toolbar";
+import { OpDto } from "../../_types/op-dto";
 
-export function DailyOpBoxTable() {
+export function DailyOpList() {
   const { columns } = useBoxOpColumns();
 
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);
-  const { sorting, onSortingChange, field, order } = useSorting();
+  const { sorting, onSortingChange, field, order } = useSorting("finishedAt", "DESC");
   const { columnFilters, onColumnFiltersChange } = useFiltering();
 
   const [data, count, loading] = useActionPageApi({
     pagination: { skip, limit },
     sort: { field, order },
     filters: columnFilters,
-    getAction: getPaginatedBoxOp,
+    getAction: getPaginatedOp,
   });
 
   const pageCount = Math.round((count as number) / limit);
@@ -29,8 +30,7 @@ export function DailyOpBoxTable() {
     <ServerDataTable
       columns={columns}
       className="m-2 lg:m-4 xl:m-6 exl:m-10"
-      data={data as any[]}
-      // data={data as CategoryType[]}
+      data={data as OpDto[]}
       loading={loading}
       pageCount={pageCount}
       pagination={pagination}
@@ -40,7 +40,7 @@ export function DailyOpBoxTable() {
       onColumnFiltersChange={onColumnFiltersChange}
       columnFilters={columnFilters}
       childs={{
-        toolbar: BoxOpDataTableToolbar,
+        toolbar: OpListToolbar,
       }}
     />
   );

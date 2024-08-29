@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 export function useActionPageApi({
   pagination: { limit = 10, skip = 0 } = {},
-  sort: { field = "id", order = "asc" } = {},
+  sort: { field = "", order = "" } = {},
   filters = [],
   getAction = async (params: FilterPaginationParams): Promise<any> => {},
 } = {}) {

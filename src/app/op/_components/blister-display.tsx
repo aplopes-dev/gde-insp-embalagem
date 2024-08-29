@@ -12,8 +12,6 @@ import { OpBoxBlisterInspection } from "../types/op-box-inspection-dto";
 
 function getStatusColor(status?: number) {
   switch (status) {
-    case 0:
-      return "gray";
     case 1:
       return "green";
     case 2:
@@ -25,12 +23,8 @@ function getStatusColor(status?: number) {
 
 function getStatusVariant(status?: number) {
   switch (status) {
-    case 0:
-      return "secondary";
     case 1:
       return "success";
-    case 3:
-      return "destructive";
     default:
       return "secondary";
   }
@@ -38,12 +32,8 @@ function getStatusVariant(status?: number) {
 
 function getStatusName(status?: number) {
   switch (status) {
-    case 0:
-      return "Pendente";
     case 1:
       return "Aprovado";
-    case 3:
-      return "Reprovado";
     default:
       return "Pendente";
   }

@@ -117,6 +117,19 @@ export async function syncAndGetOpToProduceByCode(code: string) {
         id: internalOp.productTypeId,
       },
     }),
+    prisma.opBoxBlister.aggregate({
+      _sum: {
+        quantity: true,
+      },
+      where: {
+        packedAt: {
+          not: null,
+        },
+        opBox: {
+          opId: internalOp.id,
+        },
+      },
+    }),
   ]);
 
   const {
@@ -135,6 +148,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     createdAt,
     finishedAt,
     quantityToProduce,
+    itemsPacked: transaction[6]._sum.quantity,
     productType: transaction[5],
     blisterType: transaction[3],
     boxType: transaction[4],
@@ -190,6 +204,95 @@ export async function persistBoxStatusWithBlisters(
     );
   }
 
+  await prisma.$transaction(queryCollection);
+}
+
+export async function finalizeAndRemovePendingRelationsByOpCode(opId: number) {
+  await prisma.$transaction([
+    prisma.opBoxBlister.deleteMany({
+      where: {
+        packedAt: null,
+        opBox: {
+          opId,
+        },
+      },
+    }),
+    prisma.opBox.deleteMany({
+      where: {
+        opId,
+        packedAt: null,
+      },
+    }),
+    prisma.op.update({
+      data: {
+        finishedAt: new Date(),
+        status: 2,
+      },
+      where: {
+        id: opId,
+      },
+    }),
+  ]);
+}
+
+export async function persistWithOpBreak(
+  boxDto: OpBoxInspectionDto,
+  blisters: OpBoxBlisterInspection[],
+  opId: number
+) {
+  const { id, status } = boxDto;
+  const queryCollection: any[] = blisters.map((bl) =>
+    prisma.opBoxBlister.update({
+      data: {
+        packedAt: bl.packedAt?.toISOString(),
+      },
+      where: {
+        id: bl.id,
+        opBoxId: id,
+      },
+    })
+  );
+  queryCollection.push(
+    prisma.opBox.update({
+      data: {
+        packedAt: new Date(),
+        status: status,
+      },
+      where: {
+        id,
+      },
+    })
+  );
+
+  queryCollection.push(
+    prisma.opBoxBlister.deleteMany({
+      where: {
+        packedAt: null,
+        opBox: {
+          opId,
+        },
+      },
+    })
+  );
+  queryCollection.push(
+    prisma.opBox.deleteMany({
+      where: {
+        opId,
+        packedAt: null,
+      },
+    })
+  );
+  queryCollection.push(
+    prisma.op.update({
+      data: {
+        finishedAt: new Date(),
+        status: 2,
+      },
+      where: {
+        id: opId,
+      },
+    })
+  );
   await prisma.$transaction(queryCollection);
 }
 

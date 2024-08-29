@@ -5,6 +5,8 @@ type OpDisplayProps = {
   code: string;
   boxesPacked: number;
   boxesCount: number;
+  itemsPacked: number;
+  itemsCount: number;
   statusMessage: string;
   statusVariant: "secondary" | "warning" | "destructive" | "success";
   displayMessage: string;
@@ -15,8 +17,10 @@ type OpDisplayProps = {
 
 const OpDisplay = ({
   code,
-  boxesCount,
   boxesPacked,
+  boxesCount,
+  itemsPacked,
+  itemsCount,
   statusMessage,
   statusVariant,
   displayMessage,
@@ -32,18 +36,22 @@ const OpDisplay = ({
           <span className="text-blue-600">{code}</span>
         </div>
         <div className="font-bold">
-          <span className="mr-1">Caixas:</span>
-          <span className="text-blue-600">{boxesPacked} / {boxesCount}</span>
+          <span className="font-bold mr-1">Itens:</span>
+          <span className="text-blue-600">
+            {itemsPacked || 0} / {itemsCount}
+          </span>
         </div>
-        <div>
-          <span className="font-bold mr-1">Status:</span>
-          <Badge variant={statusVariant}>{statusMessage}</Badge>
+        <div className="font-bold">
+          <span className="mr-1">Caixas:</span>
+          <span className="text-blue-600">
+            {boxesPacked || 0} / {boxesCount}
+          </span>
         </div>
       </div>
       <div
         className={cn(
           "text-white font-bold text-lg lg:text-2xl flex-auto w-full md:w-auto h-16 md:h-28 flex justify-center items-center order-last md:order-none mt-6 md:mt-0 bg-blue-600",
-          ('bg-' + displayColor + '-600')
+          "bg-" + displayColor + "-600"
         )}
       >
         {displayMessage}
@@ -68,6 +76,10 @@ const OpDisplay = ({
               year: "numeric",
             }) || "-"}
           </span>
+        </div>
+        <div>
+          <span className="font-bold mr-1">Status:</span>
+          <Badge variant={statusVariant}>{statusMessage}</Badge>
         </div>
       </div>
     </div>

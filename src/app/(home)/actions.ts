@@ -78,12 +78,15 @@ export async function getPaginatedOp({
       skip,
       take: limit,
     }),
+    //TODO: include sum of packed items (blisters)
+    // prisma.$queryRaw`SELECT * FROM User WHERE email = `,
   ]);
 
   const _data: OpDto[] = transaction[1].map((op) => {
     return {
       id: op.id,
       code: op.code,
+      // itemsPacked: op.itemsPacked,
       quantityToProduce: op.quantityToProduce,
       productTypeId: op.productTypeId,
       product: op.product,

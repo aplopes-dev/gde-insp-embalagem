@@ -6,6 +6,7 @@ export type OpInspectionDto = {
   productType: ProductTypeDto;
   blisterType: BlisterTypeDto;
   boxType: BoxTypeDto;
+  itemsPacked: number;
   totalBoxes: number;
   pendingBoxes: number;
   nextBox?: OpBoxInspectionDto;

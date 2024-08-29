@@ -14,11 +14,9 @@ export function useBoxOpColumns(): { columns: any[] } {
 
   function getStatusVariant(status?: number) {
     switch (status) {
-      case 0:
-        return "secondary";
       case 1:
         return "success";
-      case 3:
+      case 2:
         return "destructive";
       default:
         return "secondary";
@@ -27,12 +25,10 @@ export function useBoxOpColumns(): { columns: any[] } {
 
   function getStatusName(status?: number) {
     switch (status) {
-      case 0:
-        return "Pendente";
       case 1:
-        return "Aprovado";
-      case 3:
-        return "Reprovado";
+        return "Concluído";
+      case 2:
+        return "Quebra de OP";
       default:
         return "Pendente";
     }

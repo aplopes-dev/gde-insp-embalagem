@@ -15,9 +15,12 @@ import {
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
 import {
+  finalizeAndRemovePendingRelationsByOpCode,
   persistBoxStatusWithBlisters,
+  persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
+import { Button } from "@/components/ui/button";
 
 export default function PackagingInspection({
   params: { code },
@@ -30,7 +33,10 @@ export default function PackagingInspection({
   const [displayMessage, setDisplayMessage] = useState("");
   const [inspection, setInspection] = useState<ObjectValidation>();
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
+  const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
+  const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
+    useState<boolean>(false);
 
   const [targetBlister, setTargetBlister] = useState<number>();
 
@@ -45,10 +51,11 @@ export default function PackagingInspection({
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
     setData(opData);
+    setDisplayColor("blue");
     if (opData.finishedAt) {
       setDisplayMessage("OP Finalizada");
-      setDisplayColor("blue");
     } else if (opData.nextBox?.OpBoxBlister) {
+      setDisplayMessage("");
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -68,14 +75,12 @@ export default function PackagingInspection({
 
   useEffect(() => {
     let socket: any;
-
     loadData()
       .then((_) => {
         socket = io("http://localhost:3001");
         socket.on("notifyUser", (message: any) => {
           setInspection(message);
           console.log(message);
-          
         });
       })
       .catch((err: Error) => {
@@ -216,18 +221,105 @@ export default function PackagingInspection({
             variant: "destructive",
           });
         });
-      await loadData();
-      setStep(0);
+      await printTag();
+      await reload();
+    }
+  }
+
+  async function reload() {
+    await loadData();
+    setTargetBlister(undefined);
+    setStep(0);
+  }
+
+  async function printTag() {
+    toast({
+      title: "Informação",
+      description: "Imprimindo etiqueta",
+    });
+  }
+
+  async function forceOpFinalization() {
+    const issetPackedBlister = blisters.find((bl) => bl.packedAt);
+    const boxesPacked = Number(data?.totalBoxes) - Number(data?.pendingBoxes);
+
+    if (boxesPacked == 0) {
+      const issetValidBLister = blisters.find((bl) => bl.status == 1);
+      if (box?.status != 1 || !issetValidBLister) {
+        toast({
+          title: "Erro",
+          variant: "destructive",
+          description:
+            "Não é possível finalizar a operação, pois não há itens embalados",
+        });
+      } else {
+        //TODO: Persist box, partial blisters and remove pending
+        await persistWithOpBreak(box, blisters, data!.opId)
+          .then((_) => {
+            toast({
+              title: "Sucesso",
+              description: "OP finalizada com sucesso!",
+            });
+          })
+          .catch((err) => {
+            toast({
+              title: "Erro",
+              description: err.message,
+              variant: "destructive",
+            });
+          });
+        await reload();
+      }
+    } else {
+      if (box?.status == 0) {
+        await finalizeAndRemovePendingRelationsByOpCode(data!.opId)
+          .then((_) => {
+            toast({
+              title: "Sucesso",
+              description: "OP finalizada com sucesso!",
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+            toast({
+              title: "Erro",
+              description: err.message,
+              variant: "destructive",
+            });
+          });
+        await reload();
+      } else if (box?.status == 1 && !issetPackedBlister) {
+        toast({
+          title: "Erro",
+          variant: "destructive",
+          description: "A caixa está vazia, insira ao menos um blister!",
+        });
+      } else {
+        //TODO: Persist box, partial blisters and remove pending
+        await persistWithOpBreak(box!, blisters, data!.opId)
+          .then((_) => {
+            toast({
+              title: "Sucesso",
+              description: "OP finalizada com sucesso!",
+            });
+          })
+          .catch((err) => {
+            toast({
+              title: "Erro",
+              description: err.message,
+              variant: "destructive",
+            });
+          });
+        await reload();
+      }
     }
   }
 
   function getStatusVariant(status?: number) {
     switch (status) {
-      case 0:
-        return "secondary";
       case 1:
         return "success";
-      case 3:
+      case 2:
         return "destructive";
       default:
         return "secondary";
@@ -236,12 +328,10 @@ export default function PackagingInspection({
 
   function getStatusName(status?: number) {
     switch (status) {
-      case 0:
-        return "Pendente";
       case 1:
-        return "Aprovado";
-      case 3:
-        return "Reprovado";
+        return "Concluído";
+      case 2:
+        return "Quebra de OP";
       default:
         return "Pendente";
     }
@@ -257,6 +347,8 @@ export default function PackagingInspection({
               code={data.opCode}
               boxesCount={data.totalBoxes}
               boxesPacked={data.totalBoxes - data.pendingBoxes}
+              itemsCount={data.quantityToProduce}
+              itemsPacked={data.itemsPacked}
               displayMessage={displayMessage}
               displayColor={displayColor}
               statusMessage={getStatusName(data?.status) || ""}
@@ -266,7 +358,30 @@ export default function PackagingInspection({
             />
             {!data.finishedAt && (
               <>
-                <div className="mt-8">
+                <div className="flex justify-end gap-6 mt-8">
+                  <Button
+                    disabled={step != 3}
+                    className="bg-green-700 hover:bg-green-600"
+                    onClick={() => setOpenConfirmDialog(true)}
+                  >
+                    Finalizar e Imprimir
+                  </Button>
+                  <Button
+                    className="bg-blue-700 hover:bg-blue-600"
+                    disabled={box?.status != 1}
+                    onClick={() => setOpenRestartDialog(true)}
+                  >
+                    Reiniciar inspeção da caixa
+                  </Button>
+                  <Button
+                    className="bg-red-700 hover:bg-red-600"
+                    variant={"destructive"}
+                    onClick={() => setOpenForceFinalizationDialog(true)}
+                  >
+                    Finalizar com quebra
+                  </Button>
+                </div>
+                <div className="mt-2">
                   <h3 className="font-bold uppercase">Caixa</h3>
                   <BoxDisplay
                     name={data.boxType.name}
@@ -306,13 +421,31 @@ export default function PackagingInspection({
         )}
       </div>
       <ConfirmationDialog
-        title="Confirmação"
-        message="Deseja confirmar a inspeção e imprimir aetiqueta?"
+        title="Reiniciar Inspeção"
+        message="Deseja realmente reiniciar a inspeção desta caixa?"
+        cancelLabel="Cancelar"
+        confirmLabel="Confirmar"
+        confirmationAction={reload}
+        onOpenChange={setOpenRestartDialog}
+        open={openRestartDialog}
+      />
+      <ConfirmationDialog
+        title="Finalizar Inspeção"
+        message="Deseja confirmar a inspeção e imprimir a etiqueta?"
         cancelLabel="Cancelar"
         confirmLabel="Confirmar"
         confirmationAction={persistBoxInspection}
         onOpenChange={setOpenConfirmDialog}
         open={openConfirmDialog}
+      />
+      <ConfirmationDialog
+        title="Finalizar com quebra de OP"
+        message="Deseja realmente aprovar a Quebra de OP? A OP será finalizada desconsiderando peças pendentes."
+        cancelLabel="Cancelar"
+        confirmLabel="Confirmar"
+        confirmationAction={forceOpFinalization}
+        onOpenChange={setOpenForceFinalizationDialog}
+        open={openForceFinalizationDialog}
       />
     </div>
   );

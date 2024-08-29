@@ -74,6 +74,8 @@ export default function PackagingInspection({
         socket = io("http://localhost:3001");
         socket.on("notifyUser", (message: any) => {
           setInspection(message);
+          console.log(message);
+          
         });
       })
       .catch((err: Error) => {

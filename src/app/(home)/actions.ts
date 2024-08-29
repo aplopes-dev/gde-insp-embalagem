@@ -3,8 +3,7 @@
 import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { getOwnFilterClauses } from "@/utils/filter";
-import OpBoxDto from "./types/op-box-dto";
-import { headers } from "next/headers";
+import { OpDto } from "./_types/op-dto";
 
 type JerpOpDto = {
   id: number;
@@ -15,13 +14,13 @@ type JerpOpDto = {
 };
 
 //TODO: Integrate with Nexin
-export async function getOpToProduceByCode(opCode: string) {
+export async function getOpToProduceByCode(code: string) {
   await delay(1000);
   return {
     id: 327117,
-    Numero: Number(opCode),
+    Numero: Number(code),
     Produto: "BL-05432070 LD",
-    QuantidadeAProduzir: 104,
+    QuantidadeAProduzir: 112,
     Embalagens: [
       "BL-05432070 LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
       "CAIXA 520X320X170 TRIPLEX", //3 tipos
@@ -41,58 +40,59 @@ export async function getOpToProduceByCode(opCode: string) {
   // return data as JerpOpDto;
 }
 
-export async function getPaginatedBoxOp({
+export async function getPaginatedOp({
   limit,
   skip,
-  field = "createdAt",
-  order = "desc",
+  field,
+  order,
   filters,
 }: FilterPaginationParams) {
   let whereClauses = getOwnFilterClauses(filters);
+
+  whereClauses = {
+    ...whereClauses,
+    finishedAt: {
+      not: null,
+    },
+  };
+
   const transaction = await prisma.$transaction([
-    prisma.opBox.count({
+    prisma.op.count({
       where: whereClauses,
     }),
-    prisma.opBox.findMany({
+    prisma.op.findMany({
       where: whereClauses,
       orderBy: [
         {
           [`${field}`]: order.toLocaleLowerCase(),
         },
       ],
-      skip,
-      take: limit,
       include: {
-        op: {
+        product: {
           select: {
             code: true,
-            product: true,
-            box: true,
-            blister: true,
-          },
-        },
-        OpBoxBlister: {
-          select: {
-            quantity: true,
+            name: true,
           },
         },
       },
+      skip,
+      take: limit,
     }),
   ]);
 
-  const _data: OpBoxDto[] = transaction[1].map((item) => {
+  const _data: OpDto[] = transaction[1].map((op) => {
     return {
-      id: item.id,
-      code: item.code,
-      boxName: item.op.box.name,
-      productName: item.op.product.name,
-      opCode: item.op.code,
-      packedAt: item.packedAt || undefined,
-      createdAt: item.createdAt,
-      status: item.status,
-      quantity: item.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0),
+      id: op.id,
+      code: op.code,
+      quantityToProduce: op.quantityToProduce,
+      productTypeId: op.productTypeId,
+      product: op.product,
+      finishedAt: op.finishedAt || undefined,
+      createdAt: op.createdAt,
+      status: op.status,
     };
   });
+
   const _count = transaction[0];
   return [_data, _count];
 }

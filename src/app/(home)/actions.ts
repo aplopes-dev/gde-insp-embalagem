@@ -13,6 +13,11 @@ type JerpOpDto = {
   Embalagens: string[];
 };
 
+type OpQuantityProducedDto = {
+  code: string;
+  produced: number;
+};
+
 //TODO: Integrate with Nexin
 export async function getOpToProduceByCode(code: string) {
   await delay(1000);
@@ -78,15 +83,29 @@ export async function getPaginatedOp({
       skip,
       take: limit,
     }),
-    //TODO: include sum of packed items (blisters)
-    // prisma.$queryRaw`SELECT * FROM User WHERE email = `,
   ]);
+
+  const ids = transaction[1].map((op) => op.id);
+  let quantityArr: OpQuantityProducedDto[] = [];
+
+  if (ids) {
+    quantityArr =
+      await prisma.$queryRawUnsafe(`select op.code, CAST(sum(bl.quantity) AS INTEGER) as produced from "OpBoxBlister" as bl
+    inner join "OpBox" bx on bx."id" = bl."opBoxId"
+    inner join "Op" op on op."id" = bx."opId"
+    where bl."packedAt" is not null and op.id in(${ids.join(",")})
+    group by op.id`);
+  }
+
+  const quantityMap = new Map(
+    quantityArr.map((row) => [row.code, row.produced])
+  );
 
   const _data: OpDto[] = transaction[1].map((op) => {
     return {
       id: op.id,
       code: op.code,
-      // itemsPacked: op.itemsPacked,
+      itemsPacked: quantityMap.get(op.code) || 0,
       quantityToProduce: op.quantityToProduce,
       productTypeId: op.productTypeId,
       product: op.product,

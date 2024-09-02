@@ -312,6 +312,19 @@ export async function getNextBoxByOpId(id: number) {
   return box as OpBoxInspectionDto;
 }
 
+export async function managarAuthorization(code: string, password: string) {
+  const manager = await prisma.manager.findUnique({
+    where: {
+      id: Number(code),
+      password,
+    },
+  });
+  if(!manager) {
+    throw new Error("Código / Senha inválidos!");
+  }
+  return manager && manager.id;
+}
+
 // ## ------- INTERNAL FUNCTIONS --------
 
 function getCollectionToCreateBlisterBoxes(

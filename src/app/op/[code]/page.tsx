@@ -21,6 +21,7 @@ import {
   syncAndGetOpToProduceByCode,
 } from "./actions";
 import { Button } from "@/components/ui/button";
+import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
 
 export default function PackagingInspection({
   params: { code },
@@ -239,7 +240,7 @@ export default function PackagingInspection({
     });
   }
 
-  async function forceOpFinalization() {
+  async function forceOpFinalization(managerId: string) {
     const issetPackedBlister = blisters.find((bl) => bl.packedAt);
     const boxesPacked = Number(data?.totalBoxes) - Number(data?.pendingBoxes);
 
@@ -438,14 +439,12 @@ export default function PackagingInspection({
         onOpenChange={setOpenConfirmDialog}
         open={openConfirmDialog}
       />
-      <ConfirmationDialog
-        title="Finalizar com quebra de OP"
-        message="Deseja realmente aprovar a Quebra de OP? A OP será finalizada desconsiderando peças pendentes."
-        cancelLabel="Cancelar"
-        confirmLabel="Confirmar"
-        confirmationAction={forceOpFinalization}
+      <ManagerAuthFormDialog
+        title={"Autorizar quebra de OP"}
+        message={"A OP será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."}
+        isOpen={openForceFinalizationDialog}
         onOpenChange={setOpenForceFinalizationDialog}
-        open={openForceFinalizationDialog}
+        onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
     </div>
   );

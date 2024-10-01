@@ -79,7 +79,7 @@ export default function PackagingInspection({
     loadData()
       .then((_) => {
         socket = io("http://localhost:3001");
-        socket.on("notifyUser", (message: any) => {
+        socket.on("detectionUpdate", (message: any) => {
           setInspection(message);
           console.log(message);
         });
@@ -93,7 +93,7 @@ export default function PackagingInspection({
         });
       });
     return () => {
-      socket?.off("notifyUser");
+      socket?.off("detectionUpdate");
       socket?.disconnect();
     };
   }, []);

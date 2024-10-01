@@ -2,11 +2,14 @@
 
 import { getOpToProduceByCode } from "@/app/(home)/actions";
 import prisma from "@/providers/database";
+import { hashPass, isSamePass } from "@/utils/bcrypt";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
+
+const bcrypt = require("bcrypt");
 
 export async function syncAndGetOpToProduceByCode(code: string) {
   const externalOp = await getOpToProduceByCode(code);
@@ -310,6 +313,20 @@ export async function getNextBoxByOpId(id: number) {
     },
   });
   return box as OpBoxInspectionDto;
+}
+
+export async function managarAuthorization(code: string, password: string) {
+  const manager = await prisma.manager.findUnique({
+    where: {
+      id: Number(code),
+    },
+  });
+  const managerPassword = manager?.password || "";
+  const confirmPass = await isSamePass(password, managerPassword);
+  if (!confirmPass) {
+    throw new Error("Código / Senha inválidos!");
+  }
+  return manager && manager.id;
 }
 
 // ## ------- INTERNAL FUNCTIONS --------

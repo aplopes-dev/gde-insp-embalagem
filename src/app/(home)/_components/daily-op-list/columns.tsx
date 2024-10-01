@@ -96,6 +96,19 @@ export function useBoxOpColumns(): { columns: any[] } {
       },
     },
     {
+      id: "itemsPacked",
+      header: "Quantidade embalada",
+      meta: {
+        className: "flex-1 text-center",
+      },
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => {
+        const quantity = Number(row.getValue("itemsPacked"));
+        return <div className="text-center">{quantity}</div>;
+      },
+    },
+    {
       id: "status",
       header: "Status",
       enableSorting: false,
@@ -114,6 +127,7 @@ export function useBoxOpColumns(): { columns: any[] } {
         );
       },
     },
+    //TODO: ADD view page
     // {
     //   id: "actions",
     //   header: () => <div className="hidden lg:block">Ações</div>,
@@ -135,7 +149,6 @@ export function useBoxOpColumns(): { columns: any[] } {
     //   },
     // },
   ] as ColumnDef<any>[];
-  //TODO: ] as ColumnDef<OpBoxType>[];
 
   return { columns };
 }

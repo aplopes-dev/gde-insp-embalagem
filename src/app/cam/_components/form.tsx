@@ -50,7 +50,6 @@ const CamForm = () => {
     await sendNotification({
       type: type as ValidableType,
       code,
-      name,
       count: Number(data.count),
     });
   });
@@ -66,19 +65,6 @@ const CamForm = () => {
               <FormLabel>Código</FormLabel>
               <FormControl>
                 <Input placeholder="Insira o código" {...field} />
-              </FormControl>
-              <FormMessage>{errors.code && errors.code.message}</FormMessage>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome</FormLabel>
-              <FormControl>
-                <Input placeholder="Insira o nome" {...field} />
               </FormControl>
               <FormMessage>{errors.code && errors.code.message}</FormMessage>
             </FormItem>
@@ -113,7 +99,7 @@ const CamForm = () => {
           name="count"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Código</FormLabel>
+              <FormLabel>Quantidade</FormLabel>
               <FormControl>
                 <Input placeholder="Insira a quantidade" {...field} />
               </FormControl>

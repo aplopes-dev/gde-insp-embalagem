@@ -117,7 +117,6 @@ export function useBoxOpColumns(): { columns: any[] } {
       },
     },
   ] as ColumnDef<any>[];
-  //TODO: ] as ColumnDef<OpBoxType>[];
 
   return { columns };
 }

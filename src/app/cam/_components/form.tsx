@@ -27,7 +27,7 @@ import { ValidationFormType, validationSchema } from "../schema";
 const CamForm = () => {
   const sendNotification = (data: any) => {
     const socket = io("http://localhost:3001");
-    socket.emit("notifyUser", data);
+    socket.emit("detectionUpdate", data);
   };
 
   const form = useForm<ValidationFormType>({

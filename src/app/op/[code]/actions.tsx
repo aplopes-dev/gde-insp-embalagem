@@ -2,7 +2,7 @@
 
 import { getOpToProduceByCode } from "@/app/(home)/actions";
 import prisma from "@/providers/database";
-import { hashPass, isSamePass } from "@/utils/bcrypt";
+import { isSamePass } from "@/utils/bcrypt";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
@@ -267,36 +267,29 @@ export async function persistWithOpBreak(
     })
   );
 
-  queryCollection.push(
-    prisma.opBoxBlister.deleteMany({
+  try {
+    // Persist blister and boxes after packeging
+    await prisma.$transaction(queryCollection);
+    const countPendingItems = await prisma.opBoxBlister.aggregate({
+      _sum: {
+        quantity: true,
+      },
       where: {
         packedAt: null,
         opBox: {
           opId,
         },
       },
-    })
-  );
-  queryCollection.push(
-    prisma.opBox.deleteMany({
-      where: {
-        opId,
-        packedAt: null,
-      },
-    })
-  );
-  queryCollection.push(
-    prisma.op.update({
-      data: {
-        finishedAt: new Date(),
-        status: 2,
-      },
-      where: {
-        id: opId,
-      },
-    })
-  );
-  await prisma.$transaction(queryCollection);
+    });
+    const quantityPending = countPendingItems._sum.quantity;
+    if (quantityPending) {
+      await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
+    } else {
+      throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
+    }
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 export async function getNextBoxByOpId(id: number) {
@@ -329,13 +322,66 @@ export async function managarAuthorization(code: string, password: string) {
   return manager && manager.id;
 }
 
+export async function recalculateBoxesFromOpAndItemQuantity(
+  opId: number,
+  quantityToProduce: number
+) {
+  const op = await prisma.op.findUnique({
+    where: {
+      id: opId,
+    },
+    include: { blister: true, OpBox: true },
+  });
+
+  if (!op) {
+    throw new Error(`Not found OP with ID: ${opId}`);
+  }
+
+  const boxes = getCollectionToCreateBlisterBoxes(
+    `OP${op.code}-BX`,
+    quantityToProduce,
+    op.blister?.slots,
+    op.blister?.limitPerBox,
+    op.OpBox.length
+  );
+
+  await prisma.$transaction([
+    prisma.opBoxBlister.deleteMany({
+      where: {
+        packedAt: null,
+        opBox: {
+          opId,
+        },
+      },
+    }),
+    prisma.opBox.deleteMany({
+      where: {
+        opId,
+        packedAt: null,
+      },
+    }),
+  ]);
+
+  return prisma.op.update({
+    data: {
+      OpBox: {
+        create: boxes,
+      },
+    },
+    where: {
+      id: opId,
+    },
+  });
+}
+
 // ## ------- INTERNAL FUNCTIONS --------
 
 function getCollectionToCreateBlisterBoxes(
   boxTagPrefix: string,
   quantityToProduce: number,
   itemPerBlister: number,
-  blisterPerBox: number
+  blisterPerBox: number,
+  boxGap?: number
 ) {
   const modItemPerBlister = quantityToProduce % itemPerBlister;
   let blistersToProduce =
@@ -358,7 +404,7 @@ function getCollectionToCreateBlisterBoxes(
     const isLastBox = i + 1 == boxesToProduce;
     const blisterCount = isLastBox ? lastBoxQuantity : blisterPerBox;
     return {
-      code: `${boxTagPrefix}-${i + 1}`,
+      code: `${boxTagPrefix}-${i + (boxGap || 1)}`,
       OpBoxBlister: {
         create: Array.from(Array(blisterCount)).map((_, j) => {
           const isLastBlister = j + 1 == blisterCount;

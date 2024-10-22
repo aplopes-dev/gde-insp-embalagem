@@ -21,7 +21,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
 
   if (!internalOp) {
     const refNames = ["Produto", "Blister", "Caixa"];
-    const packagingNames = externalOp.embalagens.map((emb) => emb.nome);
+    const packagingNames = externalOp.embalagens.map((emb) => emb.nome.toUpperCase());
     const refValue = [`${externalOp.produto.nome}`];
     const transaction = await prisma.$transaction([
       prisma.productType.findFirst({

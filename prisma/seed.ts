@@ -5,16 +5,10 @@ async function main() {
   const boxTypesSeed$ = prisma.boxType.createMany({
     data: [
       {
-        id: 2,
-        name: "CAIXA 450 x 270 x 400 TRIPLEX",
-        description: "Descrição da caixa 02",
-      },
-      {
-        id: 3,
+        id: 1,
         name: "CAIXA 520X320X170 TRIPLEX",
-        description: "Descrição da caixa 03",
+        description: "Descrição da caixa 01",
       },
-
     ]
   })
 
@@ -22,19 +16,43 @@ async function main() {
     data: [
       {
         id: 1,
-        name: "BL-05432070 LD Rev.0 Antiestático",
-        description: "Descrição blister 02",
-        slots: 50,
-        limitPerBox: 2,
-        boxTypeId: 3
+        name: "BLISTER_XBB",
+        description: "Descrição blister blister_xbb",
+        slots: 56,
+        limitPerBox: 6,
+        boxTypeId: 1
+      },
+      {
+        id: 2,
+        name: "BLISTER-A25-090",
+        description: "Descrição blister A25-090",
+        slots: 6,
+        limitPerBox: 3,
+        boxTypeId: 1
+      },
+      {
+        id: 3,
+        name: "BLISTER-LE-TL23411AA",
+        description: "Descrição blister le-tl23411aa",
+        slots: 10,
+        limitPerBox: 4,
+        boxTypeId: 1
       },
       {
         id: 4,
-        name: "Blister BL-03832070LD Rev.0 Antiestático",
-        description: "Descrição blister 01",
+        name: "BLISTER-BL-03833070LE",
+        description: "Descrição blister BL-03833070LE",
         slots: 10,
-        limitPerBox: 5,
-        boxTypeId: 2
+        limitPerBox: 4,
+        boxTypeId: 1
+      },
+      {
+        id: 5,
+        name: "BLISTER-BL-03832070LD",
+        description: "Descrição blister BL-03832070LD",
+        slots: 4,
+        limitPerBox: 3,
+        boxTypeId: 1
       },
     ]
   })
@@ -43,15 +61,33 @@ async function main() {
     data: [
       {
         id: 1,
-        code: "P01",
-        name: "BL-03832070 LD - NEW",
-        description: "Descrição do produto 01"
+        code: "XBB",
+        name: "XBB",
+        description: "Descrição xbb"
+      },
+      {
+        id: 2,
+        code: "A25-090",
+        name: "A25-090",
+        description: "Descrição A25-090"
       },
       {
         id: 3,
-        code: "P03",
-        name: "BL-05432070 LD",
-        description: "Descrição do item BL-05432070 LD"
+        code: "LE-TL23411AA",
+        name: "LE-TL23411AA",
+        description: "Descrição LE-TL23411AA"
+      },
+      {
+        id: 4,
+        code: "BL-03833070LE",
+        name: "BL-03833070LE",
+        description: "Descrição BL-03833070LE"
+      },
+      {
+        id: 5,
+        code: "BL-03832070LD",
+        name: "BL-03832070LD",
+        description: "Descrição BL-03832070LD"
       },
     ]
   })

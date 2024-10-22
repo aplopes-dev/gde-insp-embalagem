@@ -28,24 +28,24 @@ export async function getOpToProduceByCode(code: string): Promise<OpJerpDto> {
     numero: Number(code),
     produto: {
       id: 1,
-      nome: "BL-05432070 LD"
+      nome: "XBB"
     },
     quantidadeAProduzir: 112,
     embalagens: [
       {
         id: 1,
-        nome: "BL-05432070 LD Rev.0 Antiestático",
-        quantidadeAlocada: 4
+        nome: "BLISTER_XBB",
+        quantidadeAlocada: 20
       },
       {
-        id: 2,
+        id: 1,
         nome: "CAIXA 520X320X170 TRIPLEX",
         quantidadeAlocada: 2
       },
       {
-        id: 5,
+        id: 1,
         nome: "DIVISORIAS CX 520X320X170",
-        quantidadeAlocada: 10
+        quantidadeAlocada: 4
       }
     ]
   } as OpJerpDto

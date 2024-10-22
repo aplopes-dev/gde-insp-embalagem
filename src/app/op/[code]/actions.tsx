@@ -22,9 +22,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
   if (!internalOp) {
     const refNames = ["Produto", "Blister", "Caixa"];
     const packagingNames = externalOp.embalagens.map((emb) => emb.nome);
-    const refValue = [
-      `${externalOp.produto.nome}`,
-    ];
+    const refValue = [`${externalOp.produto.nome}`];
     const transaction = await prisma.$transaction([
       prisma.productType.findFirst({
         where: {
@@ -535,7 +533,7 @@ function getCollectionToCreateBlisterBoxes(
   quantityToProduce: number,
   itemPerBlister: number,
   blisterPerBox: number,
-  boxGap?: number
+  boxGap: number = 0
 ) {
   const modItemPerBlister = quantityToProduce % itemPerBlister;
   let blistersToProduce =
@@ -558,7 +556,7 @@ function getCollectionToCreateBlisterBoxes(
     const isLastBox = i + 1 == boxesToProduce;
     const blisterCount = isLastBox ? lastBoxQuantity : blisterPerBox;
     return {
-      code: `${boxTagPrefix}-${i + (boxGap || 1)}`,
+      code: `${boxTagPrefix}-${i + 1 + boxGap}`,
       OpBoxBlister: {
         create: Array.from(Array(blisterCount)).map((_, j) => {
           const isLastBlister = j + 1 == blisterCount;

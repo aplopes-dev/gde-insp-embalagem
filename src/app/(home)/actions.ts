@@ -4,6 +4,7 @@ import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { getOwnFilterClauses } from "@/utils/filter";
 import { OpDto } from "./_types/op-dto";
+import { OpJerpDto } from "./_types/op-jerp-dto";
 
 type JerpOpDto = {
   id: number;
@@ -19,19 +20,50 @@ type OpQuantityProducedDto = {
 };
 
 //TODO: Integrate with Nexin
-export async function getOpToProduceByCode(code: string) {
+export async function getOpToProduceByCode(code: string): Promise<OpJerpDto> {
   await delay(1000);
+  // New payload:
   return {
     id: 327117,
-    Numero: Number(code),
-    Produto: "BL-05432070 LD",
-    QuantidadeAProduzir: 112,
-    Embalagens: [
-      "BL-05432070 LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
-      "CAIXA 520X320X170 TRIPLEX", //3 tipos
-      "DIVISORIAS CX 520X320X170",
-    ],
-  };
+    numero: Number(code),
+    produto: {
+      id: 1,
+      nome: "BL-05432070 LD"
+    },
+    quantidadeAProduzir: 112,
+    embalagens: [
+      {
+        id: 1,
+        nome: "BL-05432070 LD Rev.0 Antiestático",
+        quantidadeAlocada: 4
+      },
+      {
+        id: 2,
+        nome: "CAIXA 520X320X170 TRIPLEX",
+        quantidadeAlocada: 2
+      },
+      {
+        id: 5,
+        nome: "DIVISORIAS CX 520X320X170",
+        quantidadeAlocada: 10
+      }
+    ]
+  } as OpJerpDto
+
+  // Old payload:
+  // return {
+  //   id: 327117,
+  //   Numero: Number(code),
+  //   Produto: "BL-05432070 LD",
+  //   QuantidadeAProduzir: 112,
+  //   Embalagens: [
+  //     "BL-05432070 LD Rev.0 Antiestático", //mais de 500 tipos - o blister sabe a sua caixa
+  //     "CAIXA 520X320X170 TRIPLEX", //3 tipos
+  //     "DIVISORIAS CX 520X320X170",
+  //   ],
+  // };
+
+  // Requet from jerp:
   // const dynamicData = await fetch(
   //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${opCode}`,
   //   {

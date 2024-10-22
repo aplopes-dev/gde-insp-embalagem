@@ -1,17 +1,18 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 async function main() {
+
   const boxTypesSeed$ = prisma.boxType.createMany({
     data: [
-      {
-        id: 1,
-        name: "CAIXA 520X320X170 TRIPLEX",
-        description: "Descrição da caixa 01",
-      },
       {
         id: 2,
         name: "CAIXA 450 x 270 x 400 TRIPLEX",
         description: "Descrição da caixa 02",
+      },
+      {
+        id: 3,
+        name: "CAIXA 520X320X170 TRIPLEX",
+        description: "Descrição da caixa 03",
       },
 
     ]
@@ -21,20 +22,20 @@ async function main() {
     data: [
       {
         id: 1,
-        name: "Blister BL-03832070LD Rev.0 Antiestático",
-        description: "Descrição blister 01",
-        slots: 10,
-        limitPerBox: 5,
-        boxTypeId: 1
-      },
-      {
-        id: 2,
         name: "BL-05432070 LD Rev.0 Antiestático",
         description: "Descrição blister 02",
         slots: 50,
         limitPerBox: 2,
-        boxTypeId: 1
-      }
+        boxTypeId: 3
+      },
+      {
+        id: 4,
+        name: "Blister BL-03832070LD Rev.0 Antiestático",
+        description: "Descrição blister 01",
+        slots: 10,
+        limitPerBox: 5,
+        boxTypeId: 2
+      },
     ]
   })
 
@@ -71,6 +72,7 @@ async function main() {
     productTypesSeed$,
     managerSeed$
   ])
+
 }
 main()
   .then(async () => {

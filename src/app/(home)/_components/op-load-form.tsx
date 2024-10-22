@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { getOpToProduceByCode } from "../actions";
+import { PackagingJerpDto, ProductJerpDto } from "../_types/op-jerp-dto";
 
 const OpLoadForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +39,7 @@ const OpLoadForm = () => {
     setIsLoading(true);
     getOpToProduceByCode(op)
       .then((res) => {
-        opIsValid(res) && redirectAction(`/op/${res.Numero}`);
+        opIsValid(res) && redirectAction(`/op/${res.numero}`);
         setIsLoading(false);
       })
       .catch((_) => {
@@ -90,15 +91,15 @@ const OpLoadForm = () => {
 };
 
 function opIsValid({
-  QuantidadeAProduzir,
+  quantidadeAProduzir,
 }: {
   id: number;
-  Numero: number;
-  Produto: string;
-  QuantidadeAProduzir: number;
-  Embalagens: string[];
+  numero: number;
+  produto: ProductJerpDto;
+  quantidadeAProduzir: number;
+  embalagens: PackagingJerpDto[];
 }) {
-  if (!QuantidadeAProduzir || QuantidadeAProduzir <= 0) {
+  if (!quantidadeAProduzir || quantidadeAProduzir <= 0) {
     toast({
       title: "Alerta",
       description: "Não existem itens à serem embalados",
@@ -107,5 +108,25 @@ function opIsValid({
   }
   return true;
 }
+
+// Disable old endpoint
+// function opIsValid({
+//   QuantidadeAProduzir,
+// }: {
+//   id: number;
+//   Numero: number;
+//   Produto: string;
+//   QuantidadeAProduzir: number;
+//   Embalagens: string[];
+// }) {
+//   if (!QuantidadeAProduzir || QuantidadeAProduzir <= 0) {
+//     toast({
+//       title: "Alerta",
+//       description: "Não existem itens à serem embalados",
+//     });
+//     return false;
+//   }
+//   return true;
+// }
 
 export default OpLoadForm;

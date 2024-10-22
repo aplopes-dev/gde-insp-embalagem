@@ -88,7 +88,7 @@ export async function getPaginatedOp({
   const ids = transaction[1].map((op) => op.id);
   let quantityArr: OpQuantityProducedDto[] = [];
 
-  if (ids) {
+  if (ids && ids.length > 0) {
     quantityArr =
       await prisma.$queryRawUnsafe(`select op.code, CAST(sum(bl.quantity) AS INTEGER) as produced from "OpBoxBlister" as bl
     inner join "OpBox" bx on bx."id" = bl."opBoxId"

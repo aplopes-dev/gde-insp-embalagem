@@ -1,8 +1,9 @@
-"use server"
+"use server";
 
 import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { getOwnFilterClauses } from "@/utils/filter";
+import { OpBoxBlister } from "@prisma/client";
 import OpBoxDto from "./_types/op-box-dto";
 
 export async function getPaginatedBoxOp({
@@ -10,11 +11,9 @@ export async function getPaginatedBoxOp({
   skip,
   field,
   order,
-  filters
+  filters,
 }: FilterPaginationParams) {
   let whereClauses = getOwnFilterClauses(filters);
-  console.log("whereClauses", whereClauses);
-  
   const transaction = await prisma.$transaction([
     prisma.opBox.count({
       where: whereClauses,
@@ -61,4 +60,13 @@ export async function getPaginatedBoxOp({
   });
   const _count = transaction[0];
   return [_data, _count];
+}
+
+export async function getOpBoxWithBlistersById(id: number) {
+  return prisma.opBox.findUnique({
+    where: {
+      id,
+    },
+    include: { OpBoxBlister: true },
+  });
 }

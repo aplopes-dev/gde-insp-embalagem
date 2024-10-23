@@ -5,8 +5,8 @@ export type OpDto = {
   quantityToProduce: number;
   productTypeId: number;
   product: OpProductDto;
-  box: OpBoxDto;
-  blister: OpBlisterDto;
+  box?: OpBoxDto;
+  blister?: OpBlisterDto;
   createdAt: Date;
   finishedAt?: Date;
 };

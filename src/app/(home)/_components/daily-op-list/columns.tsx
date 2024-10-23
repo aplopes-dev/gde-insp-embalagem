@@ -1,5 +1,6 @@
 "use client";
 
+import { DataTableCommonActions } from "@/components/data-table/components/data-table-common-actions";
 import { Badge } from "@/components/ui/badge";
 import { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,7 +10,7 @@ export function useBoxOpColumns(): { columns: any[] } {
   const router = useRouter();
 
   function redirectAction(uri: string) {
-    router.push(`${resourcePath}/${uri}`);
+    router.push(`${resourcePath}${uri}`);
   }
 
   function getStatusVariant(status?: number) {
@@ -119,7 +120,6 @@ export function useBoxOpColumns(): { columns: any[] } {
         const status = Number(row.getValue("status"));
         return (
           <div className="flex justify-end">
-            {/* {status == "enabled" ? <CheckIcon /> : <XIcon />} */}
             <Badge variant={getStatusVariant(status)}>
               {getStatusName(status)}
             </Badge>
@@ -128,26 +128,27 @@ export function useBoxOpColumns(): { columns: any[] } {
       },
     },
     //TODO: ADD view page
-    // {
-    //   id: "actions",
-    //   header: () => <div className="hidden lg:block">Ações</div>,
-    //   enableSorting: false,
-    //   meta: {
-    //     className: "flex-1 text-right",
-    //   },
-    //   cell: ({ row }) => {
-    //     const rowId = row.original.id;
-    //     return (
-    //       <DataTableCommonActions
-    //         className="flex justify-end items-center"
-    //         resourceId={`${rowId}`}
-    //         onClickView={() => redirectAction(`/${rowId}`)}
-    //         disableEdit
-    //         disableDelete
-    //       />
-    //     );
-    //   },
-    // },
+    {
+      id: "actions",
+      header: () => <div className="hidden lg:block">Ações</div>,
+      enableSorting: false,
+      meta: {
+        className: "flex-1 text-right",
+      },
+      cell: ({ row }) => {
+        const rowId = row.original.id;
+        const code = Number(row.getValue("code"));
+        return (
+          <DataTableCommonActions
+            className="flex justify-end items-center"
+            resourceId={`${rowId}`}
+            onClickView={() => redirectAction(`op/${code}/detail`)}
+            disableEdit
+            disableDelete
+          />
+        );
+      },
+    },
   ] as ColumnDef<any>[];
 
   return { columns };

@@ -412,6 +412,8 @@ export default function PackagingInspection({
                 <div className="mt-8">
                   <h3 className="font-bold uppercase">Embalagem</h3>
                   <BlisterDisplay
+                    blisterName={data.blisterType.name}
+                    itemName={data.productType.name}
                     blisters={blisters}
                     targetIndex={targetBlister}
                   />
@@ -441,7 +443,9 @@ export default function PackagingInspection({
       />
       <ManagerAuthFormDialog
         title={"Autorizar quebra de OP"}
-        message={"A OP será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."}
+        message={
+          "A OP será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."
+        }
         isOpen={openForceFinalizationDialog}
         onOpenChange={setOpenForceFinalizationDialog}
         onManagerAuth={(managerId) => forceOpFinalization(managerId)}

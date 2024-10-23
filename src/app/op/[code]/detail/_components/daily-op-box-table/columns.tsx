@@ -1,18 +1,16 @@
 "use client";
 
-import { DataTableCommonActions } from "@/components/data-table/components/data-table-common-actions";
+import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
-import { CheckIcon, XIcon } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { CheckIcon, EyeIcon, XIcon } from "lucide-react";
 
-export function useBoxOpColumns(): { columns: any[] } {
-  const resourcePath = usePathname();
-  const router = useRouter();
-
-  function redirectAction(uri: string) {
-    router.push(`${resourcePath}/${uri}`);
-  }
-
+export function useBoxOpColumns({
+  onCLickView,
+}: {
+  onCLickView: (value: any) => void;
+}): {
+  columns: any[];
+} {
   const columns = [
     {
       id: "code",
@@ -45,8 +43,23 @@ export function useBoxOpColumns(): { columns: any[] } {
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
+        const id = row.original.id
         const quantity = Number(row.getValue("quantity"));
-        return <div className="text-center">{quantity}</div>;
+        return (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              title="Visualizar blisters"
+              onClick={() => {
+                onCLickView(id);
+              }}
+              className="flex gap-2"
+            >
+              <EyeIcon className="w-4 h-4" />
+              <span>{quantity}</span>
+            </Button>
+          </div>
+        );
       },
     },
     {
@@ -62,26 +75,6 @@ export function useBoxOpColumns(): { columns: any[] } {
           <div className="flex justify-center">
             {status == 1 ? <CheckIcon /> : <XIcon />}
           </div>
-        );
-      },
-    },
-    {
-      id: "actions",
-      header: () => <div className="hidden lg:block">Ações</div>,
-      enableSorting: false,
-      meta: {
-        className: "flex-1 text-right",
-      },
-      cell: ({ row }) => {
-        const rowId = row.original.id;
-        return (
-          <DataTableCommonActions
-            className="flex justify-end items-center"
-            resourceId={`${rowId}`}
-            onClickView={() => redirectAction(`/${rowId}`)}
-            disableEdit
-            disableDelete
-          />
         );
       },
     },

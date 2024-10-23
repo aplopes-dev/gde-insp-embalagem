@@ -42,9 +42,13 @@ function getStatusName(status?: number) {
 const BlisterDisplay = ({
   blisters,
   targetIndex,
+  blisterName,
+  itemName,
 }: {
   blisters: OpBoxBlisterInspection[];
   targetIndex?: number;
+  blisterName: string;
+  itemName: string;
 }) => {
   return (
     <div className="flex flex-col">
@@ -67,7 +71,7 @@ const BlisterDisplay = ({
               )}
               key={data.id}
             >
-              <TableCell>{data.id}</TableCell>
+              <TableCell>{index + 1}</TableCell>
               <TableCell
                 className={
                   targetIndex == index && data.isValidItem
@@ -75,7 +79,7 @@ const BlisterDisplay = ({
                     : ""
                 }
               >
-                BLF042
+                {blisterName}
               </TableCell>
               <TableCell
                 className={
@@ -84,7 +88,7 @@ const BlisterDisplay = ({
                     : ""
                 }
               >
-                L-FSD-LE-042
+                {itemName}
               </TableCell>
               <TableCell
                 className={

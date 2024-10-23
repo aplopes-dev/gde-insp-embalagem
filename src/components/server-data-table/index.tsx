@@ -28,7 +28,7 @@ type ServerDataTableProps = {
   childs?: {
     toolbar?: React.ComponentType<any>;
   };
-  className?: string
+  className?: string;
 };
 
 export function ServerDataTable<TData, TValue>({
@@ -43,7 +43,7 @@ export function ServerDataTable<TData, TValue>({
   onColumnFiltersChange,
   columnFilters,
   childs,
-  className
+  className,
 }: ServerDataTableProps) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 

@@ -53,7 +53,7 @@ const BoxPage = ({
       {data && (
         <div className="flex justify-center">
           <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%]">
-            <h1 className="text-xl xl:text-4xl exl:text-8xl uppercase font-bold">
+            <h1 className="text-xl xl:text-4xl uppercase font-bold">
               Detalhes da OP
             </h1>
             <div className="flex flex-col md:flex-row md:gap-4">
@@ -70,11 +70,11 @@ const BoxPage = ({
                 </div>
                 <div className="font-bold">
                   <span className="mr-1">Caixa:</span>
-                  <span className="text-blue-600">{data.box.name}</span>
+                  <span className="text-blue-600">{data.box?.name}</span>
                 </div>
                 <div className="font-bold">
                   <span className="mr-1">Blister:</span>
-                  <span className="text-blue-600">{data.blister.name}</span>
+                  <span className="text-blue-600">{data.blister?.name}</span>
                 </div>
               </div>
 

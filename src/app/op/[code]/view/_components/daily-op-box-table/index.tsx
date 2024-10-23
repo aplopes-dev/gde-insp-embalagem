@@ -9,7 +9,7 @@ import { useBoxOpColumns } from "./columns";
 import { BoxOpDataTableToolbar } from "./toolbar";
 import { getPaginatedBoxOp } from "../../actions";
 
-export function DailyOpBoxTable() {
+export function DailyOpBoxTable({ opId }: { opId: number }) {
   const { columns } = useBoxOpColumns();
 
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);
@@ -21,6 +21,15 @@ export function DailyOpBoxTable() {
     sort: { field, order },
     filters: columnFilters,
     getAction: getPaginatedBoxOp,
+    defautlFilters: [
+      {
+        id: "opId",
+        value: {
+          operator: "equals",
+          value: opId,
+        },
+      },
+    ],
   });
 
   const pageCount = Math.round((count as number) / limit);

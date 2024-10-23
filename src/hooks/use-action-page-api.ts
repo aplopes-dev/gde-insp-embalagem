@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 export function useActionPageApi({
   pagination: { limit = 10, skip = 0 } = {},
   sort: { field = "", order = "" } = {},
-  filters = [],
+  filters = [] as any[],
   getAction = async (params: FilterPaginationParams): Promise<any> => {},
+  defautlFilters = [] as any[],
 } = {}) {
   const [data, setData] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setLoading(true);
-
+    filters = defautlFilters.concat(filters)
     const res = getAction({ limit, skip, field, order, filters });
     const abort = () => {};
 

@@ -26,7 +26,7 @@ export function BoxOpDataTableToolbar<TData>({
             placeholder="Código da embalagem"
           />
         )}
-        {table.getColumn("status") && (
+        {/* {table.getColumn("status") && (
           <DataTableSelectFilter
             column={table.getColumn("status")}
             title="Status"
@@ -43,14 +43,14 @@ export function BoxOpDataTableToolbar<TData>({
               },
             ]}
           />
-        )}
-        {table.getColumn("createdAt") && (
+        )} */}
+        {/* {table.getColumn("packedAt") && (
           <DataTableDateFilter
-            column={table.getColumn("createdAt")}
-            title="Criado em"
+            column={table.getColumn("packedAt")}
+            title="Embalado em"
             localeCode="ptBR"
           />
-        )}
+        )} */}
         {table.getColumn("packedAt") && (
           <DataTableDateFilter
             column={table.getColumn("packedAt")}
@@ -61,7 +61,7 @@ export function BoxOpDataTableToolbar<TData>({
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => table.resetColumnFilters()}
+            onClick={() => table.resetColumnFilters(true)}
             className="h-8 px-2 lg:px-3"
           >
             Limpar

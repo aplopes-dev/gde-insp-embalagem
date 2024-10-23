@@ -1,7 +1,8 @@
+import { FilterClauseType } from "@/types/filter";
 import { useState } from "react";
 
-export function useFiltering() {
-  const [columnFilters, setColumnFiltering] = useState([]);
+export function useFiltering(initialValue: FilterClauseType[] = []) {
+  const [columnFilters, setColumnFiltering] = useState(initialValue);
 
   return {
     columnFilters,

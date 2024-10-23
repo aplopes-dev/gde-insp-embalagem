@@ -15,30 +15,9 @@ export function useBoxOpColumns(): { columns: any[] } {
 
   const columns = [
     {
-      id: "opCode",
-      header: "OP",
-      enableSorting: false,
-    },
-    {
       id: "code",
-      header: "Embalagem",
-      enableSorting: true,
-    },
-    {
-      id: "createdAt",
-      header: "Criado em",
-      enableSorting: true,
-      cell: ({ row }) => {
-        const formatted = new Date(
-          row.getValue("createdAt")
-        ).toLocaleDateString("pt-BR", {
-          day: "numeric",
-          month: "numeric",
-          year: "numeric",
-        });
-
-        return <div className="font-medium">{formatted}</div>;
-      },
+      header: "Código",
+      enableSorting: false,
     },
     {
       id: "packedAt",
@@ -56,16 +35,6 @@ export function useBoxOpColumns(): { columns: any[] } {
 
         return <div className="font-medium">{formatted}</div>;
       },
-    },
-    {
-      id: "boxName",
-      header: "Caixa",
-      enableSorting: false,
-    },
-    {
-      id: "productName",
-      header: "Item",
-      enableSorting: false,
     },
     {
       id: "quantity",
@@ -91,7 +60,7 @@ export function useBoxOpColumns(): { columns: any[] } {
         const status = row.getValue("status");
         return (
           <div className="flex justify-center">
-            {status == "enabled" ? <CheckIcon /> : <XIcon />}
+            {status == 1 ? <CheckIcon /> : <XIcon />}
           </div>
         );
       },

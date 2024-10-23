@@ -1,6 +1,6 @@
 "use server";
 
-import { getOpToProduceByCode } from "@/app/(home)/actions";
+import { getOpFromNexinToProduceByCode } from "@/app/(home)/actions";
 import prisma from "@/providers/database";
 import { isSamePass } from "@/utils/bcrypt";
 import {
@@ -8,11 +8,12 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
+import { OpDto } from "@/app/(home)/_types/op-dto";
 
 const bcrypt = require("bcrypt");
 
 export async function syncAndGetOpToProduceByCode(code: string) {
-  const externalOp = await getOpToProduceByCode(code);
+  const externalOp = await getOpFromNexinToProduceByCode(code);
   let internalOp = await prisma.op.findFirst({
     where: {
       code: `${externalOp.numero}`,
@@ -21,7 +22,9 @@ export async function syncAndGetOpToProduceByCode(code: string) {
 
   if (!internalOp) {
     const refNames = ["Produto", "Blister", "Caixa"];
-    const packagingNames = externalOp.embalagens.map((emb) => emb.nome.toUpperCase());
+    const packagingNames = externalOp.embalagens.map((emb) =>
+      emb.nome.toUpperCase()
+    );
     const refValue = [`${externalOp.produto.nome}`];
     const transaction = await prisma.$transaction([
       prisma.productType.findFirst({
@@ -524,6 +527,37 @@ export async function recalculateBoxesFromOpAndItemQuantity(
       id: opId,
     },
   });
+}
+
+export async function getOpByCode(code: string) {
+  const op = await prisma.op.findFirst({
+    where: { code },
+    include: { product: true, box: true, blister: true },
+  });
+  return op
+    ? ({
+        id: op.id,
+        code: op.code,
+        status: op.status,
+        product: {
+          id: op.product.id,
+          code: op.product.code,
+          name: op.product.name,
+        },
+        box: {
+          id: op.box.id,
+          name: op.box.name,
+        },
+        blister: {
+          id: op.blister.id,
+          name: op.blister.name,
+        },
+        productTypeId: op.productTypeId,
+        createdAt: op.createdAt,
+        quantityToProduce: op.quantityToProduce,
+        finishedAt: op.finishedAt,
+      } as OpDto)
+    : null;
 }
 
 // ## ------- INTERNAL FUNCTIONS --------

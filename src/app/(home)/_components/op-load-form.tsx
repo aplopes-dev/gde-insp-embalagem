@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { getOpToProduceByCode } from "../actions";
+import { getOpFromNexinToProduceByCode } from "../actions";
 import { PackagingJerpDto, ProductJerpDto } from "../_types/op-jerp-dto";
 
 const OpLoadForm = () => {
@@ -37,7 +37,7 @@ const OpLoadForm = () => {
 
   const handleRegistration = ({ op }: any) => {
     setIsLoading(true);
-    getOpToProduceByCode(op)
+    getOpFromNexinToProduceByCode(op)
       .then((res) => {
         opIsValid(res) && redirectAction(`/op/${res.numero}`);
         setIsLoading(false);

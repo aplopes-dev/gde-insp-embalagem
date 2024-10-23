@@ -6,21 +6,13 @@ import { getOwnFilterClauses } from "@/utils/filter";
 import { OpDto } from "./_types/op-dto";
 import { OpJerpDto } from "./_types/op-jerp-dto";
 
-type JerpOpDto = {
-  id: number;
-  Numero: number;
-  Produto: string;
-  QuantidadeAProduzir: number;
-  Embalagens: string[];
-};
-
 type OpQuantityProducedDto = {
   code: string;
   produced: number;
 };
 
 //TODO: Integrate with Nexin
-export async function getOpToProduceByCode(code: string): Promise<OpJerpDto> {
+export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
   await delay(1000);
   // New payload:
   return {

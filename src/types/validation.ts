@@ -1,9 +1,10 @@
 export type ValidableType = "product" | "box" | "blister";
 
 export type ObjectValidation = {
-  type: ValidableType;
-  code: string;
-  name: string;
+  // type: ValidableType;
+  // code: string;
+  itemId: string;
+  // name: string;
   count: number;
 };
 

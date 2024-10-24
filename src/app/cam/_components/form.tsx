@@ -1,6 +1,5 @@
 "use client";
 
-import { validableTypes } from "@/app/_data/validableTypes";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -11,14 +10,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ValidableType } from "@/types/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { io } from "socket.io-client";
@@ -33,9 +24,7 @@ const CamForm = () => {
   const form = useForm<ValidationFormType>({
     resolver: zodResolver(validationSchema),
     defaultValues: {
-      code: "",
-      name: "",
-      type: "",
+      itemId: "",
       count: "",
     },
     mode: "onChange",
@@ -46,11 +35,10 @@ const CamForm = () => {
   } = form;
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const { code, name, type } = data;
+    const { itemId, count } = data;
     await sendNotification({
-      type: type as ValidableType,
-      code,
-      count: Number(data.count),
+      itemId,
+      count: Number(count),
     });
   });
 
@@ -59,38 +47,16 @@ const CamForm = () => {
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <FormField
           control={form.control}
-          name="code"
+          name="itemId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Código</FormLabel>
+              <FormLabel>ID</FormLabel>
               <FormControl>
-                <Input placeholder="Insira o código" {...field} />
+                <Input placeholder="Insira o ID" {...field} />
               </FormControl>
-              <FormMessage>{errors.code && errors.code.message}</FormMessage>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo</FormLabel>
-              <FormControl>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {validableTypes.map((opt) => (
-                      <SelectItem key={opt.value} value={`${opt.value}`}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
+              <FormMessage>
+                {errors.itemId && errors.itemId.message}
+              </FormMessage>
             </FormItem>
           )}
         />
@@ -103,7 +69,7 @@ const CamForm = () => {
               <FormControl>
                 <Input placeholder="Insira a quantidade" {...field} />
               </FormControl>
-              <FormMessage>{errors.code && errors.code.message}</FormMessage>
+              <FormMessage>{errors.count && errors.count.message}</FormMessage>
             </FormItem>
           )}
         />

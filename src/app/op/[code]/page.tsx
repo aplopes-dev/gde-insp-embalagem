@@ -2,8 +2,9 @@
 
 import Header from "@/app/_components/header";
 import ConfirmationDialog from "@/components/confirmation-dialog";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { ObjectValidation } from "@/types/validation";
+import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import BlisterDisplay from "../_components/blister-display";
@@ -14,14 +15,28 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
+import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
 import {
   finalizeAndRemovePendingRelationsByOpCode,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
-import { Button } from "@/components/ui/button";
-import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
+
+type ActiveItemDto = {
+  itemId: string;
+  quantity: number;
+};
+
+type DetectionDto = {
+  itemId: string;
+  count: number;
+};
+
+type DetectionReceivedDto = {
+  receivedItemId: string;
+  receivedCount: number;
+};
 
 export default function PackagingInspection({
   params: { code },
@@ -49,6 +64,18 @@ export default function PackagingInspection({
     "blue"
   );
 
+  const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
+
+  const sendToIA = (data: ActiveItemDto) => {
+    const socket = io("http://localhost:3001");
+    socket.emit("iaHandler", data);
+  };
+
+  const sendDetectionReceived = (data: DetectionReceivedDto) => {
+    const socket = io("http://localhost:3001");
+    socket.emit("iaHandler", data);
+  };
+
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
     setData(opData);
@@ -71,6 +98,12 @@ export default function PackagingInspection({
       setCheckedQuantity(checkQuantity);
       delete opData["nextBox"]["OpBoxBlister"];
       setBox(opData.nextBox);
+      //SEND: BOX
+      setActiveObjectType("box");
+      sendToIA({
+        itemId: `${opData.boxType.name}`,
+        quantity: 1,
+      });
     }
   };
 
@@ -79,13 +112,18 @@ export default function PackagingInspection({
     loadData()
       .then((_) => {
         socket = io("http://localhost:3001");
-        socket.on("detectionUpdate", (message: any) => {
-          setInspection(message);
-          console.log(message);
+        socket.on("detectionUpdate", (message: DetectionDto) => {
+          sendDetectionReceived({
+            receivedCount: message.count,
+            receivedItemId: message.itemId,
+          });
+          setInspection({
+            itemId: message.itemId,
+            count: Number(message.count),
+          });
         });
       })
       .catch((err: Error) => {
-        console.log(err);
         toast({
           title: "Erro",
           description: err.message,
@@ -114,20 +152,27 @@ export default function PackagingInspection({
   }, [inspection]);
 
   function inspectBox(message: ObjectValidation) {
-    if (message.type == "box") {
-      console.log(data);
-      if (message.code == `${data?.boxType?.id}`) {
+    if (activeObjectType == "box") {
+      if (message.itemId == data?.boxType?.name && message.count == 1) {
+        setActiveObjectType("blister");
+        sendToIA({
+          itemId: data.blisterType.name,
+          quantity: 1,
+        });
+        setTargetBlister(0);
         setStep(1);
         box &&
           setBox({
             ...box,
             status: 1,
           });
-        setTargetBlister(0);
         setDisplayMessage("Caixa válida");
         setDisplayColor("green");
-      } else {
+      } else if (message.itemId != data?.boxType?.name) {
         setDisplayMessage("Modelo de caixa inválido.");
+        setDisplayColor("blue");
+      } else if (message.count != 1) {
+        setDisplayMessage("Deve haver apenas uma caixa!");
         setDisplayColor("blue");
       }
     } else {
@@ -136,10 +181,43 @@ export default function PackagingInspection({
     }
   }
 
+  function inspectBlister(message: ObjectValidation) {
+    if (activeObjectType == "blister") {
+      if (message.itemId == data?.blisterType.name && message.count == 1) {
+        setDisplayMessage("Blister válido");
+        setDisplayColor("green");
+        const index = targetBlister || 0;
+        setBlisters(
+          blisters.map((bl, i) =>
+            i == index ? { ...bl, isValidItem: true } : bl
+          )
+        );
+        setActiveObjectType("product");
+        sendToIA({
+          itemId: data!.productType.name,
+          quantity: blisters[targetBlister!].quantity,
+        });
+        setStep(2);
+      } else if (message.itemId != data?.blisterType.name) {
+        setDisplayMessage("Modelo de blister inválido.");
+        setDisplayColor("blue");
+      } else if (message.count != 1) {
+        setDisplayMessage("Deve haver apenbas um blister!");
+        setDisplayColor("blue");
+      }
+    } else {
+      setDisplayMessage("Tipo de objeto inválido. Insira um blister.");
+      setDisplayColor("red");
+    }
+  }
+
   function inspectQuantity(message: ObjectValidation) {
-    if (message.type == "product") {
+    if (activeObjectType == "product") {
       const pendingQuantity = quantityInBox - checkedQuantity;
-      if (
+      if (message.itemId != data?.productType.name) {
+        setDisplayMessage("Modelo de produto inválido.");
+        setDisplayColor("blue");
+      } else if (
         (message.count == data!.blisterType.slots &&
           message.count <= pendingQuantity) ||
         message.count == pendingQuantity
@@ -149,9 +227,15 @@ export default function PackagingInspection({
         const index = targetBlister || 0;
         if (blisters[index + 1]) {
           setTargetBlister(index + 1);
+          setActiveObjectType("blister");
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
           setStep(1);
         } else {
           setTargetBlister(undefined);
+          setActiveObjectType(undefined);
           setStep(3);
           setOpenConfirmDialog(true);
         }
@@ -178,28 +262,6 @@ export default function PackagingInspection({
     }
   }
 
-  function inspectBlister(message: ObjectValidation) {
-    if (message.type == "blister") {
-      if (message.code == `${data?.blisterType.id}`) {
-        setDisplayMessage("Blister válido");
-        setDisplayColor("green");
-        const index = targetBlister || 0;
-        setBlisters(
-          blisters.map((bl, i) =>
-            i == index ? { ...bl, isValidItem: true } : bl
-          )
-        );
-        setStep(2);
-      } else {
-        setDisplayMessage("Modelo de blister inválido.");
-        setDisplayColor("blue");
-      }
-    } else {
-      setDisplayMessage("Tipo de objeto inválido. Insira um blister.");
-      setDisplayColor("red");
-    }
-  }
-
   async function persistBoxInspection() {
     if (box) {
       await persistBoxStatusWithBlisters(
@@ -215,7 +277,6 @@ export default function PackagingInspection({
           });
         })
         .catch((err) => {
-          console.log(err);
           toast({
             title: "Erro",
             description: err.message,
@@ -281,7 +342,6 @@ export default function PackagingInspection({
             });
           })
           .catch((err) => {
-            console.log(err);
             toast({
               title: "Erro",
               description: err.message,
@@ -369,7 +429,6 @@ export default function PackagingInspection({
                   </Button>
                   <Button
                     className="bg-blue-700 hover:bg-blue-600"
-                    disabled={box?.status != 1}
                     onClick={() => setOpenRestartDialog(true)}
                   >
                     Reiniciar inspeção da caixa

@@ -22,6 +22,7 @@ import {
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
+import PrintTagDialog from "./_components/print-tag-dialog";
 
 type ActiveItemDto = {
   itemId: string;
@@ -51,6 +52,7 @@ export default function PackagingInspection({
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
+  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(true);
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
 
@@ -117,7 +119,7 @@ export default function PackagingInspection({
             receivedCount: message.count,
             receivedItemId: message.itemId,
           });
-          if(message.itemId){
+          if (message.itemId) {
             setInspection({
               itemId: message.itemId,
               count: Number(message.count),
@@ -301,6 +303,7 @@ export default function PackagingInspection({
       title: "Informação",
       description: "Imprimindo etiqueta",
     });
+    setOpenPrintTagDialog(true);
   }
 
   async function forceOpFinalization(managerId: string) {
@@ -511,6 +514,13 @@ export default function PackagingInspection({
         onOpenChange={setOpenForceFinalizationDialog}
         onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
+      <PrintTagDialog
+        isOpen={openPrintTagDialog}
+        onOpenChange={setOpenPrintTagDialog}
+      />
     </div>
   );
+}
+function localFont(arg0: { src: string }) {
+  throw new Error("Function not implemented.");
 }

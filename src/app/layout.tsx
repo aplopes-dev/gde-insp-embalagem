@@ -1,9 +1,11 @@
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/providers/theme-provider";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import { ThemeProvider } from "@/providers/theme-provider";
 import Head from "next/head";
+import "./globals.css";
+
+// Font files can be colocated inside of `pages`
 
 const inter = Inter({ subsets: ["latin"] });
 

@@ -15,32 +15,32 @@ type OpQuantityProducedDto = {
 export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
   await delay(1000);
   // New payload:
-  return {
-    id: 327117,
-    numero: Number(code),
-    produto: {
-      id: 1,
-      nome: "XBB"
-    },
-    quantidadeAProduzir: 112,
-    embalagens: [
-      {
-        id: 1,
-        nome: "BLISTER_XBB",
-        quantidadeAlocada: 20
-      },
-      {
-        id: 1,
-        nome: "CAIXA 520X320X170 TRIPLEX",
-        quantidadeAlocada: 2
-      },
-      {
-        id: 1,
-        nome: "DIVISORIAS CX 520X320X170",
-        quantidadeAlocada: 4
-      }
-    ]
-  } as OpJerpDto
+  // return {
+  //   id: 327117,
+  //   numero: Number(code),
+  //   produto: {
+  //     id: 1,
+  //     nome: "XBB"
+  //   },
+  //   quantidadeAProduzir: 112,
+  //   embalagens: [
+  //     {
+  //       id: 1,
+  //       nome: "BLISTER_XBB",
+  //       quantidadeAlocada: 20
+  //     },
+  //     {
+  //       id: 1,
+  //       nome: "CAIXA 520X320X170 TRIPLEX",
+  //       quantidadeAlocada: 2
+  //     },
+  //     {
+  //       id: 1,
+  //       nome: "DIVISORIAS CX 520X320X170",
+  //       quantidadeAlocada: 4
+  //     }
+  //   ]
+  // } as OpJerpDto
 
   // Old payload:
   // return {
@@ -56,17 +56,17 @@ export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJer
   // };
 
   // Requet from jerp:
-  // const dynamicData = await fetch(
-  //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${opCode}`,
-  //   {
-  //     headers: {
-  //       authorization: `Bearer ${process.env.JERP_TOKEN}`,
-  //     },
-  //     cache: "no-store",
-  //   }
-  // );
-  // const data = await dynamicData.json();
-  // return data as JerpOpDto;
+  const dynamicData = await fetch(
+    `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${code}`,
+    {
+      headers: {
+        authorization: `Bearer ${process.env.JERP_TOKEN}`,
+      },
+      cache: "no-store",
+    }
+  );
+  const data = await dynamicData.json();
+  return data as OpJerpDto;
 }
 
 export async function getPaginatedOp({

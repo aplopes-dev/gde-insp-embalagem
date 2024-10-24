@@ -6,29 +6,120 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import localFont from "next/font/local";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { getBarcodeFromOpId } from "../actions";
+import { Button } from "@/components/ui/button";
 
 const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
 
 type PrintTagProps = {
   isOpen: boolean;
+  opNumber: number;
+  itemName: string;
+  itemDescription: string;
+  batchCode: string;
+  quantity: number;
   onOpenChange: (open: boolean) => void;
 };
 
-const PrintTagDialog = ({ isOpen, onOpenChange }: PrintTagProps) => {
+type PrintTagJerpData = {
+  message: string;
+  id: number;
+  quantidadeApontada: number;
+  idBarras: number;
+};
+
+const PrintTagDialog = ({
+  isOpen,
+  onOpenChange,
+  itemName,
+  itemDescription,
+  batchCode,
+  quantity,
+}: PrintTagProps) => {
+  const printRef = useRef<HTMLDivElement>(null);
+  const [data, setData] = useState<PrintTagJerpData>();
+
+  const handlePrint = () => {
+    const printContent = printRef.current!.innerHTML;
+    const printWindow = window.open("", "", "height=600,width=800")!;
+    printWindow.document.write("<html><head><title>Print</title>");
+    printWindow.document.write(
+      `<style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+        
+        body{
+          font-family: Arial, Helvetica, sans-serif;
+          width: 5cm;
+          height: 2.5cm;
+        }
+
+        .tag-area {
+          padding: 3px;
+          width: 5cm;
+          height: 2.5cm;
+          background-color: white;
+          color: #000;
+          font-size: 9px;
+          gap: 5px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .title {
+          text-transform: uppercase;
+          font-weight: bold;
+          font-size: 10px;
+        }
+
+        .description {
+          font-size: 6px;
+        }
+
+        .batch {
+          text-transform: uppercase;
+          font-weight: bold;
+          font-size: 10px;
+        }
+
+        .barcode-row {
+          display: flex;
+        }
+
+        .barcode {
+          font-family: "Libre Barcode 39", system-ui;
+          font-size: 20px;
+          flex: auto;
+          text-align: center;
+        }
+
+        .quantity {
+          width: 50%;
+          text-transform: uppercase;
+          font-size: 7.5px;
+          font-weight: bold;
+        }
+        </style>`
+    );
+    printWindow.document.write("</head><body >");
+    printWindow.document.write(printContent);
+    printWindow.document.write("</body></html>");
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const loadData = async () => {
+    const tagData: PrintTagJerpData = await getBarcodeFromOpId(1, 2);
+    setData(tagData);
+  };
+
   useEffect(() => {
     if (isOpen) {
-      //On open
+      loadData();
+    } else {
+      setData(undefined);
     }
   }, [isOpen]);
-
-  function printDiv() {
-    var printContents = document.getElementById("tag-area")!.innerHTML;
-    var originalContents = document.body.innerHTML;
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents;
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -37,18 +128,28 @@ const PrintTagDialog = ({ isOpen, onOpenChange }: PrintTagProps) => {
           <DialogTitle>Etiqueta</DialogTitle>
           <DialogDescription>Etiqueta para impressão</DialogDescription>
         </DialogHeader>
-        <button onClick={() => printDiv()}>Print</button>
-        <div className="tag-area" id="tag-area">
-          <div className="title">DLR-23500AA-LD_00</div>
-          <div className="description">
-            DRL LED VW270-3 LAPA Lado Direito MCPCB
-          </div>
-          <div className="batch">Lote: (1122138) OP60967 - 1122138</div>
-          <div className="barcode-row">
-            <div className={myFont.className + " barcode"}>123</div>
-            <div className="quantity">Quantidade: 11</div>
-          </div>
+        <div key="tag-area" ref={printRef}>
+          {data && (
+            <div className="tag-area">
+              <div className="title">{itemName}</div>
+              <div className="description">{itemDescription}</div>
+              <div className="batch">Lote: {batchCode}</div>
+              <div className="barcode-row">
+                <div className={myFont.className + " barcode"}>
+                  {data.idBarras}
+                </div>
+                <div className="quantity">Quantidade: {quantity}</div>
+              </div>
+            </div>
+          )}
         </div>
+        <Button
+          type="button"
+          variant={"outline"}
+          onClick={handlePrint}
+        >
+          Imprimir
+        </Button>
       </DialogContent>
     </Dialog>
   );

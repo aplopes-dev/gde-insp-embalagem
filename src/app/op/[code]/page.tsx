@@ -16,17 +16,17 @@ import {
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
 import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
+import PrintTagDialog from "./_components/print-tag-dialog";
 import {
   finalizeAndRemovePendingRelationsByOpCode,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
-import PrintTagDialog from "./_components/print-tag-dialog";
 
 type ActiveItemDto = {
   itemId: string;
-  quantity: number;
+  quantity?: number;
 };
 
 type DetectionDto = {
@@ -52,7 +52,7 @@ export default function PackagingInspection({
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
-  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(true);
+  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
 
@@ -103,8 +103,7 @@ export default function PackagingInspection({
       //SEND: BOX
       setActiveObjectType("box");
       sendToIA({
-        itemId: `${opData.boxType.name}`,
-        quantity: 1,
+        itemId: `${opData.productType.name}`
       });
     }
   };
@@ -206,7 +205,7 @@ export default function PackagingInspection({
         setDisplayMessage("Modelo de blister inválido.");
         setDisplayColor("blue");
       } else if (message.count != 1) {
-        setDisplayMessage("Deve haver apenbas um blister!");
+        setDisplayMessage("Deve haver apenas um blister!");
         setDisplayColor("blue");
       }
     } else {
@@ -299,10 +298,6 @@ export default function PackagingInspection({
   }
 
   async function printTag() {
-    toast({
-      title: "Informação",
-      description: "Imprimindo etiqueta",
-    });
     setOpenPrintTagDialog(true);
   }
 
@@ -514,13 +509,17 @@ export default function PackagingInspection({
         onOpenChange={setOpenForceFinalizationDialog}
         onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
-      <PrintTagDialog
-        isOpen={openPrintTagDialog}
-        onOpenChange={setOpenPrintTagDialog}
-      />
+      {data && (
+        <PrintTagDialog
+          itemName={data.productType.name}
+          itemDescription={data.productType.description}
+          opNumber={data.opId}
+          quantity={data.quantityToProduce}
+          batchCode={data.opCode}
+          isOpen={openPrintTagDialog}
+          onOpenChange={setOpenPrintTagDialog}
+        />
+      )}
     </div>
   );
-}
-function localFont(arg0: { src: string }) {
-  throw new Error("Function not implemented.");
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { OpDto } from "@/app/(home)/_types/op-dto";
 import { getOpFromNexinToProduceByCode } from "@/app/(home)/actions";
 import prisma from "@/providers/database";
 import { isSamePass } from "@/utils/bcrypt";
@@ -8,7 +9,6 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
-import { OpDto } from "@/app/(home)/_types/op-dto";
 
 const bcrypt = require("bcrypt");
 
@@ -558,6 +558,34 @@ export async function getOpByCode(code: string) {
         finishedAt: op.finishedAt,
       } as OpDto)
     : null;
+}
+
+export async function getBarcodeFromOpId(id: number, quantity: number) {
+  // Requet from jerp:
+  const dynamicData = await fetch(
+    `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${process.env.JERP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        quantidadeApontada: quantity,
+      }),
+    }
+  );
+  const data = await dynamicData.json();
+  return data;
+  // return data as OpJerpDto;
+
+  return {
+    message: "Apontamento com sucesso",
+    id: 59049,
+    quantidadeApontada: 50,
+    idBarras: 992790,
+  };
 }
 
 // ## ------- INTERNAL FUNCTIONS --------

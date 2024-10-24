@@ -117,10 +117,12 @@ export default function PackagingInspection({
             receivedCount: message.count,
             receivedItemId: message.itemId,
           });
-          setInspection({
-            itemId: message.itemId,
-            count: Number(message.count),
-          });
+          if(message.itemId){
+            setInspection({
+              itemId: message.itemId,
+              count: Number(message.count),
+            });
+          }
         });
       })
       .catch((err: Error) => {

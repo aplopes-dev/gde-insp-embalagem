@@ -65,6 +65,7 @@ export default function PackagingInspection({
   const [displayColor, setDisplayColor] = useState<"blue" | "red" | "green">(
     "blue"
   );
+  const [quantityToPrint, setQuantityToPrint] = useState<number>(0);
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
 
@@ -103,7 +104,7 @@ export default function PackagingInspection({
       //SEND: BOX
       setActiveObjectType("box");
       sendToIA({
-        itemId: `${opData.productType.name}`
+        itemId: `${opData.productType.name}`,
       });
     }
   };
@@ -174,13 +175,28 @@ export default function PackagingInspection({
       } else if (message.itemId != data?.boxType?.name) {
         setDisplayMessage("Modelo de caixa inválido.");
         setDisplayColor("blue");
+        // Repeat box ref
+        sendToIA({
+          itemId: data!.boxType.name,
+          quantity: 1,
+        });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas uma caixa!");
         setDisplayColor("blue");
+        // Repeat box ref
+        sendToIA({
+          itemId: data!.boxType.name,
+          quantity: 1,
+        });
       }
     } else {
       setDisplayMessage("Tipo de objeto inválido. Insira uma caixa.");
       setDisplayColor("red");
+      // Repeat box ref
+      sendToIA({
+        itemId: data!.boxType.name,
+        quantity: 1,
+      });
     }
   }
 
@@ -204,13 +220,28 @@ export default function PackagingInspection({
       } else if (message.itemId != data?.blisterType.name) {
         setDisplayMessage("Modelo de blister inválido.");
         setDisplayColor("blue");
+        // Repeat blister ref
+        sendToIA({
+          itemId: data!.blisterType.name,
+          quantity: 1,
+        });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas um blister!");
         setDisplayColor("blue");
+        // Repeat blister ref
+        sendToIA({
+          itemId: data!.blisterType.name,
+          quantity: 1,
+        });
       }
     } else {
       setDisplayMessage("Tipo de objeto inválido. Insira um blister.");
       setDisplayColor("red");
+      // Repeat blister ref
+      sendToIA({
+        itemId: data!.blisterType.name,
+        quantity: 1,
+      });
     }
   }
 
@@ -220,6 +251,11 @@ export default function PackagingInspection({
       if (message.itemId != data?.productType.name) {
         setDisplayMessage("Modelo de produto inválido.");
         setDisplayColor("blue");
+        // Repeat product ref
+        sendToIA({
+          itemId: data!.productType.name,
+          quantity: blisters[targetBlister!].quantity,
+        });
       } else if (
         (message.count == data!.blisterType.slots &&
           message.count <= pendingQuantity) ||
@@ -258,10 +294,20 @@ export default function PackagingInspection({
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
         setDisplayColor("blue");
+        // Repeat product ref
+        sendToIA({
+          itemId: data!.productType.name,
+          quantity: blisters[targetBlister!].quantity,
+        });
       }
     } else {
       setDisplayMessage("Tipo de objeto inválido. Insira produtos.");
       setDisplayColor("red");
+      // Repeat product ref
+      sendToIA({
+        itemId: data!.productType.name,
+        quantity: blisters[targetBlister!].quantity,
+      });
     }
   }
 
@@ -298,6 +344,10 @@ export default function PackagingInspection({
   }
 
   async function printTag() {
+    const productQuantity = blisters
+      .filter((bl) => bl.status == 1)
+      .reduce((acc, i) => acc + i.quantity, 0);
+    setQuantityToPrint(productQuantity);
     setOpenPrintTagDialog(true);
   }
 
@@ -320,8 +370,9 @@ export default function PackagingInspection({
           .then((_) => {
             toast({
               title: "Sucesso",
-              description: "OP finalizada com sucesso!",
+              description: "Caixa finalizada com sucesso!",
             });
+            printTag();
           })
           .catch((err) => {
             toast({
@@ -361,8 +412,9 @@ export default function PackagingInspection({
           .then((_) => {
             toast({
               title: "Sucesso",
-              description: "OP finalizada com sucesso!",
+              description: "Caixa finalizada com sucesso!",
             });
+            printTag();
           })
           .catch((err) => {
             toast({
@@ -513,8 +565,8 @@ export default function PackagingInspection({
         <PrintTagDialog
           itemName={data.productType.name}
           itemDescription={data.productType.description}
-          opNumber={data.opId}
-          quantity={data.quantityToProduce}
+          opId={data.opId}
+          quantity={quantityToPrint}
           batchCode={data.opCode}
           isOpen={openPrintTagDialog}
           onOpenChange={setOpenPrintTagDialog}

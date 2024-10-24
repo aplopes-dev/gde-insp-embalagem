@@ -14,7 +14,7 @@ const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
 
 type PrintTagProps = {
   isOpen: boolean;
-  opNumber: number;
+  opId: number;
   itemName: string;
   itemDescription: string;
   batchCode: string;
@@ -36,6 +36,7 @@ const PrintTagDialog = ({
   itemDescription,
   batchCode,
   quantity,
+  opId
 }: PrintTagProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<PrintTagJerpData>();
@@ -109,7 +110,7 @@ const PrintTagDialog = ({
   };
 
   const loadData = async () => {
-    const tagData: PrintTagJerpData = await getBarcodeFromOpId(1, 2);
+    const tagData: PrintTagJerpData = await getBarcodeFromOpId(opId, quantity);
     setData(tagData);
   };
 

@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: gdeembalagem
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # Porta padrão para conexões AMQP
+      - "15672:15672"  # Porta para a interface de gerenciamento
+    environment:
+      RABBITMQ_DEFAULT_USER: gde       # Altere para um usuário seguro
+      RABBITMQ_DEFAULT_PASS: gde123         # Altere para uma senha segura
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq    # Persistência de dados
+      - ./logs:/var/log/rabbitmq_logs      # Persistência de logs, se necessário
+    networks:
+      - rabbitmq_network
+  
+  gde-app:
+    image: gde-insp-embalagem:1
+    build: ./
+    environment:
+      - "DATABASE_URL=postgresql://postgres:123456@postgres:5432/gdeembalagem?schema=public"
+      - "JERP_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6InJhZmFlbC5sb3Blc0BsaXN0ZWMub3JnIiwianRpIjoiZjhiMDM0M2UtMzgyMS00NDcwLWFjMTAtOTNkNzRkNzk0NTZjIiwiZXhwIjoyMDM3Mjg3MzgyfQ.QqpwUGwE_MADZ5cmkaDSHdrds4QiJZHjxJbL5HMy3-U"
+      - "RABBITMQ_URL=amqp://gde:gde123@rabbitmq:5672"
+    ports:
+      - "3000:3000"  
+volumes:
+  rabbitmq_data:
+
+networks:
+  rabbitmq_network:
+    driver: bridge

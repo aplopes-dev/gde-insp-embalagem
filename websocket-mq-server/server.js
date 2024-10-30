@@ -1,6 +1,6 @@
 // Configurações do RabbitMQ e WebSocket
 const PORT = 3001
-const RABBITMQ_URL = "amqp://admin:admin@localhost:5672"
+const RABBITMQ_URL = "amqp://gde:gde123@localhost:5672"
 const QUEUE_NAME = 'fila_envio';
 const { Server } = require('socket.io');
 const http = require('http');
@@ -14,8 +14,6 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
-
-
 
 // Função para conectar ao RabbitMQ e consumir a fila
 async function connectRabbitMQ() {
@@ -43,7 +41,6 @@ async function connectRabbitMQ() {
   }
 }
 
-
 // Configura eventos do socket.io
 io.on('connection', (socket) => {
   console.log('Novo cliente conectado via socket.io');
@@ -58,20 +55,3 @@ server.listen(PORT, () => {
   console.log(`Servidor WebSocket com socket.io escutando na porta ${PORT}`);
   connectRabbitMQ();
 });
-
-// // Set up an event listener for new client connections
-// io.on('connection', (socket) => {
-//   console.log("User connected!");
-
-//   socket.on("detectionUpdate", (data) => {
-//  // Broadcast a 'detectionUpdate' event to all connected clients with a message
-//       io.emit("detectionUpdate", data)
-//       console.log("detectionUpdate", data);
-//     })
-    
-//     socket.on("iaHandler", (data) => {
-//       // Broadcast a 'iaHandler' event to all connected clients with a message
-//       io.emit("iaHandler", data)
-//       console.log("iaHandler", data);
-//     })
-// })

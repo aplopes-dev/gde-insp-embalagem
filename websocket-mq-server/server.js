@@ -1,6 +1,7 @@
 // Configurações do RabbitMQ e WebSocket
 const PORT = 3001
-const RABBITMQ_URL = "amqp://admin:admin@localhost:5672"
+const RABBITMQ_URL = "amqp://gde:gde123@localhost:5672"
+//const RABBITMQ_URL = "amqp://gde:gde123@10.42.0.209:15672"
 const QUEUE_NAME = 'fila_envio';
 const { Server } = require('socket.io');
 const http = require('http');

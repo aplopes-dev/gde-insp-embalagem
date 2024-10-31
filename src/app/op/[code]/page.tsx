@@ -80,6 +80,8 @@ export default function PackagingInspection({
   };
 
   async function sendMessageToRabbitMq(message: any) {
+    console.log("Message:", message);
+    
     try {
       const res = await fetch("/api/send", {
         method: "POST",
@@ -127,7 +129,7 @@ export default function PackagingInspection({
         itemId: `${opData.productType.name}`,
       });
       await sendMessageToRabbitMq({
-        itemId: `${opData.productType.id}`,
+        itemId: `${opData.boxType.name}`,
         quantity: 1,
         model: `${opData.productType.name}`,
       });
@@ -189,9 +191,8 @@ export default function PackagingInspection({
           quantity: 1,
         });
         sendMessageToRabbitMq({
-          itemId: `${data.blisterType.id}`,
+          itemId: `${data.blisterType.name}`,
           quantity: 1,
-          model: `${data.blisterType.name}`,
         });
         setTargetBlister(0);
         setStep(1);
@@ -211,9 +212,8 @@ export default function PackagingInspection({
           quantity: 1,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.boxType.id}`,
+          itemId: `${data!.boxType.name}`,
           quantity: 1,
-          model: `${data!.boxType.name}`,
         });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas uma caixa!");
@@ -224,9 +224,8 @@ export default function PackagingInspection({
           quantity: 1,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.boxType.id}`,
-          quantity: 1,
-          model: `${data!.boxType.name}`,
+          itemId: `${data!.boxType.name}`,
+          quantity: 1
         });
       }
     } else {
@@ -238,9 +237,8 @@ export default function PackagingInspection({
         quantity: 1,
       });
       sendMessageToRabbitMq({
-        itemId: `${data!.boxType.id}`,
+        itemId: `${data!.boxType.name}`,
         quantity: 1,
-        model: `${data!.boxType.name}`,
       });
     }
   }
@@ -262,9 +260,8 @@ export default function PackagingInspection({
           quantity: blisters[targetBlister!].quantity,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.productType.id}`,
-          quantity: blisters[targetBlister!].quantity,
-          model: `${data!.productType.name}`,
+          itemId: `${data!.productType.name}`,
+          quantity: blisters[targetBlister!].quantity
         });
         setStep(2);
       } else if (message.itemId != data?.blisterType.name) {
@@ -276,9 +273,8 @@ export default function PackagingInspection({
           quantity: 1,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.blisterType.id}`,
-          quantity: 1,
-          model: `${data!.blisterType.name}`,
+          itemId: `${data!.blisterType.name}`,
+          quantity: 1
         });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas um blister!");
@@ -289,9 +285,8 @@ export default function PackagingInspection({
           quantity: 1,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.blisterType.id}`,
-          quantity: 1,
-          model: `${data!.blisterType.name}`,
+          itemId: `${data!.blisterType.name}`,
+          quantity: 1
         });
       }
     } else {
@@ -303,9 +298,8 @@ export default function PackagingInspection({
         quantity: 1,
       });
       sendMessageToRabbitMq({
-        itemId: `${data!.blisterType.id}`,
-        quantity: 1,
-        model: `${data!.blisterType.name}`,
+        itemId: `${data!.blisterType.name}`,
+        quantity: 1
       });
     }
   }
@@ -322,9 +316,8 @@ export default function PackagingInspection({
           quantity: blisters[targetBlister!].quantity,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.productType.id}`,
-          quantity: blisters[targetBlister!].quantity,
-          model: `${data!.productType.name}`,
+          itemId: `${data!.productType.name}`,
+          quantity: blisters[targetBlister!].quantity
         });
       } else if (
         (message.count == data!.blisterType.slots &&
@@ -342,9 +335,8 @@ export default function PackagingInspection({
             quantity: 1,
           });
           sendMessageToRabbitMq({
-            itemId: `${data!.blisterType.id}`,
-            quantity: 1,
-            model: `${data!.blisterType.name}`,
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1
           });
           setStep(1);
         } else {
@@ -375,9 +367,8 @@ export default function PackagingInspection({
           quantity: blisters[targetBlister!].quantity,
         });
         sendMessageToRabbitMq({
-          itemId: `${data!.productType.id}`,
-          quantity: blisters[targetBlister!].quantity,
-          model: `${data!.productType.name}`,
+          itemId: `${data!.productType.name}`,
+          quantity: blisters[targetBlister!].quantity
         });
       }
     } else {
@@ -389,9 +380,8 @@ export default function PackagingInspection({
         quantity: blisters[targetBlister!].quantity,
       });
       sendMessageToRabbitMq({
-        itemId: `${data!.productType.id}`,
-        quantity: blisters[targetBlister!].quantity,
-        model: `${data!.productType.name}`,
+        itemId: `${data!.productType.name}`,
+        quantity: blisters[targetBlister!].quantity
       });
     }
   }

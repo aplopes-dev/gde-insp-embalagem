@@ -80,8 +80,10 @@ export default function PackagingInspection({
   };
 
   async function sendMessageToRabbitMq(message: any) {
-    console.log("Message:", message);
-    
+    console.log("%c FRONT:", "color: lightgreen;");
+    console.log(message);
+    console.log("%c ------------------------------", "color: lightgreen;");
+
     try {
       const res = await fetch("/api/send", {
         method: "POST",
@@ -142,6 +144,10 @@ export default function PackagingInspection({
       .then((_) => {
         socket = io("http://localhost:3001");
         socket.on("detectionUpdate", (message: DetectionDto) => {
+          console.log("%c BACK:", "color: orange;");
+          console.log(message);
+          console.log("%c ------------------------------", "color: orange;");
+
           sendDetectionReceived({
             receivedCount: message.count,
             receivedItemId: message.itemId,
@@ -205,7 +211,7 @@ export default function PackagingInspection({
         setDisplayColor("green");
       } else if (message.itemId != data?.boxType?.name) {
         setDisplayMessage("Modelo de caixa inválido.");
-        setDisplayColor("blue");
+        setDisplayColor("red");
         // Repeat box ref
         sendToIA({
           itemId: data!.boxType.name,
@@ -217,7 +223,7 @@ export default function PackagingInspection({
         });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas uma caixa!");
-        setDisplayColor("blue");
+        setDisplayColor("red");
         // Repeat box ref
         sendToIA({
           itemId: data!.boxType.name,
@@ -266,7 +272,7 @@ export default function PackagingInspection({
         setStep(2);
       } else if (message.itemId != data?.blisterType.name) {
         setDisplayMessage("Modelo de blister inválido.");
-        setDisplayColor("blue");
+        setDisplayColor("red");
         // Repeat blister ref
         sendToIA({
           itemId: data!.blisterType.name,
@@ -278,7 +284,7 @@ export default function PackagingInspection({
         });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas um blister!");
-        setDisplayColor("blue");
+        setDisplayColor("red");
         // Repeat blister ref
         sendToIA({
           itemId: data!.blisterType.name,
@@ -309,7 +315,7 @@ export default function PackagingInspection({
       const pendingQuantity = quantityInBox - checkedQuantity;
       if (message.itemId != data?.productType.name) {
         setDisplayMessage("Modelo de produto inválido.");
-        setDisplayColor("blue");
+        setDisplayColor("red");
         // Repeat product ref
         sendToIA({
           itemId: data!.productType.name,
@@ -324,40 +330,44 @@ export default function PackagingInspection({
           message.count <= pendingQuantity) ||
         message.count == pendingQuantity
       ) {
-        setDisplayMessage("Blister válido");
+        setDisplayMessage("Blister e quantidade de itens válidos");
         setDisplayColor("green");
-        const index = targetBlister || 0;
-        if (blisters[index + 1]) {
-          setTargetBlister(index + 1);
-          setActiveObjectType("blister");
-          sendToIA({
-            itemId: data!.blisterType.name,
-            quantity: 1,
-          });
-          sendMessageToRabbitMq({
-            itemId: `${data!.blisterType.name}`,
-            quantity: 1
-          });
-          setStep(1);
-        } else {
-          setTargetBlister(undefined);
-          setActiveObjectType(undefined);
-          setStep(3);
-          setOpenConfirmDialog(true);
-        }
-        setCheckedQuantity(checkedQuantity + message.count);
-        setBlisters(
-          blisters.map((bl, i) =>
-            i == index
-              ? {
+
+        setTimeout(() => {
+          const index = targetBlister || 0;
+          if (blisters[index + 1]) {
+            setTargetBlister(index + 1);
+            setActiveObjectType("blister");
+            sendToIA({
+              itemId: data!.blisterType.name,
+              quantity: 1,
+            });
+            sendMessageToRabbitMq({
+              itemId: `${data!.blisterType.name}`,
+              quantity: 1
+            });
+            setStep(1);
+          } else {
+            setTargetBlister(undefined);
+            setActiveObjectType(undefined);
+            setStep(3);
+            setOpenConfirmDialog(true);
+          }
+          setCheckedQuantity(checkedQuantity + message.count);
+          setBlisters(
+            blisters.map((bl, i) =>
+              i == index
+                ? {
                   ...bl,
                   isValidQuantity: true,
                   status: 1,
                   packedAt: new Date(),
                 }
-              : bl
-          )
-        );
+                : bl
+            )
+          );
+
+        }, 5000)
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
         setDisplayColor("blue");

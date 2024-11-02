@@ -41,7 +41,7 @@ const PrintTagDialog = ({
   const printRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<PrintTagJerpData>();
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const printContent = printRef.current!.innerHTML;
     const printWindow = window.open("", "", "height=600,width=800")!;
     printWindow.document.write("<html><head><title>Print</title>");
@@ -106,13 +106,34 @@ const PrintTagDialog = ({
     printWindow.document.write(printContent);
     printWindow.document.write("</body></html>");
     printWindow.document.close();
-    printWindow.print();
+
+    await enviarParaImpressao(printContent)
+    //printWindow.print();
   };
 
   const loadData = async () => {
     const tagData: PrintTagJerpData = await getBarcodeFromOpId(opId, quantity);
     setData(tagData);
   };
+
+  const enviarParaImpressao = async (data:any) => {
+    const conteudoDiv = data;
+  
+    const resposta = await fetch('/api/imprimir', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ conteudo: conteudoDiv })
+    });
+  
+    if (resposta.ok) {
+      console.log('Conteúdo enviado para impressão');
+    } else {
+      console.error('Erro ao enviar para impressão');
+    }
+  };
+  
 
   useEffect(() => {
     if (isOpen) {
@@ -149,7 +170,7 @@ const PrintTagDialog = ({
           variant={"outline"}
           onClick={handlePrint}
         >
-          Imprimir
+          Imprimindo etiqueta...
         </Button>
       </DialogContent>
     </Dialog>

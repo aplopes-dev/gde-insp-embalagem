@@ -562,6 +562,7 @@ export async function getOpByCode(code: string) {
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   // Requet from jerp:
+  /*
   const dynamicData = await fetch(
     `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
     {
@@ -578,12 +579,13 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
   );
   const data = await dynamicData.json();
   return data;
+  */
   // return data as OpJerpDto;
 
   return {
     message: "Apontamento com sucesso",
-    id: 59049,
-    quantidadeApontada: 50,
+    id: id,
+    quantidadeApontada: quantity,
     idBarras: 992790,
   };
 }

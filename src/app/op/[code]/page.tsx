@@ -52,7 +52,7 @@ export default function PackagingInspection({
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
-  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
+  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(true);
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
 
@@ -231,7 +231,7 @@ export default function PackagingInspection({
         });
         sendMessageToRabbitMq({
           itemId: `${data!.boxType.name}`,
-          quantity: 1
+          quantity: 1,
         });
       }
     } else {
@@ -267,7 +267,7 @@ export default function PackagingInspection({
         });
         sendMessageToRabbitMq({
           itemId: `${data!.productType.name}`,
-          quantity: blisters[targetBlister!].quantity
+          quantity: blisters[targetBlister!].quantity,
         });
         setStep(2);
       } else if (message.itemId != data?.blisterType.name) {
@@ -280,7 +280,7 @@ export default function PackagingInspection({
         });
         sendMessageToRabbitMq({
           itemId: `${data!.blisterType.name}`,
-          quantity: 1
+          quantity: 1,
         });
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver apenas um blister!");
@@ -292,7 +292,7 @@ export default function PackagingInspection({
         });
         sendMessageToRabbitMq({
           itemId: `${data!.blisterType.name}`,
-          quantity: 1
+          quantity: 1,
         });
       }
     } else {
@@ -305,7 +305,7 @@ export default function PackagingInspection({
       });
       sendMessageToRabbitMq({
         itemId: `${data!.blisterType.name}`,
-        quantity: 1
+        quantity: 1,
       });
     }
   }
@@ -323,7 +323,7 @@ export default function PackagingInspection({
         });
         sendMessageToRabbitMq({
           itemId: `${data!.productType.name}`,
-          quantity: blisters[targetBlister!].quantity
+          quantity: blisters[targetBlister!].quantity,
         });
       } else if (
         (message.count == data!.blisterType.slots &&
@@ -344,7 +344,7 @@ export default function PackagingInspection({
             });
             sendMessageToRabbitMq({
               itemId: `${data!.blisterType.name}`,
-              quantity: 1
+              quantity: 1,
             });
             setStep(1);
           } else {
@@ -358,16 +358,15 @@ export default function PackagingInspection({
             blisters.map((bl, i) =>
               i == index
                 ? {
-                  ...bl,
-                  isValidQuantity: true,
-                  status: 1,
-                  packedAt: new Date(),
-                }
+                    ...bl,
+                    isValidQuantity: true,
+                    status: 1,
+                    packedAt: new Date(),
+                  }
                 : bl
             )
           );
-
-        }, 5000)
+        }, 5000);
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
         setDisplayColor("blue");
@@ -378,7 +377,7 @@ export default function PackagingInspection({
         });
         sendMessageToRabbitMq({
           itemId: `${data!.productType.name}`,
-          quantity: blisters[targetBlister!].quantity
+          quantity: blisters[targetBlister!].quantity,
         });
       }
     } else {
@@ -391,7 +390,7 @@ export default function PackagingInspection({
       });
       sendMessageToRabbitMq({
         itemId: `${data!.productType.name}`,
-        quantity: blisters[targetBlister!].quantity
+        quantity: blisters[targetBlister!].quantity,
       });
     }
   }

@@ -68,13 +68,14 @@
   }
 }
 
+
 .tag-area {
-  padding: 3px;
-  width: 5cm;
-  height: 2.5cm;
+  padding: 10px;
+  width: 10cm;
+  height: 5cm;
   background-color: white;
   color: #000;
-  font-size: 9px;
+  font-size: 18px;
   gap: 3px;
   font-family: Arial, Helvetica, sans-serif;
   display: flex;
@@ -87,7 +88,7 @@
 }
 
 .description {
-  font-size: 6px;
+  font-size: 12px;
 }
 
 .batch {
@@ -100,15 +101,15 @@
 }
 
 .barcode {
-  font-size: 18px;
+  font-size: 44px;
   flex: auto;
   text-align: center;
 }
 
 .quantity {
   width: 50%;
-  margin-top: 5px;
+  margin-top: 15px;
   text-transform: uppercase;
-  font-size: 7.5px;
+  font-size: 12px;
   font-weight: bold;
 }

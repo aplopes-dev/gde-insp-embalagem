@@ -8,8 +8,6 @@ import {
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 import { getBarcodeFromOpId } from "../actions";
-import { Button } from "@/components/ui/button";
-import { PDFDocument, rgb } from "pdf-lib";
 
 const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
 

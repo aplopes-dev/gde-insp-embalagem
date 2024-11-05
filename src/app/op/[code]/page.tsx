@@ -52,7 +52,7 @@ export default function PackagingInspection({
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
-  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(true);
+  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
 

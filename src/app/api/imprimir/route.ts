@@ -1,27 +1,35 @@
 import { exec } from 'child_process';
-import fs from 'fs';
 import { NextResponse } from 'next/server';
 import path from 'path';
 import puppeteer from 'puppeteer';
-
+import fs from 'fs';
 
 const styleClasses = `<style>
-@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+@font-face {
+      font-family: 'LibreBarcode39-Regular';
+      src: url("./fonts/LibreBarcode39-Regular.ttf");
+      font-style: normal;
+    }
 
 body{
   font-family: Arial, Helvetica, sans-serif;
-  width: 5cm;
-  height: 2.5cm;
+  width: 100mm;
+  height: 50mm;
+  box-sizing: border-box;
+  margin:0;
+  padding:0;
 }
 
 .tag-area {
-  padding: 3px;
-  width: 5cm;
-  height: 2.5cm;
+  padding: 5mm 10mm;
+  width: 100mm;
+  height: 50mm;
   background-color: white;
   color: #000;
-  font-size: 9px;
-  gap: 5px;
+  font-size: 32px;
+  gap: 3px;
+  font-family: Arial, Helvetica, sans-serif;
   display: flex;
   flex-direction: column;
 }
@@ -29,34 +37,34 @@ body{
 .title {
   text-transform: uppercase;
   font-weight: bold;
-  font-size: 10px;
 }
 
 .description {
-  font-size: 6px;
+  font-size: 18px;
 }
 
 .batch {
   text-transform: uppercase;
   font-weight: bold;
-  font-size: 10px;
 }
 
 .barcode-row {
   display: flex;
+  margin-top: 10px;
 }
 
 .barcode {
-  font-family: "Libre Barcode 39", system-ui;
-  font-size: 20px;
+  font-size: 52px;
   flex: auto;
   text-align: center;
+  font-family: 'Libre Barcode 39';
 }
 
 .quantity {
   width: 50%;
+  margin-top: 5px;
   text-transform: uppercase;
-  font-size: 7.5px;
+  font-size: 20px;
   font-weight: bold;
 }
 </style>`
@@ -70,15 +78,15 @@ export async function POST(request: Request) {
     const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
     const page = await browser.newPage();
 
-    await page.addStyleTag
     await page.setContent(styleClasses + conteudo, { waitUntil: 'networkidle0' });
 
     const pdfPath = path.join(process.cwd(), 'printing_file.pdf');
     await page.pdf({
       path: pdfPath,
-      width: '288px', // 101,6 mm em pontos
-      height: '432px', // 152,4 mm em pontos
-      printBackground: true
+      width: '100mm', // 101,6 mm em pontos
+      height: '50mm', // 152,4 mm em pontos
+      printBackground: false,
+      pageRanges: "1"
     });
 
     await browser.close();

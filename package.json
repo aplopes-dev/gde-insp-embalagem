@@ -43,6 +43,7 @@
     "react-day-picker": "8.10.1",
     "react-dom": "^18",
     "react-hook-form": "^7.52.2",
+    "react-jsbarcode": "^1.0.1",
     "react-to-print": "^3.0.2",
     "socket.io-client": "^4.7.5",
     "tailwind-merge": "^2.4.0",

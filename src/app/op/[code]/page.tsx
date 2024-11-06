@@ -103,6 +103,12 @@ export default function PackagingInspection({
     }
   }
 
+  function sendWithDelay(message: any) {
+    console.log("SENDING");
+
+    setTimeout(() => sendMessageToRabbitMq(message), 1000);
+  }
+
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
     setData(opData);
@@ -130,7 +136,7 @@ export default function PackagingInspection({
       sendToIA({
         itemId: `${opData.productType.name}`,
       });
-      await sendMessageToRabbitMq({
+      sendWithDelay({
         itemId: `${opData.boxType.name}`,
         quantity: 1,
         model: `${opData.productType.name}`,
@@ -196,7 +202,7 @@ export default function PackagingInspection({
           itemId: data.blisterType.name,
           quantity: 1,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data.blisterType.name}`,
           quantity: 1,
         });
@@ -217,19 +223,19 @@ export default function PackagingInspection({
           itemId: data!.boxType.name,
           quantity: 1,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.boxType.name}`,
           quantity: 1,
         });
       } else if (message.count != 1) {
-        setDisplayMessage("Deve haver apenas uma caixa!");
+        setDisplayMessage("Deve haver uma caixa!");
         setDisplayColor("red");
         // Repeat box ref
         sendToIA({
           itemId: data!.boxType.name,
           quantity: 1,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.boxType.name}`,
           quantity: 1,
         });
@@ -242,7 +248,7 @@ export default function PackagingInspection({
         itemId: data!.boxType.name,
         quantity: 1,
       });
-      sendMessageToRabbitMq({
+      sendWithDelay({
         itemId: `${data!.boxType.name}`,
         quantity: 1,
       });
@@ -265,7 +271,7 @@ export default function PackagingInspection({
           itemId: data!.productType.name,
           quantity: blisters[targetBlister!].quantity,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
         });
@@ -278,19 +284,19 @@ export default function PackagingInspection({
           itemId: data!.blisterType.name,
           quantity: 1,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.blisterType.name}`,
           quantity: 1,
         });
       } else if (message.count != 1) {
-        setDisplayMessage("Deve haver apenas um blister!");
+        setDisplayMessage("Deve haver um blister!");
         setDisplayColor("red");
         // Repeat blister ref
         sendToIA({
           itemId: data!.blisterType.name,
           quantity: 1,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.blisterType.name}`,
           quantity: 1,
         });
@@ -303,7 +309,7 @@ export default function PackagingInspection({
         itemId: data!.blisterType.name,
         quantity: 1,
       });
-      sendMessageToRabbitMq({
+      sendWithDelay({
         itemId: `${data!.blisterType.name}`,
         quantity: 1,
       });
@@ -321,7 +327,7 @@ export default function PackagingInspection({
           itemId: data!.productType.name,
           quantity: blisters[targetBlister!].quantity,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
         });
@@ -342,7 +348,7 @@ export default function PackagingInspection({
               itemId: data!.blisterType.name,
               quantity: 1,
             });
-            sendMessageToRabbitMq({
+            sendWithDelay({
               itemId: `${data!.blisterType.name}`,
               quantity: 1,
             });
@@ -351,7 +357,7 @@ export default function PackagingInspection({
             setTargetBlister(undefined);
             setActiveObjectType(undefined);
             setStep(3);
-            setOpenConfirmDialog(true);
+            // setOpenConfirmDialog(true);
           }
           setCheckedQuantity(checkedQuantity + message.count);
           setBlisters(
@@ -366,6 +372,9 @@ export default function PackagingInspection({
                 : bl
             )
           );
+          if (!blisters[index + 1]) {
+            setTimeout(() => persistBoxInspection(), 1000);
+          }
         }, 5000);
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
@@ -375,7 +384,7 @@ export default function PackagingInspection({
           itemId: data!.productType.name,
           quantity: blisters[targetBlister!].quantity,
         });
-        sendMessageToRabbitMq({
+        sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
         });
@@ -388,7 +397,7 @@ export default function PackagingInspection({
         itemId: data!.productType.name,
         quantity: blisters[targetBlister!].quantity,
       });
-      sendMessageToRabbitMq({
+      sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
       });
@@ -556,13 +565,13 @@ export default function PackagingInspection({
             {!data.finishedAt && (
               <>
                 <div className="flex justify-end gap-6 mt-8">
-                  <Button
+                  {/* <Button
                     disabled={step != 3}
                     className="bg-green-700 hover:bg-green-600"
                     onClick={() => setOpenConfirmDialog(true)}
                   >
                     Finalizar e Imprimir
-                  </Button>
+                  </Button> */}
                   <Button
                     className="bg-blue-700 hover:bg-blue-600"
                     onClick={() => setOpenRestartDialog(true)}

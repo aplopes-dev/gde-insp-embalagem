@@ -8,6 +8,7 @@ import {
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 import { getBarcodeFromOpId } from "../actions";
+import { ReactBarcode } from 'react-jsbarcode';
 
 const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
 
@@ -46,7 +47,7 @@ const PrintTagDialog = ({
     setTimeout(() => {
       const printContent = printRef.current!.innerHTML;
       enviarParaImpressao(printContent);
-      onOpenChange(false);
+      // onOpenChange(false);
     }, 2000);
   };
 
@@ -90,9 +91,10 @@ const PrintTagDialog = ({
               <div className="description">{itemDescription}</div>
               <div className="batch">Lote: {batchCode}</div>
               <div className="barcode-row">
-                <div className={myFont.className + " barcode"}>
+              <ReactBarcode value="0091" options={{format:"CODE39", height:50}} />
+                {/* <div className={myFont.className + " barcode"}>
                   {data.idBarras}
-                </div>
+                </div> */}
                 <div className="quantity">Quantidade: {quantity}</div>
               </div>
             </div>

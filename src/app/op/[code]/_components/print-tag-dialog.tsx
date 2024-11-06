@@ -8,7 +8,7 @@ import {
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 import { getBarcodeFromOpId } from "../actions";
-import { ReactBarcode } from 'react-jsbarcode';
+import { ReactBarcode } from "react-jsbarcode";
 
 const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
 
@@ -20,6 +20,7 @@ type PrintTagProps = {
   batchCode: string;
   quantity: number;
   onOpenChange: (open: boolean) => void;
+  onPrintSuccess: () => void;
 };
 
 type PrintTagJerpData = {
@@ -32,6 +33,7 @@ type PrintTagJerpData = {
 const PrintTagDialog = ({
   isOpen,
   onOpenChange,
+  onPrintSuccess,
   itemName,
   itemDescription,
   batchCode,
@@ -47,7 +49,6 @@ const PrintTagDialog = ({
     setTimeout(() => {
       const printContent = printRef.current!.innerHTML;
       enviarParaImpressao(printContent);
-      // onOpenChange(false);
     }, 2000);
   };
 
@@ -64,6 +65,8 @@ const PrintTagDialog = ({
 
     if (resposta.ok) {
       console.log("Conteúdo enviado para impressão");
+      onPrintSuccess()
+      onOpenChange(false);
     } else {
       console.error("Erro ao enviar para impressão");
     }
@@ -91,10 +94,10 @@ const PrintTagDialog = ({
               <div className="description">{itemDescription}</div>
               <div className="batch">Lote: {batchCode}</div>
               <div className="barcode-row">
-              <ReactBarcode value="0091" options={{format:"CODE39", height:50}} />
-                {/* <div className={myFont.className + " barcode"}>
-                  {data.idBarras}
-                </div> */}
+                <ReactBarcode
+                  value={`${data.idBarras}`}
+                  options={{ format: "CODE39", height: 50 }}
+                />
                 <div className="quantity">Quantidade: {quantity}</div>
               </div>
             </div>

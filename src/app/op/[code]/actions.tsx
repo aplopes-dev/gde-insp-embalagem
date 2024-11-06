@@ -165,157 +165,6 @@ export async function syncAndGetOpToProduceByCode(code: string) {
   } as OpInspectionDto;
 }
 
-// Disable OLD Op sync
-// export async function syncAndGetOpToProduceByCode(code: string) {
-//   const externalOp = await getOpToProduceByCode(code);
-//   let internalOp = await prisma.op.findFirst({
-//     where: {
-//       code: `${externalOp.Numero}`,
-//     },
-//   });
-
-//   if (!internalOp) {
-//     const refNames = ["Produto", "Blister", "Caixa"];
-//     const refValue = [
-//       `${externalOp.Produto}`,
-//       `${externalOp.Embalagens[0]}`,
-//       `${externalOp.Embalagens[1]}`,
-//     ];
-//     const transaction = await prisma.$transaction([
-//       prisma.productType.findFirst({
-//         where: {
-//           name: refValue[0],
-//         },
-//         select: {
-//           id: true,
-//         },
-//       }),
-//       prisma.blisterType.findFirst({
-//         where: {
-//           name: refValue[1],
-//         },
-//         select: {
-//           id: true,
-//           limitPerBox: true,
-//           slots: true,
-//         },
-//       }),
-//       prisma.boxType.findFirst({
-//         where: {
-//           name: refValue[2],
-//         },
-//         select: {
-//           id: true,
-//         },
-//       }),
-//     ]);
-
-//     const indexNullReference = transaction.findIndex((rf) => !rf?.id);
-//     if (indexNullReference >= 0) {
-//       throw new Error(
-//         `Referência de ${refNames[indexNullReference]} não encontrada.`
-//       );
-//     }
-
-//     internalOp = await prisma.op.create({
-//       data: {
-//         code: `${externalOp.Numero}`,
-//         productTypeId: Number(transaction[0]?.id),
-//         blisterTypeId: Number(transaction[1]?.id),
-//         boxTypeId: Number(transaction[2]?.id),
-//         quantityToProduce: externalOp.QuantidadeAProduzir,
-//         OpBox: {
-//           create: getCollectionToCreateBlisterBoxes(
-//             `OP${code}-BX`,
-//             externalOp.QuantidadeAProduzir,
-//             transaction[1]!.slots,
-//             transaction[1]!.limitPerBox
-//           ),
-//         },
-//       },
-//     });
-//   }
-
-//   const transaction = await prisma.$transaction([
-//     prisma.opBox.count({
-//       where: {
-//         opId: internalOp.id,
-//       },
-//     }),
-//     prisma.opBox.count({
-//       where: {
-//         opId: internalOp.id,
-//         packedAt: null,
-//       },
-//     }),
-//     prisma.opBox.findFirst({
-//       where: {
-//         opId: internalOp.id,
-//         packedAt: null,
-//       },
-//       orderBy: {
-//         id: "asc",
-//       },
-//       include: {
-//         OpBoxBlister: true,
-//       },
-//     }),
-//     prisma.blisterType.findFirst({
-//       where: {
-//         id: internalOp.blisterTypeId,
-//       },
-//     }),
-//     prisma.boxType.findFirst({
-//       where: {
-//         id: internalOp.boxTypeId,
-//       },
-//     }),
-//     prisma.productType.findFirst({
-//       where: {
-//         id: internalOp.productTypeId,
-//       },
-//     }),
-//     prisma.opBoxBlister.aggregate({
-//       _sum: {
-//         quantity: true,
-//       },
-//       where: {
-//         packedAt: {
-//           not: null,
-//         },
-//         opBox: {
-//           opId: internalOp.id,
-//         },
-//       },
-//     }),
-//   ]);
-
-//   const {
-//     id: opId,
-//     code: opCode,
-//     status,
-//     quantityToProduce,
-//     createdAt,
-//     finishedAt,
-//   } = internalOp;
-
-//   return {
-//     opId,
-//     opCode,
-//     status,
-//     createdAt,
-//     finishedAt,
-//     quantityToProduce,
-//     itemsPacked: transaction[6]._sum.quantity,
-//     productType: transaction[5],
-//     blisterType: transaction[3],
-//     boxType: transaction[4],
-//     totalBoxes: transaction[0],
-//     pendingBoxes: transaction[1],
-//     nextBox: transaction[2] || undefined,
-//   } as OpInspectionDto;
-// }
-
 export async function persistBoxStatusWithBlisters(
   boxDto: OpBoxInspectionDto,
   blisters: OpBoxBlisterInspection[],
@@ -588,6 +437,18 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
     quantidadeApontada: quantity,
     idBarras: 992790,
   };
+}
+
+export async function getBoxById(id: number) {
+  const box = await prisma.opBox.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      OpBoxBlister: true,
+    },
+  });
+  return box as OpBoxInspectionDto;
 }
 
 // ## ------- INTERNAL FUNCTIONS --------

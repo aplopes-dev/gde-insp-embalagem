@@ -23,6 +23,7 @@ import {
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
+import { useRouter } from "next/navigation";
 
 type ActiveItemDto = {
   itemId: string;
@@ -46,13 +47,14 @@ export default function PackagingInspection({
     code: string;
   };
 }) {
+  const router = useRouter();
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
   const [inspection, setInspection] = useState<ObjectValidation>();
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
-  const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
   const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
+  const [issetNextBox, setIssetNextBox] = useState<boolean>(false);
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
 
@@ -339,26 +341,19 @@ export default function PackagingInspection({
         setDisplayMessage("Blister e quantidade de itens válidos");
         setDisplayColor("green");
 
-        setTimeout(() => {
-          const index = targetBlister || 0;
-          if (blisters[index + 1]) {
-            setTargetBlister(index + 1);
-            setActiveObjectType("blister");
-            sendToIA({
-              itemId: data!.blisterType.name,
-              quantity: 1,
-            });
-            sendWithDelay({
-              itemId: `${data!.blisterType.name}`,
-              quantity: 1,
-            });
-            setStep(1);
-          } else {
-            setTargetBlister(undefined);
-            setActiveObjectType(undefined);
-            setStep(3);
-            // setOpenConfirmDialog(true);
-          }
+        const index = targetBlister || 0;
+        if (blisters[index + 1]) {
+          setTargetBlister(index + 1);
+          setActiveObjectType("blister");
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
+          sendWithDelay({
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1,
+          });
+          setStep(1);
           setCheckedQuantity(checkedQuantity + message.count);
           setBlisters(
             blisters.map((bl, i) =>
@@ -372,10 +367,24 @@ export default function PackagingInspection({
                 : bl
             )
           );
-          if (!blisters[index + 1]) {
-            setTimeout(() => persistBoxInspection(), 1000);
-          }
-        }, 5000);
+        } else {
+          setTargetBlister(undefined);
+          setActiveObjectType(undefined);
+          setStep(3);
+          setCheckedQuantity(checkedQuantity + message.count);
+          const updateBlisters = blisters.map((bl, i) =>
+            i == index
+              ? {
+                  ...bl,
+                  isValidQuantity: true,
+                  status: 1,
+                  packedAt: new Date(),
+                }
+              : bl
+          );
+          setBlisters(updateBlisters);
+          persistBoxInspection(updateBlisters);
+        }
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
         setDisplayColor("blue");
@@ -404,11 +413,13 @@ export default function PackagingInspection({
     }
   }
 
-  async function persistBoxInspection() {
+  async function persistBoxInspection(
+    currentBlisters: OpBoxBlisterInspection[]
+  ) {
     if (box) {
       await persistBoxStatusWithBlisters(
         box,
-        blisters,
+        currentBlisters,
         data!.opId,
         data?.pendingBoxes == 1
       )
@@ -425,8 +436,7 @@ export default function PackagingInspection({
             variant: "destructive",
           });
         });
-      await printTag();
-      await reload();
+      await printTag(currentBlisters);
     }
   }
 
@@ -436,8 +446,8 @@ export default function PackagingInspection({
     setStep(0);
   }
 
-  async function printTag() {
-    const productQuantity = blisters
+  async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
+    const productQuantity = currentBlisters
       .filter((bl) => bl.status == 1)
       .reduce((acc, i) => acc + i.quantity, 0);
     setQuantityToPrint(productQuantity);
@@ -465,7 +475,7 @@ export default function PackagingInspection({
               title: "Sucesso",
               description: "Caixa finalizada com sucesso!",
             });
-            printTag();
+            printTag(blisters);
           })
           .catch((err) => {
             toast({
@@ -474,7 +484,8 @@ export default function PackagingInspection({
               variant: "destructive",
             });
           });
-        await reload();
+        setIssetNextBox(true);
+        // await reload();
       }
     } else {
       if (box?.status == 0) {
@@ -492,7 +503,7 @@ export default function PackagingInspection({
               variant: "destructive",
             });
           });
-        await reload();
+        // await reload();
       } else if (box?.status == 1 && !issetPackedBlister) {
         toast({
           title: "Erro",
@@ -507,7 +518,7 @@ export default function PackagingInspection({
               title: "Sucesso",
               description: "Caixa finalizada com sucesso!",
             });
-            printTag();
+            printTag(blisters);
           })
           .catch((err) => {
             toast({
@@ -516,7 +527,7 @@ export default function PackagingInspection({
               variant: "destructive",
             });
           });
-        await reload();
+        // await reload();
       }
     }
   }
@@ -543,6 +554,10 @@ export default function PackagingInspection({
     }
   }
 
+  function redirectAction(uri: string) {
+    router.push(`${uri}`);
+  }
+
   return (
     <div className="h-screen flex flex-col gap-4 lg:gap-10 exl:gap-16">
       <Header />
@@ -565,13 +580,6 @@ export default function PackagingInspection({
             {!data.finishedAt && (
               <>
                 <div className="flex justify-end gap-6 mt-8">
-                  {/* <Button
-                    disabled={step != 3}
-                    className="bg-green-700 hover:bg-green-600"
-                    onClick={() => setOpenConfirmDialog(true)}
-                  >
-                    Finalizar e Imprimir
-                  </Button> */}
                   <Button
                     className="bg-blue-700 hover:bg-blue-600"
                     onClick={() => setOpenRestartDialog(true)}
@@ -636,15 +644,6 @@ export default function PackagingInspection({
         onOpenChange={setOpenRestartDialog}
         open={openRestartDialog}
       />
-      <ConfirmationDialog
-        title="Finalizar Inspeção"
-        message="Deseja confirmar a inspeção e imprimir a etiqueta?"
-        cancelLabel="Cancelar"
-        confirmLabel="Confirmar"
-        confirmationAction={persistBoxInspection}
-        onOpenChange={setOpenConfirmDialog}
-        open={openConfirmDialog}
-      />
       <ManagerAuthFormDialog
         title={"Autorizar quebra de OP"}
         message={
@@ -656,6 +655,9 @@ export default function PackagingInspection({
       />
       {data && (
         <PrintTagDialog
+          onPrintSuccess={() => {
+            issetNextBox ? reload() : redirectAction("/");
+          }}
           itemName={data.productType.name}
           itemDescription={data.productType.description}
           opId={data.opId}

@@ -54,7 +54,7 @@ body{
 }
 
 .barcode {
-  font-size: 52px;
+  font-size: 48px;
   flex: auto;
   text-align: center;
   font-family: 'Libre Barcode 39';
@@ -64,7 +64,7 @@ body{
   width: 50%;
   margin-top: 5px;
   text-transform: uppercase;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
 }
 </style>`

@@ -19,7 +19,33 @@ const CamForm = () => {
   const sendNotification = (data: any) => {
     const socket = io("http://localhost:3001");
     socket.emit("detectionUpdate", data);
+    sendMessageToRabbitMq(data)
   };
+
+  async function sendMessageToRabbitMq(message: any) {
+    console.log("%c FRONT:", "color: lightgreen;");
+    console.log(message);
+    console.log("%c ------------------------------", "color: lightgreen;");
+
+    try {
+      const res = await fetch("/api/send/back", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...message }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro: ${res.status}`);
+      }
+
+      const data = await res.json();
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+    }
+  }
+
 
   const form = useForm<ValidationFormType>({
     resolver: zodResolver(validationSchema),

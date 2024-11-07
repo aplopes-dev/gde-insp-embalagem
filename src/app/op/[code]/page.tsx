@@ -105,6 +105,30 @@ export default function PackagingInspection({
     }
   }
 
+  async function sendMessageToRabbitMqMobile(message: any) {
+    console.log("%c MOBILE:", "color: lightblue;");
+    console.log(message);
+    console.log("%c ------------------------------", "color: lightblue;");
+
+    try {
+      const res = await fetch("/api/send/mobile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...message }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro: ${res.status}`);
+      }
+
+      const data = await res.json();
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+    }
+  }
+
   function sendWithDelay(message: any) {
     console.log("SENDING");
 
@@ -117,8 +141,16 @@ export default function PackagingInspection({
     setDisplayColor("blue");
     if (opData.finishedAt) {
       setDisplayMessage("OP Finalizada");
+      sendMessageToRabbitMqMobile({
+        mensagem: "OP Finalizada",
+        cor: 1,
+      });
     } else if (opData.nextBox?.OpBoxBlister) {
       setDisplayMessage("");
+      sendMessageToRabbitMqMobile({
+        mensagem: "",
+        cor: 1,
+      });
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -217,9 +249,17 @@ export default function PackagingInspection({
           });
         setDisplayMessage("Caixa válida");
         setDisplayColor("green");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Caixa válida",
+          cor: 3,
+        });
       } else if (message.itemId != data?.boxType?.name) {
         setDisplayMessage("Modelo de caixa inválido.");
         setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Modelo de caixa inválido.",
+          cor: 2,
+        });
         // Repeat box ref
         sendToIA({
           itemId: data!.boxType.name,
@@ -232,6 +272,10 @@ export default function PackagingInspection({
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver uma caixa!");
         setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Deve haver uma caixa!",
+          cor: 2,
+        });
         // Repeat box ref
         sendToIA({
           itemId: data!.boxType.name,
@@ -245,6 +289,10 @@ export default function PackagingInspection({
     } else {
       setDisplayMessage("Tipo de objeto inválido. Insira uma caixa.");
       setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "Tipo de objeto inválido. Insira uma caixa.",
+        cor: 2,
+      });
       // Repeat box ref
       sendToIA({
         itemId: data!.boxType.name,
@@ -262,6 +310,10 @@ export default function PackagingInspection({
       if (message.itemId == data?.blisterType.name && message.count == 1) {
         setDisplayMessage("Blister válido");
         setDisplayColor("green");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Blister válido",
+          cor: 3,
+        });
         const index = targetBlister || 0;
         setBlisters(
           blisters.map((bl, i) =>
@@ -281,6 +333,10 @@ export default function PackagingInspection({
       } else if (message.itemId != data?.blisterType.name) {
         setDisplayMessage("Modelo de blister inválido.");
         setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Modelo de blister inválido.",
+          cor: 2,
+        });
         // Repeat blister ref
         sendToIA({
           itemId: data!.blisterType.name,
@@ -293,6 +349,10 @@ export default function PackagingInspection({
       } else if (message.count != 1) {
         setDisplayMessage("Deve haver um blister!");
         setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Deve haver um blister!",
+          cor: 2,
+        });
         // Repeat blister ref
         sendToIA({
           itemId: data!.blisterType.name,
@@ -306,6 +366,10 @@ export default function PackagingInspection({
     } else {
       setDisplayMessage("Tipo de objeto inválido. Insira um blister.");
       setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "Tipo de objeto inválido. Insira um blister.",
+        cor: 2,
+      });
       // Repeat blister ref
       sendToIA({
         itemId: data!.blisterType.name,
@@ -324,6 +388,10 @@ export default function PackagingInspection({
       if (message.itemId != data?.productType.name) {
         setDisplayMessage("Modelo de produto inválido.");
         setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Modelo de produto inválido.",
+          cor: 2,
+        });
         // Repeat product ref
         sendToIA({
           itemId: data!.productType.name,
@@ -340,6 +408,10 @@ export default function PackagingInspection({
       ) {
         setDisplayMessage("Blister e quantidade de itens válidos");
         setDisplayColor("green");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Blister e quantidade de itens válidos",
+          cor: 3,
+        });
 
         const index = targetBlister || 0;
         if (blisters[index + 1]) {
@@ -387,7 +459,11 @@ export default function PackagingInspection({
         }
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
-        setDisplayColor("blue");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "Quantidade de itens incorreta.",
+          cor: 2,
+        });
         // Repeat product ref
         sendToIA({
           itemId: data!.productType.name,
@@ -401,6 +477,10 @@ export default function PackagingInspection({
     } else {
       setDisplayMessage("Tipo de objeto inválido. Insira produtos.");
       setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "Tipo de objeto inválido. Insira produtos.",
+        cor: 2,
+      });
       // Repeat product ref
       sendToIA({
         itemId: data!.productType.name,
@@ -451,6 +531,10 @@ export default function PackagingInspection({
       .filter((bl) => bl.status == 1)
       .reduce((acc, i) => acc + i.quantity, 0);
     setQuantityToPrint(productQuantity);
+    sendMessageToRabbitMqMobile({
+      mensagem: "Imprimindo etiqueta...",
+      cor: 4,
+    });
     setOpenPrintTagDialog(true);
   }
 
@@ -656,6 +740,12 @@ export default function PackagingInspection({
       {data && (
         <PrintTagDialog
           onPrintSuccess={() => {
+            sendMessageToRabbitMqMobile({
+              mensagem: issetNextBox
+                ? "Caixa finalizada com sucesso!"
+                : "OP finalizada com sucesso!",
+              cor: 3,
+            });
             issetNextBox ? reload() : redirectAction("/");
           }}
           itemName={data.productType.name}

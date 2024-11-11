@@ -129,10 +129,10 @@ export default function PackagingInspection({
     }
   }
 
-  function sendWithDelay(message: any) {
+  function sendWithDelay(message: any, delay: number = 1000) {
     console.log("SENDING");
 
-    setTimeout(() => sendMessageToRabbitMq(message), 1000);
+    setTimeout(() => sendMessageToRabbitMq(message), delay);
   }
 
   const loadData = async () => {
@@ -146,9 +146,9 @@ export default function PackagingInspection({
         cor: 1,
       });
     } else if (opData.nextBox?.OpBoxBlister) {
-      setDisplayMessage("");
+      setDisplayMessage("Aguardando caixa...");
       sendMessageToRabbitMqMobile({
-        mensagem: "",
+        mensagem: "Aguardando caixa...",
         cor: 1,
       });
       setBlisters(opData.nextBox?.OpBoxBlister);
@@ -577,7 +577,7 @@ export default function PackagingInspection({
           .then((_) => {
             toast({
               title: "Sucesso",
-              description: "OP finalizada com sucesso!",
+              description: "Caixa finalizada com sucesso!",
             });
           })
           .catch((err) => {
@@ -731,7 +731,7 @@ export default function PackagingInspection({
       <ManagerAuthFormDialog
         title={"Autorizar quebra de OP"}
         message={
-          "A OP será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."
+          "A caixa será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."
         }
         isOpen={openForceFinalizationDialog}
         onOpenChange={setOpenForceFinalizationDialog}
@@ -741,12 +741,11 @@ export default function PackagingInspection({
         <PrintTagDialog
           onPrintSuccess={() => {
             sendMessageToRabbitMqMobile({
-              mensagem: issetNextBox
-                ? "Caixa finalizada com sucesso!"
-                : "OP finalizada com sucesso!",
+              mensagem: "Caixa finalizada com sucesso!",
               cor: 3,
             });
-            issetNextBox ? reload() : redirectAction("/");
+            redirectAction("/");
+            // issetNextBox ? reload() : redirectAction("/");
           }}
           itemName={data.productType.name}
           itemDescription={data.productType.description}

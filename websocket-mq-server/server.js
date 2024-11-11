@@ -1,11 +1,11 @@
 // Configurações do RabbitMQ e WebSocket
-const PORT = 3001
-const RABBITMQ_URL = "amqp://admin:admin@localhost:5672"
+const PORT = 3001;
+const RABBITMQ_URL = "amqp://admin:admin@localhost:5672";
 //const RABBITMQ_URL = "amqp://gde:gde123@10.42.0.209:15672"
-const QUEUE_NAME = 'fila_envio';
-const { Server } = require('socket.io');
-const http = require('http');
-const amqp = require('amqplib');
+const QUEUE_NAME = "fila_envio";
+const { Server } = require("socket.io");
+const http = require("http");
+const amqp = require("amqplib");
 
 // Cria o servidor HTTP e integra com o socket.io
 const server = http.createServer();
@@ -15,8 +15,6 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
-
-
 
 // Função para conectar ao RabbitMQ e consumir a fila
 async function connectRabbitMQ() {
@@ -35,22 +33,33 @@ async function connectRabbitMQ() {
         console.log(`Mensagem recebida da fila: ${message}`);
 
         // Emite para todos os clientes conectados via socket.io
-        io.emit('detectionUpdate', { ...JSON.parse(message) });
+        io.emit("detectionUpdate", { ...JSON.parse(message) });
+        channel.ack(msg); // Confirma o processamento da mensagem
+      }
+    });
+    
+    // Consome mensagens da fila
+    channel.consume("fila_action", (msg) => {
+      if (msg !== null) {
+        const message = msg.content.toString();
+        console.log(`Mensagem recebida da fila: fila_action`);
+
+        // Emite para todos os clientes conectados via socket.io
+        io.emit("actionHandler", { ...JSON.parse(message) });
         channel.ack(msg); // Confirma o processamento da mensagem
       }
     });
   } catch (error) {
-    console.error('Erro ao conectar ao RabbitMQ:', error);
+    console.error("Erro ao conectar ao RabbitMQ:", error);
   }
 }
 
-
 // Configura eventos do socket.io
-io.on('connection', (socket) => {
-  console.log('Novo cliente conectado via socket.io');
+io.on("connection", (socket) => {
+  console.log("Novo cliente conectado via socket.io");
 
-  socket.on('disconnect', () => {
-    console.log('Cliente desconectado');
+  socket.on("disconnect", () => {
+    console.log("Cliente desconectado");
   });
 });
 
@@ -69,7 +78,7 @@ server.listen(PORT, () => {
 //       io.emit("detectionUpdate", data)
 //       console.log("detectionUpdate", data);
 //     })
-    
+
 //     socket.on("iaHandler", (data) => {
 //       // Broadcast a 'iaHandler' event to all connected clients with a message
 //       io.emit("iaHandler", data)

@@ -80,9 +80,9 @@ export async function getPaginatedOp({
 
   whereClauses = {
     ...whereClauses,
-    finishedAt: {
-      not: null,
-    },
+    // finishedAt: {
+    //   not: null,
+    // },
   };
 
   const transaction = await prisma.$transaction([

@@ -60,12 +60,10 @@ model Op {
   updatedAt         DateTime  @updatedAt
   finishedAt        DateTime?
   quantityToProduce Int
-  breakAuthorizerId Int?
 
   product         ProductType @relation(fields: [productTypeId], references: [id])
   box             BoxType     @relation(fields: [boxTypeId], references: [id])
   blister         BlisterType @relation(fields: [blisterTypeId], references: [id])
-  breakAuthorizer Manager?    @relation(fields: [breakAuthorizerId], references: [id])
 
   OpBox OpBox[]
 }
@@ -77,8 +75,10 @@ model OpBox {
   status    Int       @default(0)
   createdAt DateTime  @default(now())
   packedAt  DateTime?
+  breakAuthorizerId Int?
 
   op Op @relation(fields: [opId], references: [id], onDelete: Cascade)
+  breakAuthorizer Manager?    @relation(fields: [breakAuthorizerId], references: [id])
 
   OpBoxBlister OpBoxBlister[]
 }
@@ -101,5 +101,5 @@ model Manager {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Op Op[]
+  OpBox OpBox[]
 }

@@ -18,7 +18,6 @@ import {
 import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
 import PrintTagDialog from "./_components/print-tag-dialog";
 import {
-  finalizeAndRemovePendingRelationsByOpCode,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
@@ -33,6 +32,11 @@ type ActiveItemDto = {
 type DetectionDto = {
   itemId: string;
   count: number;
+};
+
+type ActionDto = {
+  action: "BREAK_OP";
+  params: any;
 };
 
 type DetectionReceivedDto = {
@@ -54,6 +58,7 @@ export default function PackagingInspection({
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
+  const [opBrakeManagerId, setOpBrakeManagerId] = useState<string>();
   const [issetNextBox, setIssetNextBox] = useState<boolean>(false);
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
@@ -199,6 +204,16 @@ export default function PackagingInspection({
             });
           }
         });
+        socket.on("actionHandler", (message: ActionDto) => {
+          console.log("%c GLASSES:", "color: yellow;");
+          console.log(message);
+          console.log("%c ------------------------------", "color: yellow;");
+          switch (message.action) {
+            case "BREAK_OP":
+              setOpenForceFinalizationDialog(true);
+              break;
+          }
+        });
       })
       .catch((err: Error) => {
         toast({
@@ -209,6 +224,7 @@ export default function PackagingInspection({
       });
     return () => {
       socket?.off("detectionUpdate");
+      socket?.off("actionHandler");
       socket?.disconnect();
     };
   }, []);
@@ -455,7 +471,9 @@ export default function PackagingInspection({
               : bl
           );
           setBlisters(updateBlisters);
-          persistBoxInspection(updateBlisters);
+          opBrakeManagerId
+            ? forceOpFinalization(opBrakeManagerId, updateBlisters)
+            : persistBoxInspection(updateBlisters);
         }
       } else {
         setDisplayMessage("Quantidade de itens incorreta.");
@@ -538,83 +556,122 @@ export default function PackagingInspection({
     setOpenPrintTagDialog(true);
   }
 
-  async function forceOpFinalization(managerId: string) {
-    const issetPackedBlister = blisters.find((bl) => bl.packedAt);
-    const boxesPacked = Number(data?.totalBoxes) - Number(data?.pendingBoxes);
+  async function forceOpFinalization(
+    managerId: string,
+    currentBlisters: OpBoxBlisterInspection[]
+  ) {
+    const issetPackedBlister = currentBlisters.find((bl) => bl.packedAt);
 
-    if (boxesPacked == 0) {
-      const issetValidBLister = blisters.find((bl) => bl.status == 1);
-      if (box?.status != 1 || !issetValidBLister) {
-        toast({
-          title: "Erro",
-          variant: "destructive",
-          description:
-            "Não é possível finalizar a operação, pois não há itens embalados",
-        });
-      } else {
-        //TODO: Persist box, partial blisters and remove pending
-        await persistWithOpBreak(box, blisters, data!.opId)
-          .then((_) => {
-            toast({
-              title: "Sucesso",
-              description: "Caixa finalizada com sucesso!",
-            });
-            printTag(blisters);
-          })
-          .catch((err) => {
-            toast({
-              title: "Erro",
-              description: err.message,
-              variant: "destructive",
-            });
-          });
-        setIssetNextBox(true);
-        // await reload();
-      }
+    if (box?.status != 1 || !issetPackedBlister) {
+      toast({
+        title: "Erro",
+        variant: "destructive",
+        description:
+          "Não é possível finalizar a operação, pois não há itens embalados",
+      });
     } else {
-      if (box?.status == 0) {
-        await finalizeAndRemovePendingRelationsByOpCode(data!.opId)
-          .then((_) => {
-            toast({
-              title: "Sucesso",
-              description: "Caixa finalizada com sucesso!",
-            });
-          })
-          .catch((err) => {
-            toast({
-              title: "Erro",
-              description: err.message,
-              variant: "destructive",
-            });
+      //TODO: Persist box, partial blisters and remove pending
+      await persistWithOpBreak(
+        box,
+        currentBlisters,
+        data!.opId,
+        Number(managerId)
+      )
+        .then((_) => {
+          toast({
+            title: "Sucesso",
+            description: "Caixa finalizada com sucesso!",
           });
-        // await reload();
-      } else if (box?.status == 1 && !issetPackedBlister) {
-        toast({
-          title: "Erro",
-          variant: "destructive",
-          description: "A caixa está vazia, insira ao menos um blister!",
+          printTag(currentBlisters);
+        })
+        .catch((err) => {
+          toast({
+            title: "Erro",
+            description: err.message,
+            variant: "destructive",
+          });
         });
-      } else {
-        //TODO: Persist box, partial blisters and remove pending
-        await persistWithOpBreak(box!, blisters, data!.opId)
-          .then((_) => {
-            toast({
-              title: "Sucesso",
-              description: "Caixa finalizada com sucesso!",
-            });
-            printTag(blisters);
-          })
-          .catch((err) => {
-            toast({
-              title: "Erro",
-              description: err.message,
-              variant: "destructive",
-            });
-          });
-        // await reload();
-      }
+      setIssetNextBox(true);
+      // await reload();
     }
   }
+  // async function forceOpFinalization(managerId: string, currentBlisters: OpBoxBlisterInspection[]) {
+  //   const issetPackedBlister = currentBlisters.find((bl) => bl.packedAt);
+  //   const boxesPacked = Number(data?.totalBoxes) - Number(data?.pendingBoxes);
+
+  //   if (boxesPacked == 0) {
+  //     const issetValidBLister = currentBlisters.find((bl) => bl.status == 1);
+  //     if (box?.status != 1 || !issetValidBLister) {
+  //       toast({
+  //         title: "Erro",
+  //         variant: "destructive",
+  //         description:
+  //           "Não é possível finalizar a operação, pois não há itens embalados",
+  //       });
+  //     } else {
+  //       //TODO: Persist box, partial blisters and remove pending
+  //       await persistWithOpBreak(box, currentBlisters, data!.opId)
+  //         .then((_) => {
+  //           toast({
+  //             title: "Sucesso",
+  //             description: "Caixa finalizada com sucesso!",
+  //           });
+  //           printTag(blisters);
+  //         })
+  //         .catch((err) => {
+  //           toast({
+  //             title: "Erro",
+  //             description: err.message,
+  //             variant: "destructive",
+  //           });
+  //         });
+  //       setIssetNextBox(true);
+  //       // await reload();
+  //     }
+  //   } else {
+  //     if (box?.status == 0) {
+  //       await finalizeAndRemovePendingRelationsByOpCode(data!.opId)
+  //         .then((_) => {
+  //           toast({
+  //             title: "Sucesso",
+  //             description: "Caixa finalizada com sucesso!",
+  //           });
+  //         })
+  //         .catch((err) => {
+  //           toast({
+  //             title: "Erro",
+  //             description: err.message,
+  //             variant: "destructive",
+  //           });
+  //         });
+  //       // await reload();
+  //     } else if (box?.status == 1 && !issetPackedBlister) {
+  //       toast({
+  //         title: "Erro",
+  //         variant: "destructive",
+  //         description: "A caixa está vazia, insira ao menos um blister!",
+  //       });
+  //     } else {
+  //       //TODO: Persist box, partial blisters and remove pending
+  //       await persistWithOpBreak(box!, blisters, data!.opId)
+  //         .then((_) => {
+  //           toast({
+  //             title: "Sucesso",
+  //             description: "Caixa finalizada com sucesso!",
+  //           });
+  //           printTag(blisters);
+  //         })
+  //         .catch((err) => {
+  //           toast({
+  //             title: "Erro",
+  //             description: err.message,
+  //             variant: "destructive",
+  //           });
+  //         });
+  //       // await reload();
+  //     }
+  //   }
+  // }
 
   function getStatusVariant(status?: number) {
     switch (status) {
@@ -640,6 +697,26 @@ export default function PackagingInspection({
 
   function redirectAction(uri: string) {
     router.push(`${uri}`);
+  }
+
+  function configLastBlisterQuantity(quantity: number, managerId: string) {
+    const index = targetBlister || 0;
+    const newBlisters = [...blisters.slice(0, index + 1)];
+    newBlisters[index].quantity = quantity;
+
+    const itemQuantity = newBlisters.reduce(
+      (total, blister) => total + blister.quantity,
+      0
+    );
+    const checkQuantity =
+      newBlisters
+        ?.filter((bl) => bl.packedAt)
+        .reduce((total, blister) => total + blister.quantity, 0) || 0;
+
+    setQuantityInBox(itemQuantity);
+    setCheckedQuantity(checkQuantity);
+    setBlisters(newBlisters);
+    setOpBrakeManagerId(managerId);
   }
 
   return (
@@ -735,7 +812,10 @@ export default function PackagingInspection({
         }
         isOpen={openForceFinalizationDialog}
         onOpenChange={setOpenForceFinalizationDialog}
-        onManagerAuth={(managerId) => forceOpFinalization(managerId)}
+        onManagerAuth={(quantity, managerId) =>
+          configLastBlisterQuantity(quantity, managerId)
+        }
+        // onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
       {data && (
         <PrintTagDialog

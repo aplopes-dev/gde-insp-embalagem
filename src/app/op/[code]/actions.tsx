@@ -214,56 +214,75 @@ export async function persistBoxStatusWithBlisters(
   await prisma.$transaction(queryCollection);
 }
 
-export async function finalizeAndRemovePendingRelationsByOpCode(opId: number) {
-  await prisma.$transaction([
-    prisma.opBoxBlister.deleteMany({
-      where: {
-        packedAt: null,
-        opBox: {
-          opId,
-        },
-      },
-    }),
-    prisma.opBox.deleteMany({
-      where: {
-        opId,
-        packedAt: null,
-      },
-    }),
-    prisma.op.update({
-      data: {
-        finishedAt: new Date(),
-        status: 2,
-      },
-      where: {
-        id: opId,
-      },
-    }),
-  ]);
-}
+// export async function finalizeAndRemovePendingRelationsByOpCode(opId: number) {
+//   await prisma.$transaction([
+//     prisma.opBoxBlister.deleteMany({
+//       where: {
+//         packedAt: null,
+//         opBox: {
+//           opId,
+//         },
+//       },
+//     }),
+//     prisma.opBox.deleteMany({
+//       where: {
+//         opId,
+//         packedAt: null,
+//       },
+//     }),
+//     prisma.op.update({
+//       data: {
+//         finishedAt: new Date(),
+//         status: 2,
+//       },
+//       where: {
+//         id: opId,
+//       },
+//     }),
+//   ]);
+// }
 
 export async function persistWithOpBreak(
   boxDto: OpBoxInspectionDto,
   blisters: OpBoxBlisterInspection[],
-  opId: number
+  opId: number,
+  managerId: number
 ) {
   const { id, status } = boxDto;
-  const queryCollection: any[] = blisters.map((bl) =>
-    prisma.opBoxBlister.update({
-      data: {
-        packedAt: bl.packedAt?.toISOString(),
-      },
-      where: {
-        id: bl.id,
-        opBoxId: id,
-      },
-    })
-  );
+  const blistersToRemove = blisters
+    .filter((bl) => !bl.packedAt)
+    .map((bl) => bl.id) as number[];
+  const queryCollection: any[] = blisters
+    .filter((bl) => bl.packedAt)
+    .map((bl) =>
+      prisma.opBoxBlister.update({
+        data: {
+          packedAt: bl.packedAt?.toISOString(),
+          quantity: bl.quantity,
+        },
+        where: {
+          id: bl.id,
+          opBoxId: id,
+        },
+      })
+    );
+  if (blistersToRemove.length > 0) {
+    queryCollection.push(
+      prisma.opBoxBlister.deleteMany({
+        where: {
+          id: {
+            in: blistersToRemove,
+          },
+        },
+      })
+    );
+  }
   queryCollection.push(
     prisma.opBox.update({
       data: {
         packedAt: new Date(),
         status: status,
+        breakAuthorizerId: managerId,
       },
       where: {
         id,
@@ -274,19 +293,30 @@ export async function persistWithOpBreak(
   try {
     // Persist blister and boxes after packeging
     await prisma.$transaction(queryCollection);
-    const countPendingItems = await prisma.opBoxBlister.aggregate({
+    const initialQuantity = await prisma.op.findUnique({
+        select: {
+          quantityToProduce: true
+        },
+        where: {
+          id: opId,
+        },
+      },
+    );
+    const countPackageItems = await prisma.opBoxBlister.aggregate({
       _sum: {
         quantity: true,
       },
       where: {
-        packedAt: null,
+        packedAt: {
+          not: null,
+        },
         opBox: {
           opId,
         },
       },
     });
-    const quantityPending = countPendingItems._sum.quantity;
-    if (quantityPending) {
+    if (initialQuantity?.quantityToProduce && countPackageItems._sum.quantity) {
+      const quantityPending = initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
       await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
     } else {
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
@@ -371,6 +401,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
       OpBox: {
         create: boxes,
       },
+      status: 2
     },
     where: {
       id: opId,

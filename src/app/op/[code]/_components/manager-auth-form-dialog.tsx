@@ -30,20 +30,23 @@ type OpBreakAuthFormProps = {
   isOpen: boolean;
   title: string;
   message: string;
+  initialQuantity?: number;
   onOpenChange: (open: boolean) => void;
-  onManagerAuth: (managerId: string) => void;
+  onManagerAuth: (quantity: number, managerId: string) => void;
 };
 
 const ManagerAuthFormDialog = ({
   title,
   message,
   isOpen,
+  initialQuantity,
   onOpenChange,
   onManagerAuth,
 }: OpBreakAuthFormProps) => {
   const form = useForm<OpBreakAuthorizationType>({
     resolver: zodResolver(opBreakAuthorizationSchema),
     defaultValues: {
+      quantity: initialQuantity || 1,
       code: "",
       password: "",
     },
@@ -53,17 +56,18 @@ const ManagerAuthFormDialog = ({
   const {
     formState: { errors },
     reset,
+    register,
   } = form;
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const { code, password } = data;
+    const { quantity, code, password } = data;
     await managarAuthorization(code, password)
       .then((id) => {
         toast({
           title: "Sucesso",
           description: "Autorizado com sucesso!",
         });
-        onManagerAuth(`${id}`);
+        onManagerAuth(quantity, `${id}`);
         onOpenChange(false);
       })
       .catch((err) => {
@@ -77,7 +81,7 @@ const ManagerAuthFormDialog = ({
 
   useEffect(() => {
     if (isOpen) {
-      reset({ code: "", password: "" });
+      reset({ quantity: initialQuantity, code: "", password: "" });
     }
   }, [isOpen]);
 
@@ -91,6 +95,24 @@ const ManagerAuthFormDialog = ({
         <div>
           <Form {...form}>
             <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantidade do último blister</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Insira a nova quantidade autorizada"
+                        {...register("quantity", {
+                          valueAsNumber: true,
+                        })}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="code"

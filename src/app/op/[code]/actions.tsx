@@ -137,6 +137,16 @@ export async function syncAndGetOpToProduceByCode(code: string) {
         },
       },
     }),
+    prisma.opBoxBlister.findMany({
+      select: {
+        code: true
+      },
+      where: {
+        opBox: {
+          opId: internalOp.id,
+        },
+      },
+    }),
   ]);
 
   const {
@@ -155,6 +165,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     createdAt,
     finishedAt,
     quantityToProduce,
+    blisterCodes: transaction[7]?.map(bl => bl.code) || [],
     itemsPacked: transaction[6]._sum.quantity,
     productType: transaction[5],
     blisterType: transaction[3],
@@ -177,6 +188,7 @@ export async function persistBoxStatusWithBlisters(
     prisma.opBoxBlister.update({
       data: {
         packedAt: bl.packedAt?.toISOString(),
+        code: bl.code
       },
       where: {
         id: bl.id,
@@ -214,34 +226,6 @@ export async function persistBoxStatusWithBlisters(
   await prisma.$transaction(queryCollection);
 }
 
-// export async function finalizeAndRemovePendingRelationsByOpCode(opId: number) {
-//   await prisma.$transaction([
-//     prisma.opBoxBlister.deleteMany({
-//       where: {
-//         packedAt: null,
-//         opBox: {
-//           opId,
-//         },
-//       },
-//     }),
-//     prisma.opBox.deleteMany({
-//       where: {
-//         opId,
-//         packedAt: null,
-//       },
-//     }),
-//     prisma.op.update({
-//       data: {
-//         finishedAt: new Date(),
-//         status: 2,
-//       },
-//       where: {
-//         id: opId,
-//       },
-//     }),
-//   ]);
-// }
-
 export async function persistWithOpBreak(
   boxDto: OpBoxInspectionDto,
   blisters: OpBoxBlisterInspection[],
@@ -259,6 +243,7 @@ export async function persistWithOpBreak(
         data: {
           packedAt: bl.packedAt?.toISOString(),
           quantity: bl.quantity,
+          code: bl.code
         },
         where: {
           id: bl.id,
@@ -281,7 +266,7 @@ export async function persistWithOpBreak(
     prisma.opBox.update({
       data: {
         packedAt: new Date(),
-        status: status,
+        status: 2,
         breakAuthorizerId: managerId,
       },
       where: {

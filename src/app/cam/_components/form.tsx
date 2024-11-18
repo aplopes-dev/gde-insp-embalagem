@@ -52,6 +52,7 @@ const CamForm = () => {
     defaultValues: {
       itemId: "",
       count: "",
+      code: ""
     },
     mode: "onChange",
   });
@@ -61,10 +62,11 @@ const CamForm = () => {
   } = form;
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const { itemId, count } = data;
+    const { itemId, count, code } = data;
     await sendNotification({
       itemId,
       count: Number(count),
+      code
     });
   });
 
@@ -94,6 +96,19 @@ const CamForm = () => {
               <FormLabel>Quantidade</FormLabel>
               <FormControl>
                 <Input placeholder="Insira a quantidade" {...field} />
+              </FormControl>
+              <FormMessage>{errors.count && errors.count.message}</FormMessage>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="code"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Código</FormLabel>
+              <FormControl>
+                <Input placeholder="Insira o código" {...field} />
               </FormControl>
               <FormMessage>{errors.count && errors.count.message}</FormMessage>
             </FormItem>

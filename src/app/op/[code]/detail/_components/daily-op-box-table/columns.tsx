@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckIcon, EyeIcon, XIcon } from "lucide-react";
@@ -11,6 +12,22 @@ export function useBoxOpColumns({
 }): {
   columns: any[];
 } {
+  function getStatusBadge(status: number) {
+    let label = "Pendente";
+    let variant: "default" | "success" | "destructive" = "default";
+    switch (status) {
+      case 1:
+        label = "Concluído";
+        variant = "success";
+        break;
+      case 2:
+        label = "Quebra de Caixa";
+        variant = "destructive";
+        break;
+    }
+    return <Badge variant={variant}>{label}</Badge>;
+  }
+
   const columns = [
     {
       id: "code",
@@ -43,7 +60,7 @@ export function useBoxOpColumns({
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
-        const id = row.original.id
+        const id = row.original.id;
         const quantity = Number(row.getValue("quantity"));
         return (
           <div className="flex justify-center">
@@ -67,15 +84,11 @@ export function useBoxOpColumns({
       header: "Status",
       enableSorting: false,
       meta: {
-        className: "flex-1 text-center",
+        className: "flex-1 text-right",
       },
       cell: ({ row }) => {
-        const status = row.getValue("status");
-        return (
-          <div className="flex justify-center">
-            {status == 1 ? <CheckIcon /> : <XIcon />}
-          </div>
-        );
+        const status = row.getValue("status") as number;
+        return <div className="flex justify-end">{getStatusBadge(status)}</div>;
       },
     },
   ] as ColumnDef<any>[];

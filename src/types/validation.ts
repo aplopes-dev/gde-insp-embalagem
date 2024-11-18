@@ -2,7 +2,7 @@ export type ValidableType = "product" | "box" | "blister";
 
 export type ObjectValidation = {
   // type: ValidableType;
-  // code: string;
+  code?: string;
   itemId: string;
   // name: string;
   count: number;

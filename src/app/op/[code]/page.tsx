@@ -32,6 +32,7 @@ type ActiveItemDto = {
 type DetectionDto = {
   itemId: string;
   count: number;
+  code?: string;
 };
 
 type ActionDto = {
@@ -74,6 +75,8 @@ export default function PackagingInspection({
   const [quantityToPrint, setQuantityToPrint] = useState<number>(0);
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
+
+  const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
 
   const sendToIA = (data: ActiveItemDto) => {
     const socket = io("http://localhost:3001");
@@ -155,6 +158,7 @@ export default function PackagingInspection({
         mensagem: "AGUARDANDO CAIXA...",
         cor: 1,
       });
+      setBlisterCodes(opData.blisterCodes)
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -200,6 +204,7 @@ export default function PackagingInspection({
             setInspection({
               itemId: message.itemId,
               count: Number(message.count),
+              code: message.code,
             });
           }
         });
@@ -323,28 +328,69 @@ export default function PackagingInspection({
   function inspectBlister(message: ObjectValidation) {
     if (activeObjectType == "blister") {
       if (message.itemId == data?.blisterType.name && message.count == 1) {
-        setDisplayMessage("BLISTER VÁLIDO");
-        setDisplayColor("green");
-        sendMessageToRabbitMqMobile({
-          mensagem: "BLISTER VÁLIDO",
-          cor: 3,
-        });
-        const index = targetBlister || 0;
-        setBlisters(
-          blisters.map((bl, i) =>
-            i == index ? { ...bl, isValidItem: true } : bl
-          )
-        );
-        setActiveObjectType("product");
-        sendToIA({
-          itemId: data!.productType.name,
-          quantity: blisters[targetBlister!].quantity,
-        });
-        sendWithDelay({
-          itemId: `${data!.productType.name}`,
-          quantity: blisters[targetBlister!].quantity,
-        });
-        setStep(2);
+        // message.code = (Math.random()*10).toString()
+        if (!message.code) {
+          setDisplayMessage("ENVE O CÓDIGO DO BLISTER.");
+          setDisplayColor("red");
+          sendMessageToRabbitMqMobile({
+            mensagem: "ENVIE O CÓDIGO DO BLISTER.",
+            cor: 2,
+          });
+          // Repeat blister ref
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
+          sendWithDelay({
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1,
+          });
+        } else if (blisterCodes.includes(message.code)) {
+          setDisplayMessage(
+            "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + message.code
+          );
+          setDisplayColor("red");
+          sendMessageToRabbitMqMobile({
+            mensagem: "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + message.code,
+            cor: 2,
+          });
+          // Repeat blister ref
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
+          sendWithDelay({
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1,
+          });
+        } else {
+          setDisplayMessage("BLISTER VÁLIDO");
+          setDisplayColor("green");
+          sendMessageToRabbitMqMobile({
+            mensagem: "BLISTER VÁLIDO",
+            cor: 3,
+          });
+          const index = targetBlister || 0;
+          setBlisters(
+            blisters.map((bl, i) =>
+              i == index
+                ? { ...bl, code: message.code!, isValidItem: true }
+                : bl
+            )
+          );
+          setActiveObjectType("product");
+          sendToIA({
+            itemId: data!.productType.name,
+            quantity: blisters[targetBlister!].quantity,
+          });
+          sendWithDelay({
+            itemId: `${data!.productType.name}`,
+            quantity: blisters[targetBlister!].quantity,
+            fileName: `OP_${data.opCode}_BL_${index + 1}`,
+          });
+          setBlisterCodes([...blisterCodes, message.code]);
+          setStep(2);
+        }
       } else if (message.itemId != data?.blisterType.name) {
         setDisplayMessage("MODELO DE BLISTER INVÁLIDO.");
         setDisplayColor("red");
@@ -415,6 +461,7 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
+          fileName: `OP_${data!.opCode}_BL_${targetBlister! + 1}`,
         });
       } else if (
         (message.count == data!.blisterType.slots &&
@@ -489,6 +536,7 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
+          fileName: `OP_${data!.opCode}_BL_${targetBlister! + 1}`,
         });
       }
     } else {
@@ -506,6 +554,7 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
+        fileName: `OP_${data!.opCode}_BL_${targetBlister! + 1}`,
       });
     }
   }
@@ -624,10 +673,10 @@ export default function PackagingInspection({
   function configLastBlisterQuantity(quantity: number, managerId: string) {
     const index = targetBlister || 0;
 
-    if(quantity < blisters[index].quantity){
+    if (quantity < blisters[index].quantity) {
       const newBlisters = [...blisters.slice(0, index + 1)];
       newBlisters[index].quantity = quantity;
-  
+
       const itemQuantity = newBlisters.reduce(
         (total, blister) => total + blister.quantity,
         0
@@ -636,13 +685,12 @@ export default function PackagingInspection({
         newBlisters
           ?.filter((bl) => bl.packedAt)
           .reduce((total, blister) => total + blister.quantity, 0) || 0;
-  
-  
+
       setQuantityInBox(itemQuantity);
       setCheckedQuantity(checkQuantity);
       setBlisters(newBlisters);
       setOpBrakeManagerId(managerId);
-    }else{
+    } else {
       setDisplayMessage("QUANTIDADE DEVE SER MENOR QUE A ATUAL!");
       setDisplayColor("red");
       sendMessageToRabbitMqMobile({
@@ -650,7 +698,6 @@ export default function PackagingInspection({
         cor: 2,
       });
     }
-
   }
 
   return (
@@ -762,7 +809,7 @@ export default function PackagingInspection({
               });
               redirectAction("/");
             }, 2000);
-              // issetNextBox ? reload() : redirectAction("/");
+            // issetNextBox ? reload() : redirectAction("/");
           }}
           itemName={data.productType.name}
           itemDescription={data.productType.description}

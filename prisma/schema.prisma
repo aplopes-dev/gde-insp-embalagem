@@ -61,35 +61,38 @@ model Op {
   finishedAt        DateTime?
   quantityToProduce Int
 
-  product         ProductType @relation(fields: [productTypeId], references: [id])
-  box             BoxType     @relation(fields: [boxTypeId], references: [id])
-  blister         BlisterType @relation(fields: [blisterTypeId], references: [id])
+  product ProductType @relation(fields: [productTypeId], references: [id])
+  box     BoxType     @relation(fields: [boxTypeId], references: [id])
+  blister BlisterType @relation(fields: [blisterTypeId], references: [id])
 
   OpBox OpBox[]
 }
 
 model OpBox {
-  id        Int       @id @default(autoincrement())
-  opId      Int
-  code      String
-  status    Int       @default(0)
-  createdAt DateTime  @default(now())
-  packedAt  DateTime?
+  id                Int       @id @default(autoincrement())
+  opId              Int
+  code              String
+  status            Int       @default(0)
+  createdAt         DateTime  @default(now())
+  packedAt          DateTime?
   breakAuthorizerId Int?
 
-  op Op @relation(fields: [opId], references: [id], onDelete: Cascade)
-  breakAuthorizer Manager?    @relation(fields: [breakAuthorizerId], references: [id])
+  op              Op       @relation(fields: [opId], references: [id], onDelete: Cascade)
+  breakAuthorizer Manager? @relation(fields: [breakAuthorizerId], references: [id])
 
   OpBoxBlister OpBoxBlister[]
 }
 
 model OpBoxBlister {
   id       Int       @id @default(autoincrement())
+  code     String    @default(uuid())
   opBoxId  Int
   quantity Int       @default(0)
   packedAt DateTime?
 
   opBox OpBox @relation(fields: [opBoxId], references: [id], onDelete: Cascade)
+
+  @@unique([opBoxId, code])
 }
 
 model Manager {

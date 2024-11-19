@@ -386,7 +386,7 @@ export default function PackagingInspection({
           sendWithDelay({
             itemId: `${data!.productType.name}`,
             quantity: blisters[targetBlister!].quantity,
-            fileName: `OP_${data.opCode}_BL_${index + 1}`,
+            fileName: `OP_${data.opCode}_BL_${blisters[targetBlister!].code}`,
           });
           setBlisterCodes([...blisterCodes, message.code]);
           setStep(2);
@@ -461,7 +461,7 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BL_${targetBlister! + 1}`,
+          fileName: `OP_${data!.opCode}_BL_${blisters[targetBlister!].code}`,
         });
       } else if (
         (message.count == data!.blisterType.slots &&
@@ -536,7 +536,7 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BL_${targetBlister! + 1}`,
+          fileName: `OP_${data!.opCode}_BL_${blisters[targetBlister!].code}`,
         });
       }
     } else {
@@ -554,7 +554,7 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
-        fileName: `OP_${data!.opCode}_BL_${targetBlister! + 1}`,
+        fileName: `OP_${data!.opCode}_BL_${blisters[targetBlister!].code}`,
       });
     }
   }
@@ -601,6 +601,10 @@ export default function PackagingInspection({
       sendMessageToRabbitMqMobile({
         mensagem: "IMPRIMINDO ETIQUETA...",
         cor: 4,
+      });
+      sendWithDelay({
+        itemId: `ITEM_INVALIDO`,
+        quantity: 1,
       });
       setOpenPrintTagDialog(true);
     }, 2000);

@@ -386,7 +386,7 @@ export default function PackagingInspection({
           sendWithDelay({
             itemId: `${data!.productType.name}`,
             quantity: blisters[targetBlister!].quantity,
-            fileName: `OP_${data.opCode}_BL_${blisters[targetBlister!].code}`,
+            fileName: `${box?.code}_BL_${blisters[targetBlister!].code}`,
           });
           setBlisterCodes([...blisterCodes, message.code]);
           setStep(2);

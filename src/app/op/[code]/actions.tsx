@@ -75,7 +75,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
         quantityToProduce: externalOp.quantidadeAProduzir,
         OpBox: {
           create: getCollectionToCreateBlisterBoxes(
-            `OP${code}-BX`,
+            `OP_${code}_BOX`,
             externalOp.quantidadeAProduzir,
             transaction[1]!.slots,
             transaction[1]!.limitPerBox
@@ -357,7 +357,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
   }
 
   const boxes = getCollectionToCreateBlisterBoxes(
-    `OP${op.code}-BX`,
+    `OP_${op.code}_BOX`,
     quantityToProduce,
     op.blister?.slots,
     op.blister?.limitPerBox,

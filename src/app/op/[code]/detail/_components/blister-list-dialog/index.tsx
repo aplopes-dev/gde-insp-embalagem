@@ -99,12 +99,12 @@ const BlisterListDialog = ({
                       <Image
                         width={100}
                         height={50}
-                        src={`/images/BLISTERS/${data.code}_BL_${item.code}.jpg`}
+                        src={`/api/images/${data.code}_BL_${item.code}.jpg`}
                         alt="GDE"
                         className="cursor-pointer"
                         onClick={() =>
                           handleImageClick(
-                            `/images/BLISTERS/${data.code}_BL_${item.code}.jpg`
+                            `/api/images/${data.code}_BL_${item.code}.jpg`
                           )
                         }
                       />

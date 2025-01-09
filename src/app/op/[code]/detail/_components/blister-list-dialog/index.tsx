@@ -44,12 +44,14 @@ const ImageModal = ({
 type BlisterListDialogProps = {
   activeKey: number;
   isOpen: boolean;
+  opCode: string;
   onOpenChange: (open: boolean) => void;
 };
 
 const BlisterListDialog = ({
   activeKey,
   isOpen,
+  opCode,
   onOpenChange,
 }: BlisterListDialogProps) => {
   const [data, setData] = useState<OpBox & { OpBoxBlister: OpBoxBlister[] }>();
@@ -72,6 +74,14 @@ const BlisterListDialog = ({
     setSelectedImage(imageSrc);
     setImageModalOpen(true);
   };
+
+  const formatDateISO = (date: Date) => {
+    // Convert the date to ISO string
+    const isoString = date.toISOString();
+    // Split at the "T" character to get the date part
+    const formattedDate = isoString.split("T")[0];
+    return formattedDate;
+};
 
   return (
     <>
@@ -99,12 +109,12 @@ const BlisterListDialog = ({
                       <Image
                         width={100}
                         height={50}
-                        src={`/api/images/${data.code}_BL_${item.code}.jpg`}
+                        src={`/api/images/OP_${opCode}_BOX_${data.code}_BL_${item.code}.jpg?path=${formatDateISO(data.packedAt!)}`}
                         alt="GDE"
                         className="cursor-pointer"
                         onClick={() =>
                           handleImageClick(
-                            `/api/images/${data.code}_BL_${item.code}.jpg`
+                            `/api/images/OP_${opCode}_BOX_${data.code}_BL_${item.code}.jpg?path=${formatDateISO(data.packedAt!)}`
                           )
                         }
                       />

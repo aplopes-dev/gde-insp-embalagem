@@ -386,7 +386,8 @@ export default function PackagingInspection({
           sendWithDelay({
             itemId: `${data!.productType.name}`,
             quantity: blisters[targetBlister!].quantity,
-            fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+            fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${message.code}`,
+            // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
           });
           setBlisterCodes([...blisterCodes, message.code]);
           setStep(2);
@@ -461,7 +462,8 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       } else if (
         (message.count == data!.blisterType.slots &&
@@ -536,7 +538,8 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       }
     } else {
@@ -554,7 +557,8 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
-        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+        // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
       });
     }
   }

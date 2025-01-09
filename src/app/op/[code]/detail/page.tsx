@@ -107,7 +107,7 @@ const BoxPage = ({
                 </div>
               </div>
             </div>
-            <DailyOpBoxTable opId={data.id} />
+            <DailyOpBoxTable opCode={code} opId={data.id} />
           </div>
         </div>
       )}

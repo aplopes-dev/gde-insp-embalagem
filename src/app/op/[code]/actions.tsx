@@ -497,13 +497,15 @@ function getCollectionToCreateBlisterBoxes(
     const isLastBox = i + 1 == boxesToProduce;
     const blisterCount = isLastBox ? lastBoxQuantity : blisterPerBox;
     return {
-      code: `${boxTagPrefix}-${i + 1 + boxGap}`,
+      code: `${i + 1 + boxGap}`,
+      // code: `${boxTagPrefix}_${i + 1 + boxGap}`,
       OpBoxBlister: {
         create: Array.from(Array(blisterCount)).map((_, j) => {
           const isLastBlister = j + 1 == blisterCount;
           const quantity =
             isLastBox && isLastBlister ? lastBlisterQuantity : itemPerBlister;
           return {
+            code: `${j + 1}`,
             quantity,
           };
         }),

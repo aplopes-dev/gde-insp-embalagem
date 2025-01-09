@@ -5,8 +5,19 @@ const IMAGE_DIRECTORY = `${process.env.IMAGES_DIR}`; // Diretório externo
 
 export async function GET(req: Request, { params }: { params: { filename: string } }) {
   const { filename } = params;
-  const filePath = path.join(IMAGE_DIRECTORY, 'BLISTERS' , filename);
+  
+  const reqUrl = req.url
+  const { searchParams } = new URL(reqUrl)
 
+  const resourcePath = searchParams.get('path') 
+
+  if(!resourcePath){
+    throw Error("'path' param is required")
+  }
+
+  const pathArr = resourcePath.split("/")
+  const filePath = path.join(IMAGE_DIRECTORY, ...pathArr, filename);
+  
   console.log("filePath");
   console.log(filePath);
 

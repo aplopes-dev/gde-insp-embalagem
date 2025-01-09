@@ -11,7 +11,7 @@ import BlisterListDialog from "../blister-list-dialog";
 import { useBoxOpColumns } from "./columns";
 import { BoxOpDataTableToolbar } from "./toolbar";
 
-export function DailyOpBoxTable({ opId }: { opId: number }) {
+export function DailyOpBoxTable({ opId, opCode }: { opId: number, opCode: string }) {
   const onCLickView = (value: any) => {
     setActiveKey(value);
     setOpenBlisterDialog(true);
@@ -62,6 +62,7 @@ export function DailyOpBoxTable({ opId }: { opId: number }) {
         }}
       />
       <BlisterListDialog
+        opCode={opCode}
         activeKey={activeKey}
         isOpen={openBlisterDialog}
         onOpenChange={setOpenBlisterDialog}

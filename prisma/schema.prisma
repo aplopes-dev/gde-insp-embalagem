@@ -85,7 +85,7 @@ model OpBox {
 
 model OpBoxBlister {
   id       Int       @id @default(autoincrement())
-  code     String    @default(uuid())
+  code     String 
   opBoxId  Int
   quantity Int       @default(0)
   packedAt DateTime?

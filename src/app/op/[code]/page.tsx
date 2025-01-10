@@ -24,6 +24,8 @@ import {
 } from "./actions";
 import { useRouter } from "next/navigation";
 
+const WEBSOCKET_URL = `${process.env.WEBSOCKET_URL}`;
+
 type ActiveItemDto = {
   itemId: string;
   quantity?: number;
@@ -45,6 +47,13 @@ type DetectionReceivedDto = {
   receivedCount: number;
 };
 
+enum StepEnum {
+  BOX,
+  BLISTER,
+  QUANTITY,
+  PRINT,
+}
+
 export default function PackagingInspection({
   params: { code },
 }: {
@@ -56,7 +65,7 @@ export default function PackagingInspection({
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
   const [inspection, setInspection] = useState<ObjectValidation>();
-  const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
+  const [step, setStep] = useState(StepEnum.BOX);
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
   const [opBrakeManagerId, setOpBrakeManagerId] = useState<string>();
@@ -79,12 +88,12 @@ export default function PackagingInspection({
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
 
   const sendToIA = (data: ActiveItemDto) => {
-    const socket = io("http://localhost:3001");
+    const socket = io(WEBSOCKET_URL);
     socket.emit("iaHandler", data);
   };
 
   const sendDetectionReceived = (data: DetectionReceivedDto) => {
-    const socket = io("http://localhost:3001");
+    const socket = io(WEBSOCKET_URL);
     socket.emit("iaHandler", data);
   };
 
@@ -158,7 +167,7 @@ export default function PackagingInspection({
         mensagem: "AGUARDANDO CAIXA...",
         cor: 1,
       });
-      setBlisterCodes(opData.blisterCodes)
+      setBlisterCodes(opData.blisterCodes);
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -190,7 +199,7 @@ export default function PackagingInspection({
     let socket: any;
     loadData()
       .then((_) => {
-        socket = io("http://localhost:3001");
+        socket = io(WEBSOCKET_URL);
         socket.on("detectionUpdate", (message: DetectionDto) => {
           console.log("%c BACK:", "color: orange;");
           console.log(message);
@@ -236,13 +245,13 @@ export default function PackagingInspection({
   useEffect(() => {
     if (!data?.finishedAt && inspection)
       switch (step) {
-        case 0:
+        case StepEnum.BOX:
           inspectBox(inspection);
           break;
-        case 1:
+        case StepEnum.BLISTER:
           inspectBlister(inspection);
           break;
-        case 2:
+        case StepEnum.QUANTITY:
           inspectQuantity(inspection);
           break;
       }
@@ -261,7 +270,7 @@ export default function PackagingInspection({
           quantity: 1,
         });
         setTargetBlister(0);
-        setStep(1);
+        setStep(StepEnum.BLISTER);
         box &&
           setBox({
             ...box,
@@ -390,7 +399,7 @@ export default function PackagingInspection({
             // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
           });
           setBlisterCodes([...blisterCodes, message.code]);
-          setStep(2);
+          setStep(StepEnum.QUANTITY);
         }
       } else if (message.itemId != data?.blisterType.name) {
         setDisplayMessage("MODELO DE BLISTER INVÁLIDO.");
@@ -462,7 +471,9 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+            blisterCodes[targetBlister!]
+          }`,
           // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       } else if (
@@ -489,7 +500,7 @@ export default function PackagingInspection({
             itemId: `${data!.blisterType.name}`,
             quantity: 1,
           });
-          setStep(1);
+          setStep(StepEnum.BLISTER);
           setCheckedQuantity(checkedQuantity + message.count);
           setBlisters(
             blisters.map((bl, i) =>
@@ -506,7 +517,7 @@ export default function PackagingInspection({
         } else {
           setTargetBlister(undefined);
           setActiveObjectType(undefined);
-          setStep(3);
+          setStep(StepEnum.PRINT);
           setCheckedQuantity(checkedQuantity + message.count);
           const updateBlisters = blisters.map((bl, i) =>
             i == index
@@ -538,7 +549,9 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+            blisterCodes[targetBlister!]
+          }`,
           // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       }
@@ -557,7 +570,9 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
-        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+          blisterCodes[targetBlister!]
+        }`,
         // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
       });
     }
@@ -593,7 +608,7 @@ export default function PackagingInspection({
   async function reload() {
     await loadData();
     setTargetBlister(undefined);
-    setStep(0);
+    setStep(StepEnum.BOX);
   }
 
   async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
@@ -805,7 +820,6 @@ export default function PackagingInspection({
         onManagerAuth={(quantity, managerId) =>
           configLastBlisterQuantity(quantity, managerId)
         }
-        // onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
       {data && (
         <PrintTagDialog
@@ -817,7 +831,6 @@ export default function PackagingInspection({
               });
               redirectAction("/");
             }, 2000);
-            // issetNextBox ? reload() : redirectAction("/");
           }}
           itemName={data.productType.name}
           itemDescription={data.productType.description}

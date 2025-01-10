@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const IMAGE_DIRECTORY = `${process.env.IMAGES_DIR}`; // Diretório externo
+const IMAGE_DIRECTORY = `${process.env.IMAGES_DIR}`; 
 
 export async function GET(req: Request, { params }: { params: { filename: string } }) {
   const { filename } = params;
@@ -17,19 +17,13 @@ export async function GET(req: Request, { params }: { params: { filename: string
 
   const pathArr = resourcePath.split("/")
   const filePath = path.join(IMAGE_DIRECTORY, ...pathArr, filename);
-  
-  console.log("filePath");
-  console.log(filePath);
-
-  console.log("exists");
-  console.log(fs.existsSync(filePath));
 
   if (!fs.existsSync(filePath)) {
     return new Response('File not found', { status: 404 });
   }
 
   const file = fs.readFileSync(filePath);
-  const mimeType = 'image/' + path.extname(filename).substring(1); // Detecta o tipo de imagem
+  const mimeType = 'image/' + path.extname(filename).substring(1); 
 
   return new Response(file, {
     headers: { 'Content-Type': mimeType },

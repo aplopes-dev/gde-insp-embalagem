@@ -72,7 +72,6 @@ body{
 export async function POST(request: Request) {
   const data = await request.json();
   const { conteudo } = data;
-  console.log(conteudo);
 
   try {
     const browser = await puppeteer.launch({ args: ['--no-sandbox'] });

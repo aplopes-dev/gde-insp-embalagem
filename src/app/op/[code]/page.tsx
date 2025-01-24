@@ -24,7 +24,7 @@ import {
 } from "./actions";
 import { useRouter } from "next/navigation";
 
-const WEBSOCKET_URL = `${process.env.WEBSOCKET_URL}`;
+const WEBSOCKET_URL = `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}`;
 
 type ActiveItemDto = {
   itemId: string;
@@ -152,6 +152,9 @@ export default function PackagingInspection({
   }
 
   const loadData = async () => {
+    console.log("WEBSOCKET_URL");
+    console.log(WEBSOCKET_URL);
+    
     const opData = await syncAndGetOpToProduceByCode(code);
     setData(opData);
     setDisplayColor("blue");

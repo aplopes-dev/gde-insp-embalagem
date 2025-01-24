@@ -19,28 +19,51 @@ export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJer
     id: 327117,
     numero: Number(code),
     produto: {
-      id: 1,
-      nome: "XBB"
+      id: 2,
+      nome: "A25-090"
     },
-    quantidadeAProduzir: 112,
+    quantidadeAProduzir: 60,
     embalagens: [
       {
-        id: 1,
-        nome: "BLISTER_XBB",
-        quantidadeAlocada: 20
+        id: 2,
+        nome: "BLISTER-A25-090",
+        quantidadeAlocada: 10
       },
       {
         id: 1,
         nome: "CAIXA 520X320X170 TRIPLEX",
         quantidadeAlocada: 2
       },
-      {
-        id: 1,
-        nome: "DIVISORIAS CX 520X320X170",
-        quantidadeAlocada: 4
-      }
     ]
   } as OpJerpDto
+
+  // XBB
+  // return {
+  //   id: 327117,
+  //   numero: Number(code),
+  //   produto: {
+  //     id: 1,
+  //     nome: "XBB"
+  //   },
+  //   quantidadeAProduzir: 112,
+  //   embalagens: [
+  //     {
+  //       id: 1,
+  //       nome: "BLISTER_XBB",
+  //       quantidadeAlocada: 20
+  //     },
+  //     {
+  //       id: 1,
+  //       nome: "CAIXA 520X320X170 TRIPLEX",
+  //       quantidadeAlocada: 2
+  //     },
+  //     {
+  //       id: 1,
+  //       nome: "DIVISORIAS CX 520X320X170",
+  //       quantidadeAlocada: 4
+  //     }
+  //   ]
+  // } as OpJerpDto
 
   // Old payload:
   // return {

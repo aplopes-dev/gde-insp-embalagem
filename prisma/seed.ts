@@ -27,7 +27,7 @@ async function main() {
         name: "BLISTER-A25-090",
         description: "Descrição blister A25-090",
         slots: 6,
-        limitPerBox: 3,
+        limitPerBox: 9,
         boxTypeId: 1
       },
       {
@@ -51,6 +51,14 @@ async function main() {
         name: "BLISTER-BL-03832070LD",
         description: "Descrição blister BL-03832070LD",
         slots: 4,
+        limitPerBox: 3,
+        boxTypeId: 1
+      },
+      {
+        id: 6,
+        name: "BLISTER_TL-23489AA-LE/TL23490AA-LD",
+        description: "Descrição blister TL-23489AA-LE/TL-23490AA-LD",
+        slots: 3,
         limitPerBox: 3,
         boxTypeId: 1
       },
@@ -88,6 +96,18 @@ async function main() {
         code: "BL-03832070LD",
         name: "BL-03832070LD",
         description: "Descrição BL-03832070LD"
+      },
+      {
+        id: 6,
+        code: "TL-23489AA-LE",
+        name: "TL-23489AA-LE",
+        description: "Descrição TL-23489AA-LE"
+      },
+      {
+        id: 7,
+        code: "TL-23490AA-LD",
+        name: "TL-23490AA-LD",
+        description: "Descrição TL-23490AA-LD"
       },
     ]
   })

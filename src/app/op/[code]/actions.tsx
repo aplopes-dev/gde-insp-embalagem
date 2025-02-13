@@ -59,6 +59,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
       }),
     ]);
 
+    
     const indexNullReference = transaction.findIndex((rf) => !rf?.id);
     if (indexNullReference >= 0) {
       throw new Error(
@@ -68,6 +69,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
 
     internalOp = await prisma.op.create({
       data: {
+        id: externalOp.id,
         code: `${externalOp.numero}`,
         productTypeId: Number(transaction[0]?.id),
         blisterTypeId: Number(transaction[1]?.id),
@@ -427,7 +429,7 @@ export async function getOpByCode(code: string) {
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   // Requet from jerp:
-  /*
+  
   const dynamicData = await fetch(
     `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
     {
@@ -442,17 +444,30 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
       }),
     }
   );
-  const data = await dynamicData.json();
-  return data;
-  */
+
+  console.log("ID / QTD OP ---------");
+  console.log(id);
+  console.log(quantity);
+  
+  try {
+    const data = await dynamicData.json();
+    console.log("POST JERP ETIQUETA ---------");
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.log(error);
+  }
+
+
+  
   // return data as OpJerpDto;
 
-  return {
-    message: "Apontamento com sucesso",
-    id: id,
-    quantidadeApontada: quantity,
-    idBarras: 992790,
-  };
+  // return {
+  //   message: "Apontamento com sucesso",
+  //   id: id,
+  //   quantidadeApontada: quantity,
+  //   idBarras: 1161792,
+  // };
 }
 
 export async function getBoxById(id: number) {

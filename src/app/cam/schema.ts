@@ -1,10 +1,9 @@
 import { z } from "zod";
 
 export const validationSchema = z.object({
-  type: z.string(),
-  code: z.string(),
-  name: z.string(),
-  count: z.string()
+  itemId: z.string(),
+  count: z.string(),
+  code: z.string().optional(),
 });
 
 

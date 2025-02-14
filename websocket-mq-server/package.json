@@ -1,0 +1,14 @@
+{
+  "name": "gde-socket-cam",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "nodemon server.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "nodemon": "^3.1.4",
+    "socket.io": "^4.7.5"
+  }
+}

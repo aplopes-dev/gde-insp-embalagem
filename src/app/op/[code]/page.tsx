@@ -2,8 +2,9 @@
 
 import Header from "@/app/_components/header";
 import ConfirmationDialog from "@/components/confirmation-dialog";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { ObjectValidation } from "@/types/validation";
+import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import BlisterDisplay from "../_components/blister-display";
@@ -14,14 +15,35 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../types/op-box-inspection-dto";
+import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
+import PrintTagDialog from "./_components/print-tag-dialog";
 import {
-  finalizeAndRemovePendingRelationsByOpCode,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
-import { Button } from "@/components/ui/button";
-import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
+import { useRouter } from "next/navigation";
+
+type ActiveItemDto = {
+  itemId: string;
+  quantity?: number;
+};
+
+type DetectionDto = {
+  itemId: string;
+  count: number;
+  code?: string;
+};
+
+type ActionDto = {
+  action: "BREAK_OP";
+  params: any;
+};
+
+type DetectionReceivedDto = {
+  receivedItemId: string;
+  receivedCount: number;
+};
 
 export default function PackagingInspection({
   params: { code },
@@ -30,12 +52,14 @@ export default function PackagingInspection({
     code: string;
   };
 }) {
+  const router = useRouter();
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
   const [inspection, setInspection] = useState<ObjectValidation>();
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
-  const [openConfirmDialog, setOpenConfirmDialog] = useState<boolean>(false);
+  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
+  const [opBrakeManagerId, setOpBrakeManagerId] = useState<string>();
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
     useState<boolean>(false);
 
@@ -48,15 +72,93 @@ export default function PackagingInspection({
   const [displayColor, setDisplayColor] = useState<"blue" | "red" | "green">(
     "blue"
   );
+  const [quantityToPrint, setQuantityToPrint] = useState<number>(0);
+
+  const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
+
+  const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
+
+  const sendToIA = (data: ActiveItemDto) => {
+    const socket = io("http://localhost:3001");
+    socket.emit("iaHandler", data);
+  };
+
+  const sendDetectionReceived = (data: DetectionReceivedDto) => {
+    const socket = io("http://localhost:3001");
+    socket.emit("iaHandler", data);
+  };
+
+  async function sendMessageToRabbitMq(message: any) {
+    console.log("%c FRONT:", "color: lightgreen;");
+    console.log(message);
+    console.log("%c ------------------------------", "color: lightgreen;");
+
+    try {
+      const res = await fetch("/api/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...message }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro: ${res.status}`);
+      }
+
+      const data = await res.json();
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+    }
+  }
+
+  async function sendMessageToRabbitMqMobile(message: any) {
+    console.log("%c MOBILE:", "color: lightblue;");
+    console.log(message);
+    console.log("%c ------------------------------", "color: lightblue;");
+
+    try {
+      const res = await fetch("/api/send/mobile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...message }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro: ${res.status}`);
+      }
+
+      const data = await res.json();
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+    }
+  }
+
+  function sendWithDelay(message: any, delay: number = 2000) {
+    console.log("SENDING");
+
+    setTimeout(() => sendMessageToRabbitMq(message), delay);
+  }
 
   const loadData = async () => {
     const opData = await syncAndGetOpToProduceByCode(code);
     setData(opData);
     setDisplayColor("blue");
     if (opData.finishedAt) {
-      setDisplayMessage("OP Finalizada");
+      setDisplayMessage("OP FINALIZADA");
+      sendMessageToRabbitMqMobile({
+        mensagem: "OP FINALIZADA",
+        cor: 1,
+      });
     } else if (opData.nextBox?.OpBoxBlister) {
-      setDisplayMessage("");
+      setDisplayMessage("AGUARDANDO CAIXA...");
+      sendMessageToRabbitMqMobile({
+        mensagem: "AGUARDANDO CAIXA...",
+        cor: 1,
+      });
+      setBlisterCodes(opData.blisterCodes)
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -71,6 +173,16 @@ export default function PackagingInspection({
       setCheckedQuantity(checkQuantity);
       delete opData["nextBox"]["OpBoxBlister"];
       setBox(opData.nextBox);
+      //SEND: BOX
+      setActiveObjectType("box");
+      sendToIA({
+        itemId: `${opData.productType.name}`,
+      });
+      sendWithDelay({
+        itemId: `${opData.boxType.name}`,
+        quantity: 1,
+        model: `${opData.productType.name}`,
+      });
     }
   };
 
@@ -79,13 +191,35 @@ export default function PackagingInspection({
     loadData()
       .then((_) => {
         socket = io("http://localhost:3001");
-        socket.on("detectionUpdate", (message: any) => {
-          setInspection(message);
+        socket.on("detectionUpdate", (message: DetectionDto) => {
+          console.log("%c BACK:", "color: orange;");
           console.log(message);
+          console.log("%c ------------------------------", "color: orange;");
+
+          sendDetectionReceived({
+            receivedCount: message.count,
+            receivedItemId: message.itemId,
+          });
+          if (message.itemId) {
+            setInspection({
+              itemId: message.itemId,
+              count: Number(message.count),
+              code: message.code,
+            });
+          }
+        });
+        socket.on("actionHandler", (message: ActionDto) => {
+          console.log("%c GLASSES:", "color: yellow;");
+          console.log(message);
+          console.log("%c ------------------------------", "color: yellow;");
+          switch (message.action) {
+            case "BREAK_OP":
+              setOpenForceFinalizationDialog(true);
+              break;
+          }
         });
       })
       .catch((err: Error) => {
-        console.log(err);
         toast({
           title: "Erro",
           description: err.message,
@@ -94,6 +228,7 @@ export default function PackagingInspection({
       });
     return () => {
       socket?.off("detectionUpdate");
+      socket?.off("actionHandler");
       socket?.disconnect();
     };
   }, []);
@@ -114,50 +249,266 @@ export default function PackagingInspection({
   }, [inspection]);
 
   function inspectBox(message: ObjectValidation) {
-    if (message.type == "box") {
-      console.log(data);
-      if (message.code == `${data?.boxType?.id}`) {
+    if (activeObjectType == "box") {
+      if (message.itemId == data?.boxType?.name && message.count == 1) {
+        setActiveObjectType("blister");
+        sendToIA({
+          itemId: data.blisterType.name,
+          quantity: 1,
+        });
+        sendWithDelay({
+          itemId: `${data.blisterType.name}`,
+          quantity: 1,
+        });
+        setTargetBlister(0);
         setStep(1);
         box &&
           setBox({
             ...box,
             status: 1,
           });
-        setTargetBlister(0);
-        setDisplayMessage("Caixa válida");
+        setDisplayMessage("CAIXA VÁLIDA");
         setDisplayColor("green");
-      } else {
-        setDisplayMessage("Modelo de caixa inválido.");
-        setDisplayColor("blue");
+        sendMessageToRabbitMqMobile({
+          mensagem: "CAIXA VÁLIDA",
+          cor: 3,
+        });
+      } else if (message.itemId != data?.boxType?.name) {
+        setDisplayMessage("MODELO DE CAIXA INVÁLIDO.");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "MODELO DE CAIXA INVÁLIDO.",
+          cor: 2,
+        });
+        // Repeat box ref
+        sendToIA({
+          itemId: data!.boxType.name,
+          quantity: 1,
+        });
+        sendWithDelay({
+          itemId: `${data!.boxType.name}`,
+          quantity: 1,
+        });
+      } else if (message.count != 1) {
+        setDisplayMessage("DEVE HAVER UMA CAIXA!");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "DEVE HAVER UMA CAIXA!",
+          cor: 2,
+        });
+        // Repeat box ref
+        sendToIA({
+          itemId: data!.boxType.name,
+          quantity: 1,
+        });
+        sendWithDelay({
+          itemId: `${data!.boxType.name}`,
+          quantity: 1,
+        });
       }
     } else {
-      setDisplayMessage("Tipo de objeto inválido. Insira uma caixa.");
+      setDisplayMessage("TIPO DE OBJETO INVÁLIDO. INSIRA UMA CAIXA.");
       setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "TIPO DE OBJETO INVÁLIDO. INSIRA UMA CAIXA.",
+        cor: 2,
+      });
+      // Repeat box ref
+      sendToIA({
+        itemId: data!.boxType.name,
+        quantity: 1,
+      });
+      sendWithDelay({
+        itemId: `${data!.boxType.name}`,
+        quantity: 1,
+      });
+    }
+  }
+
+  function inspectBlister(message: ObjectValidation) {
+    if (activeObjectType == "blister") {
+      if (message.itemId == data?.blisterType.name && message.count == 1) {
+        // message.code = (Math.random()*10).toString()
+        if (!message.code) {
+          setDisplayMessage("ENVE O CÓDIGO DO BLISTER.");
+          setDisplayColor("red");
+          sendMessageToRabbitMqMobile({
+            mensagem: "ENVIE O CÓDIGO DO BLISTER.",
+            cor: 2,
+          });
+          // Repeat blister ref
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
+          sendWithDelay({
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1,
+          });
+        } else if (blisterCodes.includes(message.code)) {
+          setDisplayMessage(
+            "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + message.code
+          );
+          setDisplayColor("red");
+          sendMessageToRabbitMqMobile({
+            mensagem: "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + message.code,
+            cor: 2,
+          });
+          // Repeat blister ref
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
+          sendWithDelay({
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1,
+          });
+        } else {
+          setDisplayMessage("BLISTER VÁLIDO");
+          setDisplayColor("green");
+          sendMessageToRabbitMqMobile({
+            mensagem: "BLISTER VÁLIDO",
+            cor: 3,
+          });
+          const index = targetBlister || 0;
+          setBlisters(
+            blisters.map((bl, i) =>
+              i == index
+                ? { ...bl, code: message.code!, isValidItem: true }
+                : bl
+            )
+          );
+          setActiveObjectType("product");
+          sendToIA({
+            itemId: data!.productType.name,
+            quantity: blisters[targetBlister!].quantity,
+          });
+          sendWithDelay({
+            itemId: `${data!.productType.name}`,
+            quantity: blisters[targetBlister!].quantity,
+            fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${message.code}`,
+            // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+          });
+          setBlisterCodes([...blisterCodes, message.code]);
+          setStep(2);
+        }
+      } else if (message.itemId != data?.blisterType.name) {
+        setDisplayMessage("MODELO DE BLISTER INVÁLIDO.");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "MODELO DE BLISTER INVÁLIDO.",
+          cor: 2,
+        });
+        // Repeat blister ref
+        sendToIA({
+          itemId: data!.blisterType.name,
+          quantity: 1,
+        });
+        sendWithDelay({
+          itemId: `${data!.blisterType.name}`,
+          quantity: 1,
+        });
+      } else if (message.count != 1) {
+        setDisplayMessage("DEVE HAVER UM BLISTER!");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "DEVE HAVER UM BLISTER!",
+          cor: 2,
+        });
+        // Repeat blister ref
+        sendToIA({
+          itemId: data!.blisterType.name,
+          quantity: 1,
+        });
+        sendWithDelay({
+          itemId: `${data!.blisterType.name}`,
+          quantity: 1,
+        });
+      }
+    } else {
+      setDisplayMessage("TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.");
+      setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.",
+        cor: 2,
+      });
+      // Repeat blister ref
+      sendToIA({
+        itemId: data!.blisterType.name,
+        quantity: 1,
+      });
+      sendWithDelay({
+        itemId: `${data!.blisterType.name}`,
+        quantity: 1,
+      });
     }
   }
 
   function inspectQuantity(message: ObjectValidation) {
-    if (message.type == "product") {
+    if (activeObjectType == "product") {
       const pendingQuantity = quantityInBox - checkedQuantity;
-      if (
+      if (message.itemId != data?.productType.name) {
+        setDisplayMessage("MODELO DE PRODUTO INVÁLIDO.");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "MODELO DE PRODUTO INVÁLIDO.",
+          cor: 2,
+        });
+        // Repeat product ref
+        sendToIA({
+          itemId: data!.productType.name,
+          quantity: blisters[targetBlister!].quantity,
+        });
+        sendWithDelay({
+          itemId: `${data!.productType.name}`,
+          quantity: blisters[targetBlister!].quantity,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+        });
+      } else if (
         (message.count == data!.blisterType.slots &&
           message.count <= pendingQuantity) ||
         message.count == pendingQuantity
       ) {
-        setDisplayMessage("Blister válido");
+        setDisplayMessage("BLISTER E QUANTIDADE DE ITENS VÁLIDOS");
         setDisplayColor("green");
+        sendMessageToRabbitMqMobile({
+          mensagem: "BLISTER E QUANTIDADE DE ITENS VÁLIDOS",
+          cor: 3,
+        });
+
         const index = targetBlister || 0;
         if (blisters[index + 1]) {
           setTargetBlister(index + 1);
+          setActiveObjectType("blister");
+          sendToIA({
+            itemId: data!.blisterType.name,
+            quantity: 1,
+          });
+          sendWithDelay({
+            itemId: `${data!.blisterType.name}`,
+            quantity: 1,
+          });
           setStep(1);
+          setCheckedQuantity(checkedQuantity + message.count);
+          setBlisters(
+            blisters.map((bl, i) =>
+              i == index
+                ? {
+                    ...bl,
+                    isValidQuantity: true,
+                    status: 1,
+                    packedAt: new Date(),
+                  }
+                : bl
+            )
+          );
         } else {
           setTargetBlister(undefined);
+          setActiveObjectType(undefined);
           setStep(3);
-          setOpenConfirmDialog(true);
-        }
-        setCheckedQuantity(checkedQuantity + message.count);
-        setBlisters(
-          blisters.map((bl, i) =>
+          setCheckedQuantity(checkedQuantity + message.count);
+          const updateBlisters = blisters.map((bl, i) =>
             i == index
               ? {
                   ...bl,
@@ -166,45 +517,59 @@ export default function PackagingInspection({
                   packedAt: new Date(),
                 }
               : bl
-          )
-        );
+          );
+          setBlisters(updateBlisters);
+          opBrakeManagerId
+            ? forceOpFinalization(opBrakeManagerId, updateBlisters)
+            : persistBoxInspection(updateBlisters);
+        }
       } else {
-        setDisplayMessage("Quantidade de itens incorreta.");
-        setDisplayColor("blue");
+        setDisplayMessage("QUANTIDADE DE ITENS INCORRETA.");
+        setDisplayColor("red");
+        sendMessageToRabbitMqMobile({
+          mensagem: "QUANTIDADE DE ITENS INCORRETA.",
+          cor: 2,
+        });
+        // Repeat product ref
+        sendToIA({
+          itemId: data!.productType.name,
+          quantity: blisters[targetBlister!].quantity,
+        });
+        sendWithDelay({
+          itemId: `${data!.productType.name}`,
+          quantity: blisters[targetBlister!].quantity,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+        });
       }
     } else {
-      setDisplayMessage("Tipo de objeto inválido. Insira produtos.");
+      setDisplayMessage("TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.");
       setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.",
+        cor: 2,
+      });
+      // Repeat product ref
+      sendToIA({
+        itemId: data!.productType.name,
+        quantity: blisters[targetBlister!].quantity,
+      });
+      sendWithDelay({
+        itemId: `${data!.productType.name}`,
+        quantity: blisters[targetBlister!].quantity,
+        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+        // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
+      });
     }
   }
 
-  function inspectBlister(message: ObjectValidation) {
-    if (message.type == "blister") {
-      if (message.code == `${data?.blisterType.id}`) {
-        setDisplayMessage("Blister válido");
-        setDisplayColor("green");
-        const index = targetBlister || 0;
-        setBlisters(
-          blisters.map((bl, i) =>
-            i == index ? { ...bl, isValidItem: true } : bl
-          )
-        );
-        setStep(2);
-      } else {
-        setDisplayMessage("Modelo de blister inválido.");
-        setDisplayColor("blue");
-      }
-    } else {
-      setDisplayMessage("Tipo de objeto inválido. Insira um blister.");
-      setDisplayColor("red");
-    }
-  }
-
-  async function persistBoxInspection() {
+  async function persistBoxInspection(
+    currentBlisters: OpBoxBlisterInspection[]
+  ) {
     if (box) {
       await persistBoxStatusWithBlisters(
         box,
-        blisters,
+        currentBlisters,
         data!.opId,
         data?.pendingBoxes == 1
       )
@@ -215,15 +580,13 @@ export default function PackagingInspection({
           });
         })
         .catch((err) => {
-          console.log(err);
           toast({
             title: "Erro",
             description: err.message,
             variant: "destructive",
           });
         });
-      await printTag();
-      await reload();
+      await printTag(currentBlisters);
     }
   }
 
@@ -233,86 +596,59 @@ export default function PackagingInspection({
     setStep(0);
   }
 
-  async function printTag() {
-    toast({
-      title: "Informação",
-      description: "Imprimindo etiqueta",
-    });
+  async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
+    setTimeout(() => {
+      const productQuantity = currentBlisters
+        .filter((bl) => bl.status == 1)
+        .reduce((acc, i) => acc + i.quantity, 0);
+      setQuantityToPrint(productQuantity);
+      sendMessageToRabbitMqMobile({
+        mensagem: "IMPRIMINDO ETIQUETA...",
+        cor: 4,
+      });
+      sendWithDelay({
+        itemId: `ITEM_INVALIDO`,
+        quantity: 1,
+      });
+      setOpenPrintTagDialog(true);
+    }, 2000);
   }
 
-  async function forceOpFinalization(managerId: string) {
-    const issetPackedBlister = blisters.find((bl) => bl.packedAt);
-    const boxesPacked = Number(data?.totalBoxes) - Number(data?.pendingBoxes);
+  async function forceOpFinalization(
+    managerId: string,
+    currentBlisters: OpBoxBlisterInspection[]
+  ) {
+    const issetPackedBlister = currentBlisters.find((bl) => bl.packedAt);
 
-    if (boxesPacked == 0) {
-      const issetValidBLister = blisters.find((bl) => bl.status == 1);
-      if (box?.status != 1 || !issetValidBLister) {
-        toast({
-          title: "Erro",
-          variant: "destructive",
-          description:
-            "Não é possível finalizar a operação, pois não há itens embalados",
-        });
-      } else {
-        //TODO: Persist box, partial blisters and remove pending
-        await persistWithOpBreak(box, blisters, data!.opId)
-          .then((_) => {
-            toast({
-              title: "Sucesso",
-              description: "OP finalizada com sucesso!",
-            });
-          })
-          .catch((err) => {
-            toast({
-              title: "Erro",
-              description: err.message,
-              variant: "destructive",
-            });
-          });
-        await reload();
-      }
+    if (box?.status != 1 || !issetPackedBlister) {
+      toast({
+        title: "Erro",
+        variant: "destructive",
+        description:
+          "Não é possível finalizar a operação, pois não há itens embalados",
+      });
     } else {
-      if (box?.status == 0) {
-        await finalizeAndRemovePendingRelationsByOpCode(data!.opId)
-          .then((_) => {
-            toast({
-              title: "Sucesso",
-              description: "OP finalizada com sucesso!",
-            });
-          })
-          .catch((err) => {
-            console.log(err);
-            toast({
-              title: "Erro",
-              description: err.message,
-              variant: "destructive",
-            });
+      //TODO: Persist box, partial blisters and remove pending
+      await persistWithOpBreak(
+        box,
+        currentBlisters,
+        data!.opId,
+        Number(managerId)
+      )
+        .then((_) => {
+          toast({
+            title: "Sucesso",
+            description: "Caixa finalizada com sucesso!",
           });
-        await reload();
-      } else if (box?.status == 1 && !issetPackedBlister) {
-        toast({
-          title: "Erro",
-          variant: "destructive",
-          description: "A caixa está vazia, insira ao menos um blister!",
+          printTag(currentBlisters);
+        })
+        .catch((err) => {
+          toast({
+            title: "Erro",
+            description: err.message,
+            variant: "destructive",
+          });
         });
-      } else {
-        //TODO: Persist box, partial blisters and remove pending
-        await persistWithOpBreak(box!, blisters, data!.opId)
-          .then((_) => {
-            toast({
-              title: "Sucesso",
-              description: "OP finalizada com sucesso!",
-            });
-          })
-          .catch((err) => {
-            toast({
-              title: "Erro",
-              description: err.message,
-              variant: "destructive",
-            });
-          });
-        await reload();
-      }
     }
   }
 
@@ -332,9 +668,43 @@ export default function PackagingInspection({
       case 1:
         return "Concluído";
       case 2:
-        return "Quebra de OP";
+        return "Quebra de Caixa";
       default:
         return "Pendente";
+    }
+  }
+
+  function redirectAction(uri: string) {
+    router.push(`${uri}`);
+  }
+
+  function configLastBlisterQuantity(quantity: number, managerId: string) {
+    const index = targetBlister || 0;
+
+    if (quantity < blisters[index].quantity) {
+      const newBlisters = [...blisters.slice(0, index + 1)];
+      newBlisters[index].quantity = quantity;
+
+      const itemQuantity = newBlisters.reduce(
+        (total, blister) => total + blister.quantity,
+        0
+      );
+      const checkQuantity =
+        newBlisters
+          ?.filter((bl) => bl.packedAt)
+          .reduce((total, blister) => total + blister.quantity, 0) || 0;
+
+      setQuantityInBox(itemQuantity);
+      setCheckedQuantity(checkQuantity);
+      setBlisters(newBlisters);
+      setOpBrakeManagerId(managerId);
+    } else {
+      setDisplayMessage("QUANTIDADE DEVE SER MENOR QUE A ATUAL!");
+      setDisplayColor("red");
+      sendMessageToRabbitMqMobile({
+        mensagem: "QUANTIDADE DEVE SER MENOR QUE A ATUAL!",
+        cor: 2,
+      });
     }
   }
 
@@ -361,15 +731,7 @@ export default function PackagingInspection({
               <>
                 <div className="flex justify-end gap-6 mt-8">
                   <Button
-                    disabled={step != 3}
-                    className="bg-green-700 hover:bg-green-600"
-                    onClick={() => setOpenConfirmDialog(true)}
-                  >
-                    Finalizar e Imprimir
-                  </Button>
-                  <Button
                     className="bg-blue-700 hover:bg-blue-600"
-                    disabled={box?.status != 1}
                     onClick={() => setOpenRestartDialog(true)}
                   >
                     Reiniciar inspeção da caixa
@@ -412,6 +774,8 @@ export default function PackagingInspection({
                 <div className="mt-8">
                   <h3 className="font-bold uppercase">Embalagem</h3>
                   <BlisterDisplay
+                    blisterName={data.blisterType.name}
+                    itemName={data.productType.name}
                     blisters={blisters}
                     targetIndex={targetBlister}
                   />
@@ -430,22 +794,40 @@ export default function PackagingInspection({
         onOpenChange={setOpenRestartDialog}
         open={openRestartDialog}
       />
-      <ConfirmationDialog
-        title="Finalizar Inspeção"
-        message="Deseja confirmar a inspeção e imprimir a etiqueta?"
-        cancelLabel="Cancelar"
-        confirmLabel="Confirmar"
-        confirmationAction={persistBoxInspection}
-        onOpenChange={setOpenConfirmDialog}
-        open={openConfirmDialog}
-      />
       <ManagerAuthFormDialog
-        title={"Autorizar quebra de OP"}
-        message={"A OP será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."}
+        title={"Autorizar quebra de Caixa"}
+        message={
+          "A caixa será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."
+        }
         isOpen={openForceFinalizationDialog}
+        initialQuantity={inspection?.count}
         onOpenChange={setOpenForceFinalizationDialog}
-        onManagerAuth={(managerId) => forceOpFinalization(managerId)}
+        onManagerAuth={(quantity, managerId) =>
+          configLastBlisterQuantity(quantity, managerId)
+        }
+        // onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
+      {data && (
+        <PrintTagDialog
+          onPrintSuccess={() => {
+            setTimeout(() => {
+              sendMessageToRabbitMqMobile({
+                mensagem: "CAIXA FINALIZADA COM SUCESSO!",
+                cor: 3,
+              });
+              redirectAction("/");
+            }, 2000);
+            // issetNextBox ? reload() : redirectAction("/");
+          }}
+          itemName={data.productType.name}
+          itemDescription={data.productType.description}
+          opId={data.opId}
+          quantity={quantityToPrint}
+          batchCode={data.opCode}
+          isOpen={openPrintTagDialog}
+          onOpenChange={setOpenPrintTagDialog}
+        />
+      )}
     </div>
   );
 }

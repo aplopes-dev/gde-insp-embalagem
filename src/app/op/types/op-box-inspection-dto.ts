@@ -12,6 +12,7 @@ export type OpInspectionDto = {
   nextBox?: OpBoxInspectionDto;
   createdAt: Date;
   finishedAt?: Date;
+  blisterCodes: string[]
 };
 
 export type OpBoxInspectionDto = {
@@ -25,6 +26,7 @@ export type OpBoxInspectionDto = {
 
 export type OpBoxBlisterInspection = {
   id?: number;
+  code: string;
   quantity: number;
   status?: number;
   packedAt?: Date;

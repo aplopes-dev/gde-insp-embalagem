@@ -1,107 +1,74 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import DebouncedInput from "@/components/data-table-debounce-text-filter";
 import { toast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { getOpToProduceByCode } from "../actions";
+import { useEffect, useState } from "react";
+import { PackagingJerpDto, ProductJerpDto } from "../_types/op-jerp-dto";
+import { getOpFromNexinToProduceByCode } from "../actions";
 
 const OpLoadForm = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const textStyleClasses =
     "uppercase xl:h-16 exl:h-24 text-sm xl:text-2xl exl:text-4xl";
+  const [opValue, setOpValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    opValue && handleRegistration(opValue);
+  }, [opValue]);
 
   function redirectAction(uri: string) {
     router.push(`${uri}`);
   }
 
-  const {
-    register,
-    handleSubmit,
-    formState: { isDirty, isValid, errors },
-  } = useForm({
-    defaultValues: {
-      op: "",
-    },
-  });
-
-  const registerOptions = {
-    op: { required: "Código obrigatório" },
-  };
-
-  const handleRegistration = ({ op }: any) => {
+  const handleRegistration = (op: string) => {
     setIsLoading(true);
-    getOpToProduceByCode(op)
+    getOpFromNexinToProduceByCode(op)
       .then((res) => {
-        opIsValid(res) && redirectAction(`/op/${res.Numero}`);
         setIsLoading(false);
+        opIsValid(res) && redirectAction(`/op/${res.numero}`);
       })
       .catch((_) => {
+        setIsLoading(false);
         toast({
           title: "Erro",
           description: "Falha ao carregar OP",
           variant: "destructive",
         });
-        setIsLoading(false);
       });
   };
-  const handleError = () => {};
 
   return (
-    <form
-      className="w-full"
-      onSubmit={handleSubmit(handleRegistration, handleError)}
-    >
-      <div className="flex">
-        <div className="flex flex-col w-full">
-          <Input
-            disabled={isLoading}
-            type="text"
-            {...register("op", registerOptions.op)}
-            className={cn(textStyleClasses, "rounded-none rounded-l-lg")}
-            placeholder="Código da OP"
-          />
-          <small className="text-red-500 p-2">
-            {errors?.op && errors.op.message}
-          </small>
-        </div>
-        <Button
-          disabled={!isDirty || !isValid || isLoading}
-          type="submit"
-          className={cn(textStyleClasses, "rounded-none rounded-r-lg")}
-        >
-          {isLoading && (
-            <Loader2
-              className={cn(
-                "h-4 w-4 lg:h-8 lg:w-8 exl:h-12 exl:w-12 animate-spin mr-2"
-              )}
-            />
-          )}
-          Carregar
-        </Button>
+    <div className="flex">
+      <div className="flex flex-col w-full">
+        <DebouncedInput
+          autoFocus
+          disabled={isLoading}
+          value={opValue}
+          onChange={setOpValue}
+          debounceTime={500}
+          placeholder="Código da OP"
+          className={textStyleClasses}
+        />
       </div>
-    </form>
+    </div>
   );
 };
 
 function opIsValid({
-  QuantidadeAProduzir,
+  quantidadeAProduzir,
 }: {
   id: number;
-  Numero: number;
-  Produto: string;
-  QuantidadeAProduzir: number;
-  Embalagens: string[];
+  numero: number;
+  produto: ProductJerpDto;
+  quantidadeAProduzir: number;
+  embalagens: PackagingJerpDto[];
 }) {
-  if (!QuantidadeAProduzir || QuantidadeAProduzir <= 0) {
+  if (!quantidadeAProduzir || quantidadeAProduzir <= 0) {
     toast({
       title: "Alerta",
-      description: "Não existem itens à serem embalados",
+      description: "Não existem itens pendentes para embalagem",
     });
     return false;
   }

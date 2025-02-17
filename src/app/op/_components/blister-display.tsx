@@ -51,9 +51,10 @@ const BlisterDisplay = ({
   itemName: string;
 }) => {
   return (
-    <div className="flex flex-col">
-      <Table>
-        <TableHeader>
+    <div className="flex flex-col max-h-full overflow-y-auto">
+      <Table className="table-fixed w-full">
+        {/* 🔹 Cabeçalho fixo no topo */}
+        <TableHeader className="sticky top-0 z-10 bg-white shadow-md">
           <TableRow className="h-8">
             <TableHead className="w-[12.5%]">Ordem</TableHead>
             <TableHead className="w-[25%]">Blister</TableHead>
@@ -63,40 +64,48 @@ const BlisterDisplay = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {blisters.map((data, index) => (
+          {/* Linha selecionada duplicada no topo */}
+          {targetIndex !== undefined && (
             <TableRow
               className={cn(
-                `bg-${getStatusColor(data.status)}-300/20`,
-                targetIndex == index ? "border-4 border-blue-500" : ""
+                `border-4 border-blue-500 bg-${getStatusColor(blisters[targetIndex].status)}-300/20`
               )}
-              key={data.id}
             >
-              <TableCell>{index + 1}</TableCell>
-              <TableCell
-                className={
-                  targetIndex == index && data.isValidItem
-                    ? `bg-green-300/20`
-                    : ""
-                }
-              >
+              <TableCell>{targetIndex + 1}</TableCell>
+              <TableCell className={blisters[targetIndex].isValidItem ? "bg-green-300/20" : ""}>
                 {blisterName}
               </TableCell>
-              <TableCell
-                className={
-                  targetIndex == index && data.isValidQuantity
-                    ? `bg-green-300/20`
-                    : ""
-                }
-              >
+              <TableCell className={blisters[targetIndex].isValidQuantity ? "bg-green-300/20" : ""}>
                 {itemName}
               </TableCell>
-              <TableCell
-                className={
-                  targetIndex == index && data.isValidQuantity
-                    ? `bg-green-300/20`
-                    : ""
-                }
-              >
+              <TableCell className={blisters[targetIndex].isValidQuantity ? "bg-green-300/20" : ""}>
+                {blisters[targetIndex].quantity}
+              </TableCell>
+              <TableCell className="text-right">
+                <Badge variant={getStatusVariant(blisters[targetIndex].status)}>
+                  {getStatusName(blisters[targetIndex].status)}
+                </Badge>
+              </TableCell>
+            </TableRow>
+          )}
+
+          {/* Linhas normais da tabela */}
+          {blisters.map((data, index) => (
+            <TableRow
+              key={data.id}
+              className={cn(
+                `bg-${getStatusColor(data.status)}-300/20`,
+                targetIndex === index ? "hidden" : ""
+              )}
+            >
+              <TableCell>{index + 1}</TableCell>
+              <TableCell className={data.isValidItem ? "bg-green-300/20" : ""}>
+                {blisterName}
+              </TableCell>
+              <TableCell className={data.isValidQuantity ? "bg-green-300/20" : ""}>
+                {itemName}
+              </TableCell>
+              <TableCell className={data.isValidQuantity ? "bg-green-300/20" : ""}>
                 {data.quantity}
               </TableCell>
               <TableCell className="text-right">
@@ -106,13 +115,12 @@ const BlisterDisplay = ({
               </TableCell>
             </TableRow>
           ))}
-          <TableRow>
-            <TableCell colSpan={5}></TableCell>
-          </TableRow>
         </TableBody>
       </Table>
     </div>
   );
 };
+
+
 
 export default BlisterDisplay;

@@ -1,10 +1,10 @@
 "use client";
 
 import Header from "@/app/_components/header";
-import ConfirmationDialog from "@/components/confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { ObjectValidation, ValidableType } from "@/types/validation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import BlisterDisplay from "../_components/blister-display";
@@ -22,7 +22,6 @@ import {
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
-import { useRouter } from "next/navigation";
 
 type ActiveItemDto = {
   itemId: string;
@@ -57,7 +56,6 @@ export default function PackagingInspection({
   const [displayMessage, setDisplayMessage] = useState("");
   const [inspection, setInspection] = useState<ObjectValidation>();
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
-  const [openRestartDialog, setOpenRestartDialog] = useState<boolean>(false);
   const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
   const [opBrakeManagerId, setOpBrakeManagerId] = useState<string>();
   const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
@@ -158,7 +156,7 @@ export default function PackagingInspection({
         mensagem: "AGUARDANDO CAIXA...",
         cor: 1,
       });
-      setBlisterCodes(opData.blisterCodes)
+      setBlisterCodes(opData.blisterCodes);
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -462,7 +460,9 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+            blisterCodes[targetBlister!]
+          }`,
           // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       } else if (
@@ -538,7 +538,9 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+            blisterCodes[targetBlister!]
+          }`,
           // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       }
@@ -557,7 +559,9 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
-        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+          blisterCodes[targetBlister!]
+        }`,
         // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
       });
     }
@@ -709,10 +713,10 @@ export default function PackagingInspection({
   }
 
   return (
-    <div className="h-screen flex flex-col gap-4 lg:gap-10 exl:gap-16">
+    <div className="h-screen w-full flex flex-col">
       <Header />
-      <div className="flex justify-center">
-        {data && (
+      {data && (
+        <div className="flex-1 flex justify-center overflow-y-auto">
           <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
             <OpDisplay
               code={data.opCode}
@@ -729,50 +733,49 @@ export default function PackagingInspection({
             />
             {!data.finishedAt && (
               <>
-                <div className="flex justify-end gap-6 mt-8">
-                  <Button
-                    className="bg-blue-700 hover:bg-blue-600"
-                    onClick={() => setOpenRestartDialog(true)}
-                  >
-                    Reiniciar inspeção da caixa
-                  </Button>
-                  <Button
-                    className="bg-red-700 hover:bg-red-600"
-                    variant={"destructive"}
-                    onClick={() => setOpenForceFinalizationDialog(true)}
-                  >
-                    Finalizar com quebra
-                  </Button>
-                </div>
-                <div className="mt-2">
-                  <h3 className="font-bold uppercase">Caixa</h3>
-                  <BoxDisplay
-                    name={data.boxType.name}
-                    isTarget={step == 0}
-                    description={data.boxType.description}
-                    displayColor="blue"
-                    statusText={getStatusName(box?.status) || ""}
-                    statusVariant={getStatusVariant(box?.status) || "secondary"}
-                  />
-                </div>
-                <div className="mt-8">
-                  <div className="flex gap-4">
-                    <div>
-                      <strong>Blister:</strong> {data.blisterType.name}
-                    </div>
-                    <div>
-                      <strong>Item:</strong> {data.productType.name}
-                    </div>
-                    <div>
-                      <strong>Quantidade na Caixa:</strong> {quantityInBox}
-                    </div>
-                    <div>
-                      <strong>Quantidade verificada:</strong> {checkedQuantity}
+                <div>
+                  <div className="flex justify-end gap-6 mt-8">
+                    <Button
+                      className="bg-red-700 hover:bg-red-600"
+                      variant={"destructive"}
+                      onClick={() => setOpenForceFinalizationDialog(true)}
+                    >
+                      Finalizar com quebra
+                    </Button>
+                  </div>
+
+                  <div className="mt-2">
+                    <h3 className="font-bold uppercase">Caixa</h3>
+                    <BoxDisplay
+                      name={data.boxType.name}
+                      isTarget={step == 0}
+                      description={data.boxType.description}
+                      displayColor="blue"
+                      statusText={getStatusName(box?.status) || ""}
+                      statusVariant={
+                        getStatusVariant(box?.status) || "secondary"
+                      }
+                    />
+                  </div>
+                  <div className="mt-8 flex-1 overflow-y-auto">
+                    <div className="flex gap-4">
+                      <div>
+                        <strong>Blister:</strong> {data.blisterType.name}
+                      </div>
+                      <div>
+                        <strong>Item:</strong> {data.productType.name}
+                      </div>
+                      <div>
+                        <strong>Quantidade na Caixa:</strong> {quantityInBox}
+                      </div>
+                      <div>
+                        <strong>Quantidade verificada:</strong>{" "}
+                        {checkedQuantity}
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="mt-8">
-                  <h3 className="font-bold uppercase">Embalagem</h3>
+                <div className="flex-1 overflow-auto">
                   <BlisterDisplay
                     blisterName={data.blisterType.name}
                     itemName={data.productType.name}
@@ -783,17 +786,8 @@ export default function PackagingInspection({
               </>
             )}
           </div>
-        )}
-      </div>
-      <ConfirmationDialog
-        title="Reiniciar Inspeção"
-        message="Deseja realmente reiniciar a inspeção desta caixa?"
-        cancelLabel="Cancelar"
-        confirmLabel="Confirmar"
-        confirmationAction={reload}
-        onOpenChange={setOpenRestartDialog}
-        open={openRestartDialog}
-      />
+        </div>
+      )}
       <ManagerAuthFormDialog
         title={"Autorizar quebra de Caixa"}
         message={

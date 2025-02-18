@@ -5,9 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getBarcodeFromOpId } from "@/services/jerp";
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
-import { getBarcodeFromOpId } from "../actions";
+// import { getBarcodeFromOpId } from "../actions";
 import { ReactBarcode } from "react-jsbarcode";
 
 const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
@@ -65,7 +66,7 @@ const PrintTagDialog = ({
 
     if (resposta.ok) {
       console.log("Conteúdo enviado para impressão");
-      onPrintSuccess()
+      onPrintSuccess();
       onOpenChange(false);
     } else {
       console.error("Erro ao enviar para impressão");

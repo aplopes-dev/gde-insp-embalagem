@@ -1,8 +1,8 @@
 "use server";
 
 import { OpDto } from "@/app/(home)/_types/op-dto";
-import { getOpFromNexinToProduceByCode } from "@/app/(home)/actions";
 import prisma from "@/providers/database";
+import { getOpFromCode } from "@/services/jerp";
 import { isSamePass } from "@/utils/bcrypt";
 import {
   OpBoxBlisterInspection,
@@ -13,7 +13,8 @@ import {
 const bcrypt = require("bcrypt");
 
 export async function syncAndGetOpToProduceByCode(code: string) {
-  const externalOp = await getOpFromNexinToProduceByCode(code);
+  // const externalOp = await getOpFromNexinToProduceByCode(code);
+  const externalOp = await getOpFromCode(code);
   let internalOp = await prisma.op.findFirst({
     where: {
       code: `${externalOp.numero}`,
@@ -59,7 +60,6 @@ export async function syncAndGetOpToProduceByCode(code: string) {
       }),
     ]);
 
-    
     const indexNullReference = transaction.findIndex((rf) => !rf?.id);
     if (indexNullReference >= 0) {
       throw new Error(
@@ -141,7 +141,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     }),
     prisma.opBoxBlister.findMany({
       select: {
-        code: true
+        code: true,
       },
       where: {
         opBox: {
@@ -167,7 +167,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     createdAt,
     finishedAt,
     quantityToProduce,
-    blisterCodes: transaction[7]?.map(bl => bl.code) || [],
+    blisterCodes: transaction[7]?.map((bl) => bl.code) || [],
     itemsPacked: transaction[6]._sum.quantity,
     productType: transaction[5],
     blisterType: transaction[3],
@@ -190,7 +190,7 @@ export async function persistBoxStatusWithBlisters(
     prisma.opBoxBlister.update({
       data: {
         packedAt: bl.packedAt?.toISOString(),
-        code: bl.code
+        code: bl.code,
       },
       where: {
         id: bl.id,
@@ -245,7 +245,7 @@ export async function persistWithOpBreak(
         data: {
           packedAt: bl.packedAt?.toISOString(),
           quantity: bl.quantity,
-          code: bl.code
+          code: bl.code,
         },
         where: {
           id: bl.id,
@@ -281,14 +281,13 @@ export async function persistWithOpBreak(
     // Persist blister and boxes after packeging
     await prisma.$transaction(queryCollection);
     const initialQuantity = await prisma.op.findUnique({
-        select: {
-          quantityToProduce: true
-        },
-        where: {
-          id: opId,
-        },
+      select: {
+        quantityToProduce: true,
       },
-    );
+      where: {
+        id: opId,
+      },
+    });
     const countPackageItems = await prisma.opBoxBlister.aggregate({
       _sum: {
         quantity: true,
@@ -303,7 +302,8 @@ export async function persistWithOpBreak(
       },
     });
     if (initialQuantity?.quantityToProduce && countPackageItems._sum.quantity) {
-      const quantityPending = initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
+      const quantityPending =
+        initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
       await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
     } else {
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
@@ -388,7 +388,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
       OpBox: {
         create: boxes,
       },
-      status: 2
+      status: 2,
     },
     where: {
       id: opId,
@@ -429,7 +429,7 @@ export async function getOpByCode(code: string) {
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   // Requet from jerp:
-  
+
   const dynamicData = await fetch(
     `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
     {
@@ -448,7 +448,7 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
   console.log("ID / QTD OP ---------");
   console.log(id);
   console.log(quantity);
-  
+
   try {
     const data = await dynamicData.json();
     console.log("POST JERP ETIQUETA ---------");
@@ -458,8 +458,6 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
     console.log(error);
   }
 
-
-  
   // return data as OpJerpDto;
 
   // return {

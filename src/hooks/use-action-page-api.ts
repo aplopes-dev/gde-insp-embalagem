@@ -1,3 +1,5 @@
+"use client"
+
 import { FilterPaginationParams } from "@/types/filter";
 import { useEffect, useState } from "react";
 
@@ -11,6 +13,7 @@ export function useActionPageApi({
   const [data, setData] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     filters = defautlFilters.concat(filters)

@@ -8,7 +8,6 @@ type DebouncedInputProps = {
   placeholder?: string;
   disabled?: boolean;
   autoFocus?: boolean;
-  className?: string;
 };
 
 const DebouncedInput: React.FC<DebouncedInputProps> = ({
@@ -17,7 +16,6 @@ const DebouncedInput: React.FC<DebouncedInputProps> = ({
   debounceTime = 300,
   placeholder = "Digite aqui...",
   disabled,
-  className,
   autoFocus,
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -44,7 +42,7 @@ const DebouncedInput: React.FC<DebouncedInputProps> = ({
       onChange={handleChange}
       placeholder={placeholder}
       autoFocus={autoFocus}
-      className={className || "h-8 lg:w-[250px]"}
+      className="uppercase xl:h-16 exl:h-24 text-sm xl:text-2xl exl:text-4xl"
     />
   );
 };

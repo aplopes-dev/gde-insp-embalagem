@@ -1,9 +1,8 @@
 "use server"
 
+import axios from "axios";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import logger from "@/utils/logger";
-
-import opXbb from "@/mocks/op-jerp-xbb.json"
 
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
@@ -15,44 +14,28 @@ if (!JERP_API || !JERP_TOKEN) {
 }
 
 export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined> {
-  return {
-    ...opXbb,
-    id: Number(code)
-  } as OpJerpDto
-  // try {
-  //   const response = await fetch(`${JERP_API}/ordemproducao/${code}`, {
-  //     headers: getJerpHeaders(),
-  //     cache: "no-store",
-  //   });
+  try {
+    const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
+      headers: getJerpHeaders(),
+    });
 
-  //   if (!response.ok) {
-  //     throw new Error(`Erro ao buscar OP: ${response.status} - ${response.statusText}`);
-  //   }
-
-  //   const data = await response.json();
-  //   logger.info({ message: "OP recuperada com sucesso", code });
-  //   return data as OpJerpDto;
-  // } catch (error) {
-  //   handleError(error, `Falha ao obter OP para o código: ${code}`);
-  // }
-
+    logger.info({ message: "OP recuperada com sucesso", code });
+    return response.data as OpJerpDto;
+  } catch (error) {
+    handleError(error, `Falha ao obter OP para o código: ${code}`);
+  }
 }
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   try {
-    const response = await fetch(`${JERP_API}/ordemproducao`, {
-      method: "POST",
-      headers: getJerpHeaders(),
-      body: JSON.stringify({ id, quantidadeApontada: quantity }),
-    });
+    const response = await axios.post(
+      `${JERP_API}/ordemproducao`,
+      { id, quantidadeApontada: quantity },
+      { headers: getJerpHeaders() }
+    );
 
-    if (!response.ok) {
-      throw new Error(`Erro ao gerar código de barras: ${response.status} - ${response.statusText}`);
-    }
-
-    const data = await response.json();
     logger.info({ message: "Código de barras gerado", id, quantity });
-    return data;
+    return response.data;
   } catch (error) {
     handleError(error, `Falha ao obter código de barras para OP: ${id}`);
   }
@@ -66,10 +49,20 @@ function getJerpHeaders() {
 }
 
 function handleError(error: any, message: string) {
-  logger.error({
-    message,
-    error: error.message || error,
-    stack: error.stack || "Sem stack trace",
-  });
+  // Verificando se o erro é uma resposta do axios
+  if (axios.isAxiosError(error)) {
+    logger.error({
+      message,
+      error: error.message,
+      stack: error.stack || "Sem stack trace",
+      response: error.response || "Sem resposta",
+    });
+  } else {
+    logger.error({
+      message,
+      error: error.message || error,
+      stack: error.stack || "Sem stack trace",
+    });
+  }
   throw new Error(message);
 }

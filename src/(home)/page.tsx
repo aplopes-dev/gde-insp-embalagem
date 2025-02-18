@@ -1,4 +1,4 @@
-import Header from "../_components/header";
+import Header from "@/app/_components/header";
 import { DailyOpList } from "./_components/daily-op-list";
 import OpLoadForm from "./_components/op-load-form";
 

@@ -4,38 +4,11 @@ import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { getOwnFilterClauses } from "@/utils/filter";
 import { OpDto } from "./_types/op-dto";
-import { OpJerpDto } from "../../types/dtos/op-jerp-dto";
 
 type OpQuantityProducedDto = {
   code: string;
   produced: number;
 };
-
-export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
-  await delay(1000);
-
-  const dynamicData = await fetch(
-    `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${code}`,
-    {
-      headers: {
-        authorization: `Bearer ${process.env.JERP_TOKEN}`,
-      }, 
-      cache: "no-store",
-    }
-  );
- 
-
-  const data = await dynamicData.json();
-
-  console.log("CODE OP ---------");
-  console.log(code);
-  
-  console.log("GET JERP OP ---------");
-  console.log(data);
-  
-
-  return data as OpJerpDto;
-}
 
 export async function getPaginatedOp({
   limit,
@@ -48,9 +21,6 @@ export async function getPaginatedOp({
 
   whereClauses = {
     ...whereClauses,
-    // finishedAt: {
-    //   not: null,
-    // },
   };
 
   const transaction = await prisma.$transaction([
@@ -110,6 +80,3 @@ export async function getPaginatedOp({
   const _count = transaction[0];
   return [_data, _count];
 }
-
-const delay = (ms: number | undefined) =>
-  new Promise((res) => setTimeout(res, ms));

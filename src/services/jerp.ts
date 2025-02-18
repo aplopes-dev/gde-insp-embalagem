@@ -3,6 +3,8 @@
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import logger from "@/utils/logger";
 
+import opXbb from "@/mocks/op-jerp-xbb.json"
+
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
 
@@ -13,22 +15,27 @@ if (!JERP_API || !JERP_TOKEN) {
 }
 
 export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined> {
-  try {
-    const response = await fetch(`${JERP_API}/ordemproducao/${code}`, {
-      headers: getJerpHeaders(),
-      cache: "no-store",
-    });
+  return {
+    ...opXbb,
+    id: Number(code)
+  } as OpJerpDto
+  // try {
+  //   const response = await fetch(`${JERP_API}/ordemproducao/${code}`, {
+  //     headers: getJerpHeaders(),
+  //     cache: "no-store",
+  //   });
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar OP: ${response.status} - ${response.statusText}`);
-    }
+  //   if (!response.ok) {
+  //     throw new Error(`Erro ao buscar OP: ${response.status} - ${response.statusText}`);
+  //   }
 
-    const data = await response.json();
-    logger.info({ message: "OP recuperada com sucesso", code });
-    return data as OpJerpDto;
-  } catch (error) {
-    handleError(error, `Falha ao obter OP para o código: ${code}`);
-  }
+  //   const data = await response.json();
+  //   logger.info({ message: "OP recuperada com sucesso", code });
+  //   return data as OpJerpDto;
+  // } catch (error) {
+  //   handleError(error, `Falha ao obter OP para o código: ${code}`);
+  // }
+
 }
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {

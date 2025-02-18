@@ -54,7 +54,7 @@ const BlisterDisplay = ({
     <div className="flex flex-col max-h-full overflow-y-auto">
       <Table className="table-fixed w-full">
         {/* 🔹 Cabeçalho fixo no topo */}
-        <TableHeader className="sticky top-0 z-10 bg-white shadow-md">
+        <TableHeader className="sticky top-0 z-10 bg-background shadow-md">
           <TableRow className="h-8">
             <TableHead className="w-[12.5%]">Ordem</TableHead>
             <TableHead className="w-[25%]">Blister</TableHead>

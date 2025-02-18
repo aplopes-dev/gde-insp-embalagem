@@ -3,7 +3,9 @@
 import { OpDto } from "@/app/(home)/_types/op-dto";
 import prisma from "@/providers/database";
 import { getOpFromCode } from "@/services/jerp";
+import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { isSamePass } from "@/utils/bcrypt";
+import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
@@ -13,141 +15,106 @@ import {
 const bcrypt = require("bcrypt");
 
 export async function syncAndGetOpToProduceByCode(code: string) {
-  // const externalOp = await getOpFromNexinToProduceByCode(code);
-  const externalOp = await getOpFromCode(code);
-  let internalOp = await prisma.op.findFirst({
-    where: {
-      code: `${externalOp.numero}`,
-    },
-  });
-
-  if (!internalOp) {
-    const refNames = ["Produto", "Blister", "Caixa"];
-    const packagingNames = externalOp.embalagens.map((emb) =>
-      emb.nome.toUpperCase()
-    );
-    const refValue = [`${externalOp.produto.nome}`];
-    const transaction = await prisma.$transaction([
-      prisma.productType.findFirst({
-        where: {
-          name: refValue[0],
-        },
-        select: {
-          id: true,
-        },
-      }),
-      prisma.blisterType.findFirst({
-        where: {
-          name: {
-            in: packagingNames,
-          },
-        },
-        select: {
-          id: true,
-          limitPerBox: true,
-          slots: true,
-        },
-      }),
-      prisma.boxType.findFirst({
-        where: {
-          name: {
-            in: packagingNames,
-          },
-        },
-        select: {
-          id: true,
-        },
-      }),
-    ]);
-
-    const indexNullReference = transaction.findIndex((rf) => !rf?.id);
-    if (indexNullReference >= 0) {
-      throw new Error(
-        `Referência de ${refNames[indexNullReference]} não encontrada.`
-      );
+  try {
+    // Busca OP externa
+    const externalOp = await getOpFromCode(code);
+    if (!externalOp) {
+      throw new Error(`OP ${code} não encontrada na API externa.`);
     }
 
-    internalOp = await prisma.op.create({
-      data: {
-        id: externalOp.id,
-        code: `${externalOp.numero}`,
-        productTypeId: Number(transaction[0]?.id),
-        blisterTypeId: Number(transaction[1]?.id),
-        boxTypeId: Number(transaction[2]?.id),
-        quantityToProduce: externalOp.quantidadeAProduzir,
-        OpBox: {
-          create: getCollectionToCreateBlisterBoxes(
-            `OP_${code}_BOX`,
-            externalOp.quantidadeAProduzir,
-            transaction[1]!.slots,
-            transaction[1]!.limitPerBox
-          ),
-        },
-      },
+    let internalOp = await prisma.op.findFirst({
+      where: { code: `${externalOp.numero}` },
     });
+
+    // Se não existir internamente, cria a OP
+    if (!internalOp) {
+      internalOp = await createInternalOp(externalOp, code);
+    }
+
+    // Busca dados relacionados à OP
+    return await fetchOpDetails(internalOp);
+  } catch (error) {
+    console.error("Erro ao sincronizar OP:", error);
+    throw new Error("Erro ao sincronizar OP. Tente novamente mais tarde.");
   }
+}
+
+/**
+ * Cria a OP internamente, validando as referências necessárias
+ */
+async function createInternalOp(externalOp: OpJerpDto, code: string) {
+  const packagingNames = externalOp.embalagens.map((emb) =>
+    emb.nome.toUpperCase()
+  );
 
   const transaction = await prisma.$transaction([
-    prisma.opBox.count({
-      where: {
-        opId: internalOp.id,
+    prisma.productType.findFirst({ where: { name: externalOp.produto.nome } }),
+    prisma.blisterType.findFirst({ where: { name: { in: packagingNames } } }),
+    prisma.boxType.findFirst({ where: { name: { in: packagingNames } } }),
+  ]);
+
+  validateReferences(transaction, ["Produto", "Blister", "Caixa"]);
+
+  return await prisma.op.create({
+    data: {
+      id: externalOp.id,
+      code: `${externalOp.numero}`,
+      productTypeId: Number(transaction[0]?.id),
+      blisterTypeId: Number(transaction[1]?.id),
+      boxTypeId: Number(transaction[2]?.id),
+      quantityToProduce: externalOp.quantidadeAProduzir,
+      OpBox: {
+        create: getCollectionToCreateBlisterBoxes(
+          externalOp.quantidadeAProduzir,
+          transaction[1]!.slots,
+          transaction[1]!.limitPerBox
+        ),
       },
-    }),
-    prisma.opBox.count({
-      where: {
-        opId: internalOp.id,
-        packedAt: null,
-      },
-    }),
+    },
+  });
+}
+
+/**
+ * Valida se todas as referências existem no banco de dados
+ */
+function validateReferences(
+  transactionResults: [
+    productType: ProductType | null,
+    blisterType: BlisterType | null,
+    boxType: BoxType | null
+  ],
+  refNames: string[]
+) {
+  const indexNullReference = transactionResults.findIndex((rf) => !rf?.id);
+  if (indexNullReference >= 0) {
+    throw new Error(
+      `Referência de ${refNames[indexNullReference]} não encontrada.`
+    );
+  }
+}
+
+/**
+ * Busca detalhes da OP interna para inspeção
+ */
+async function fetchOpDetails(internalOp: Op) {
+  const transaction = await prisma.$transaction([
+    prisma.opBox.count({ where: { opId: internalOp.id } }),
+    prisma.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
     prisma.opBox.findFirst({
-      where: {
-        opId: internalOp.id,
-        packedAt: null,
-      },
-      orderBy: {
-        id: "asc",
-      },
-      include: {
-        OpBoxBlister: true,
-      },
+      where: { opId: internalOp.id, packedAt: null },
+      orderBy: { id: "asc" },
+      include: { OpBoxBlister: true },
     }),
-    prisma.blisterType.findFirst({
-      where: {
-        id: internalOp.blisterTypeId,
-      },
-    }),
-    prisma.boxType.findFirst({
-      where: {
-        id: internalOp.boxTypeId,
-      },
-    }),
-    prisma.productType.findFirst({
-      where: {
-        id: internalOp.productTypeId,
-      },
-    }),
+    prisma.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
+    prisma.boxType.findFirst({ where: { id: internalOp.boxTypeId } }),
+    prisma.productType.findFirst({ where: { id: internalOp.productTypeId } }),
     prisma.opBoxBlister.aggregate({
-      _sum: {
-        quantity: true,
-      },
-      where: {
-        packedAt: {
-          not: null,
-        },
-        opBox: {
-          opId: internalOp.id,
-        },
-      },
+      _sum: { quantity: true },
+      where: { packedAt: { not: null }, opBox: { opId: internalOp.id } },
     }),
     prisma.opBoxBlister.findMany({
-      select: {
-        code: true,
-      },
-      where: {
-        opBox: {
-          opId: internalOp.id,
-        },
-      },
+      select: { code: true },
+      where: { opBox: { opId: internalOp.id } },
     }),
   ]);
 
@@ -313,22 +280,6 @@ export async function persistWithOpBreak(
   }
 }
 
-export async function getNextBoxByOpId(id: number) {
-  const box = await prisma.opBox.findFirst({
-    where: {
-      opId: id,
-      packedAt: null,
-    },
-    orderBy: {
-      id: "asc",
-    },
-    include: {
-      OpBoxBlister: true,
-    },
-  });
-  return box as OpBoxInspectionDto;
-}
-
 export async function managarAuthorization(code: string, password: string) {
   const manager = await prisma.manager.findUnique({
     where: {
@@ -359,7 +310,6 @@ export async function recalculateBoxesFromOpAndItemQuantity(
   }
 
   const boxes = getCollectionToCreateBlisterBoxes(
-    `OP_${op.code}_BOX`,
     quantityToProduce,
     op.blister?.slots,
     op.blister?.limitPerBox,
@@ -427,63 +377,9 @@ export async function getOpByCode(code: string) {
     : null;
 }
 
-export async function getBarcodeFromOpId(id: number, quantity: number) {
-  // Requet from jerp:
-
-  const dynamicData = await fetch(
-    `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
-    {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.JERP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id,
-        quantidadeApontada: quantity,
-      }),
-    }
-  );
-
-  console.log("ID / QTD OP ---------");
-  console.log(id);
-  console.log(quantity);
-
-  try {
-    const data = await dynamicData.json();
-    console.log("POST JERP ETIQUETA ---------");
-    console.log(data);
-    return data;
-  } catch (error) {
-    console.log(error);
-  }
-
-  // return data as OpJerpDto;
-
-  // return {
-  //   message: "Apontamento com sucesso",
-  //   id: id,
-  //   quantidadeApontada: quantity,
-  //   idBarras: 1161792,
-  // };
-}
-
-export async function getBoxById(id: number) {
-  const box = await prisma.opBox.findUnique({
-    where: {
-      id,
-    },
-    include: {
-      OpBoxBlister: true,
-    },
-  });
-  return box as OpBoxInspectionDto;
-}
-
 // ## ------- INTERNAL FUNCTIONS --------
 
 function getCollectionToCreateBlisterBoxes(
-  boxTagPrefix: string,
   quantityToProduce: number,
   itemPerBlister: number,
   blisterPerBox: number,
@@ -511,7 +407,6 @@ function getCollectionToCreateBlisterBoxes(
     const blisterCount = isLastBox ? lastBoxQuantity : blisterPerBox;
     return {
       code: `${i + 1 + boxGap}`,
-      // code: `${boxTagPrefix}_${i + 1 + boxGap}`,
       OpBoxBlister: {
         create: Array.from(Array(blisterCount)).map((_, j) => {
           const isLastBlister = j + 1 == blisterCount;

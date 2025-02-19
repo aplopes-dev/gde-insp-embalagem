@@ -5,12 +5,12 @@ import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { useBoxOpColumns } from "./columns";
 import { OpListToolbar } from "./toolbar";
-import { OpDto } from "../../op/types/op-dto";
-import { getPaginatedOp } from "@/app/actions";
+import { OpDto } from "@/types/op-dto";
+import { useBoxOpColumns } from "./columns";
+import { getPaginatedOp } from "../actions";
 
-export function DailyOpList() {
+export default function DailyOpList() {
   const { columns } = useBoxOpColumns();
 
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);

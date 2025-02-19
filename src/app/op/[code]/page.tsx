@@ -1,20 +1,19 @@
 "use client";
 
-import Header from "@/app/_components/header";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import BlisterDisplay from "../_components/blister-display";
-import BoxDisplay from "../_components/box-display";
-import OpDisplay from "../_components/op-display";
+import BlisterDisplay from "./_components/blister-display";
+import BoxDisplay from "./_components/box-display";
+import OpDisplay from "./_components/op-display";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
   OpInspectionDto,
-} from "../types/op-box-inspection-dto";
+} from "../../../types/op-box-inspection-dto";
 import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
 import PrintTagDialog from "./_components/print-tag-dialog";
 import {
@@ -22,6 +21,7 @@ import {
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
+import Header from "@/components/header";
 
 type ActiveItemDto = {
   itemId: string;

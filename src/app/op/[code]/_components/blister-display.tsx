@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/helpers/tw-merge";
-import { OpBoxBlisterInspection } from "../types/op-box-inspection-dto";
+import { OpBoxBlisterInspection } from "../../../../types/op-box-inspection-dto";
 
 function getStatusColor(status?: number) {
   switch (status) {

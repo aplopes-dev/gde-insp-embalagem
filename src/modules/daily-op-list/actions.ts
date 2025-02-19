@@ -3,7 +3,7 @@
 import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { getOwnFilterClauses } from "@/utils/filter";
-import { OpDto } from "./op/types/op-dto";
+import { OpDto } from "../../types/op-dto";
 
 type OpQuantityProducedDto = {
   code: string;

@@ -9,8 +9,8 @@ import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
   OpInspectionDto,
-} from "../types/op-box-inspection-dto";
-import { OpDto } from "@/app/op/types/op-dto";
+} from "../../../types/op-box-inspection-dto";
+import { OpDto } from "@/types/op-dto";
 
 const bcrypt = require("bcrypt");
 

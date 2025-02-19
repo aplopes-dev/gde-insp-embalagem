@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@/helpers/tw-merge";
 import {
   Table as TanTable,
   createColumnHelper,

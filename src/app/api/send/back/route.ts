@@ -1,4 +1,4 @@
-import { connectRabbitMQ } from '@/lib/rabbitmq';
+import { connectRabbitMQ } from '@/helpers/rabbitmq';
 import { NextResponse } from 'next/server';
 
 

@@ -5,10 +5,10 @@ import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { getPaginatedOp } from "../../actions";
 import { useBoxOpColumns } from "./columns";
 import { OpListToolbar } from "./toolbar";
-import { OpDto } from "../../_types/op-dto";
+import { OpDto } from "../../op/types/op-dto";
+import { getPaginatedOp } from "@/app/actions";
 
 export function DailyOpList() {
   const { columns } = useBoxOpColumns();

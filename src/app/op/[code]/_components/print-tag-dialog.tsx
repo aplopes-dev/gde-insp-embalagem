@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getBarcodeFromOpId } from "@/services/jerp";
+import { getBarcodeFromOpId } from "@/services/jerp/jerp";
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 // import { getBarcodeFromOpId } from "../actions";

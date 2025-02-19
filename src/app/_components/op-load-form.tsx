@@ -2,7 +2,7 @@
 
 import DebouncedInput from "@/components/data-table-debounce-text-filter";
 import { toast } from "@/components/ui/use-toast";
-import { getOpFromCode } from "@/services/jerp";
+import { getOpFromCode } from "@/services/jerp/jerp";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

@@ -2,10 +2,11 @@
 
 import axios from "axios";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
-import logger from "@/utils/logger";
+import logger from "@/helpers/logger";
 
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
+
 
 if (!JERP_API || !JERP_TOKEN) {
   const errorMessage = "As variáveis de ambiente JERP_API e JERP_TOKEN são obrigatórias.";
@@ -18,7 +19,6 @@ export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined
     const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
       headers: getJerpHeaders(),
     });
-
     logger.info({ message: "OP recuperada com sucesso", code });
     return response.data as OpJerpDto;
   } catch (error) {
@@ -26,14 +26,13 @@ export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined
   }
 }
 
-export async function getBarcodeFromOpId(id: number, quantity: number) {
+export async function getBarcodeFromOpId(id: number, quantity: number): Promise<number | undefined> {
   try {
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,
       { id, quantidadeApontada: quantity },
       { headers: getJerpHeaders() }
     );
-
     logger.info({ message: "Código de barras gerado", id, quantity });
     return response.data;
   } catch (error) {
@@ -49,7 +48,6 @@ function getJerpHeaders() {
 }
 
 function handleError(error: any, message: string) {
-  // Verificando se o erro é uma resposta do axios
   if (axios.isAxiosError(error)) {
     logger.error({
       message,

@@ -9,7 +9,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn } from "@/helpers/tw-merge";
 import { EditIcon, EyeIcon, GripHorizontalIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 

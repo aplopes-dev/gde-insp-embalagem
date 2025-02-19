@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/providers/theme-provider";
+import { ThemeProvider } from "@/providers/theme";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Head from "next/head";

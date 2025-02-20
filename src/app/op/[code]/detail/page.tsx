@@ -1,11 +1,11 @@
 "use client";
 
-import { OpDto } from "@/app/(home)/_types/op-dto";
-import Header from "@/app/_components/header";
 import { useEffect, useState } from "react";
 import { getOpByCode } from "../actions";
 import { DailyOpBoxTable } from "./_components/daily-op-box-table";
 import { Badge } from "@/components/ui/badge";
+import { OpDto } from "@/types/op-dto";
+import Header from "@/components/header";
 
 const BoxPage = ({
   params: { code },

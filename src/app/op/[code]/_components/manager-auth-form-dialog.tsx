@@ -21,10 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { managarAuthorization } from "../actions";
-import {
-  opBreakAuthorizationSchema,
-  OpBreakAuthorizationType,
-} from "../schema";
+import { opBreakAuthorizationSchema, OpBreakAuthorizationType } from "./schema";
 
 type OpBreakAuthFormProps = {
   isOpen: boolean;

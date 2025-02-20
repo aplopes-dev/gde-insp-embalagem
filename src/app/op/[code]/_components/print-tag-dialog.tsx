@@ -5,7 +5,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getBarcodeFromOpId } from "@/services/jerp/jerp";
+import { getBarcodeFromOpId } from "@/shared/services/jerp/jerp";
+import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 // import { getBarcodeFromOpId } from "../actions";
@@ -24,12 +25,6 @@ type PrintTagProps = {
   onPrintSuccess: () => void;
 };
 
-type PrintTagJerpData = {
-  message: string;
-  id: number;
-  quantidadeApontada: number;
-  idBarras: number;
-};
 
 const PrintTagDialog = ({
   isOpen,
@@ -42,10 +37,10 @@ const PrintTagDialog = ({
   opId,
 }: PrintTagProps) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<PrintTagJerpData>();
+  const [data, setData] = useState<PrintTagJerpDto>();
 
   const loadData = async () => {
-    const tagData: PrintTagJerpData = await getBarcodeFromOpId(opId, quantity);
+    const tagData = await getBarcodeFromOpId(opId, quantity);
     setData(tagData);
     setTimeout(() => {
       const printContent = printRef.current!.innerHTML;

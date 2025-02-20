@@ -30,12 +30,7 @@ const ImageModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal>
       <DialogContent className="p-0 w-[1024px] h-[800px] flex items-center">
-        <Image
-          src={imageSrc}
-          alt="Imagem ampliada"
-          width={1024}
-          height={800}
-        />
+        <Image src={imageSrc} alt="Imagem ampliada" width={1024} height={800} />
       </DialogContent>
     </Dialog>
   );
@@ -76,12 +71,13 @@ const BlisterListDialog = ({
   };
 
   const formatDateISO = (date: Date) => {
-    // Convert the date to ISO string
-    const isoString = date.toISOString();
-    // Split at the "T" character to get the date part
-    const formattedDate = isoString.split("T")[0];
-    return formattedDate;
-};
+    if (date) {
+      const isoString = date.toISOString();
+      const formattedDate = isoString.split("T")[0];
+      return formattedDate;
+    }
+    return "";
+  };
 
   return (
     <>
@@ -109,12 +105,16 @@ const BlisterListDialog = ({
                       <Image
                         width={100}
                         height={50}
-                        src={`/api/images/OP_${opCode}_BOX_${data.code}_BL_${item.code}.jpg?path=${formatDateISO(data.packedAt!)}`}
+                        src={`/api/images/OP_${opCode}_BOX_${data.code}_BL_${
+                          item.code
+                        }.jpg?path=${formatDateISO(data.packedAt!)}`}
                         alt="GDE"
                         className="cursor-pointer"
                         onClick={() =>
                           handleImageClick(
-                            `/api/images/OP_${opCode}_BOX_${data.code}_BL_${item.code}.jpg?path=${formatDateISO(data.packedAt!)}`
+                            `/api/images/OP_${opCode}_BOX_${data.code}_BL_${
+                              item.code
+                            }.jpg?path=${formatDateISO(data.packedAt!)}`
                           )
                         }
                       />

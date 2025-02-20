@@ -14,7 +14,6 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
-import ManagerAuthFormDialog from "./_components/manager-auth-form-dialog";
 import PrintTagDialog from "./_components/print-tag-dialog";
 import {
   persistBoxStatusWithBlisters,
@@ -22,6 +21,7 @@ import {
   syncAndGetOpToProduceByCode,
 } from "./actions";
 import Header from "@/components/header";
+import ManagerAuthFormDialog from "@/features/manager-auth-form-dialog";
 
 type ActiveItemDto = {
   itemId: string;

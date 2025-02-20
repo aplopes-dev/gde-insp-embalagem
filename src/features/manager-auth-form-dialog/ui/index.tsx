@@ -20,10 +20,20 @@ import { toast } from "@/components/ui/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { managarAuthorization } from "../actions";
-import { opBreakAuthorizationSchema, OpBreakAuthorizationType } from "./schema";
 
-type OpBreakAuthFormProps = {
+export const opBreakAuthorizationSchema = z.object({
+  quantity: z.number().min(1),
+  code: z.string().min(1),
+  password: z.string().min(3),
+});
+
+export type OpBreakAuthorizationType = z.infer<
+  typeof opBreakAuthorizationSchema
+>;
+
+type ManagerAuthFormDialogProps = {
   isOpen: boolean;
   title: string;
   message: string;
@@ -39,7 +49,7 @@ const ManagerAuthFormDialog = ({
   initialQuantity,
   onOpenChange,
   onManagerAuth,
-}: OpBreakAuthFormProps) => {
+}: ManagerAuthFormDialogProps) => {
   const form = useForm<OpBreakAuthorizationType>({
     resolver: zodResolver(opBreakAuthorizationSchema),
     defaultValues: {

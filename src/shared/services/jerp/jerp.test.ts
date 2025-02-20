@@ -6,7 +6,7 @@ const JERP_API = process.env.JERP_API;
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-jest.mock('@/utils/logger', () => ({
+jest.mock('@/libs/logger', () => ({
   info: jest.fn(),
   error: jest.fn(),
 }));
@@ -27,7 +27,7 @@ describe('getOpFromCode', () => {
     const result = await getOpFromCode(mockCode);
     expect(result).toEqual(mockData);
 
-    expect(require('@/utils/logger').info).toHaveBeenCalledWith(
+    expect(require('@/libs/logger').info).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'OP recuperada com sucesso',
         code: mockCode,

@@ -1,16 +1,15 @@
 "use server";
 
 import prisma from "@/providers/database";
+import { getOpFromCode } from "@/shared/services/jerp/jerp";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
+import { OpDto } from "@/types/op-dto";
 import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
-import { OpDto } from "@/types/op-dto";
-import { getOpFromCode } from "@/shared/services/jerp/jerp";
-import { isSamePass } from "@/libs/bcrypt";
 
 const bcrypt = require("bcrypt");
 
@@ -278,20 +277,6 @@ export async function persistWithOpBreak(
   } catch (error) {
     console.log(error);
   }
-}
-
-export async function managarAuthorization(code: string, password: string) {
-  const manager = await prisma.manager.findUnique({
-    where: {
-      id: Number(code),
-    },
-  });
-  const managerPassword = manager?.password || "";
-  const confirmPass = await isSamePass(password, managerPassword);
-  if (!confirmPass) {
-    throw new Error("Código / Senha inválidos!");
-  }
-  return manager && manager.id;
 }
 
 export async function recalculateBoxesFromOpAndItemQuantity(

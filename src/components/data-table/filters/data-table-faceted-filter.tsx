@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/helpers/tw-merge";
+import { cn } from "@/shared/utils/tw-merge";
 import { FilterType } from "@/types/filter";
 import { CheckIcon, PlusCircleIcon } from "lucide-react";
 

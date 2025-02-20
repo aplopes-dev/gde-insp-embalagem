@@ -1,8 +1,9 @@
 "use server"
 
-import axios from "axios";
+import logger from "@/libs/logger";
+import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
-import logger from "@/helpers/logger";
+import axios from "axios";
 
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
@@ -16,7 +17,7 @@ if (!JERP_API || !JERP_TOKEN) {
 
 export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined> {
   try {
-    const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
+    const response = await axios.get(`${JERP_API}/ordemproducaoe/${code}`, {
       headers: getJerpHeaders(),
     });
     logger.info({ message: "OP recuperada com sucesso", code });
@@ -45,22 +46,4 @@ function getJerpHeaders() {
     authorization: `Bearer ${JERP_TOKEN}`,
     "Content-Type": "application/json",
   };
-}
-
-function handleError(error: any, message: string) {
-  if (axios.isAxiosError(error)) {
-    logger.error({
-      message,
-      error: error.message,
-      stack: error.stack || "Sem stack trace",
-      response: error.response || "Sem resposta",
-    });
-  } else {
-    logger.error({
-      message,
-      error: error.message || error,
-      stack: error.stack || "Sem stack trace",
-    });
-  }
-  throw new Error(message);
 }

@@ -2,8 +2,8 @@
 
 import Header from "@/components/header";
 import { toast } from "@/components/ui/use-toast";
-import DailyOpList from "@/modules/daily-op-list";
-import OpLoadForm from "@/modules/op-load-form";
+import DailyOpList from "@/features/daily-op-list";
+import OpLoadForm from "@/features/op-load-form";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { useRouter } from "next/navigation";
 

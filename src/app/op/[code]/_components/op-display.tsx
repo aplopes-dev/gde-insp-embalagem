@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/helpers/tw-merge";
+import { cn } from "@/shared/utils/tw-merge";
 
 type OpDisplayProps = {
   code: string;

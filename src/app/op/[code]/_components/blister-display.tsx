@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/helpers/tw-merge";
+import { cn } from "@/shared/utils/tw-merge";
 import { OpBoxBlisterInspection } from "../../../../types/op-box-inspection-dto";
 
 function getStatusColor(status?: number) {

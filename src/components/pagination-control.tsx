@@ -1,4 +1,4 @@
-import { cn } from "@/helpers/tw-merge";
+import { cn } from "@/shared/utils/tw-merge";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import {
   Pagination,

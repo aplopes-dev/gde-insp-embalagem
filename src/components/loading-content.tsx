@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/helpers/tw-merge";
+import { cn } from "@/shared/utils/tw-merge";
 import { Loader2 } from "lucide-react";
 
 export default function LoadingContent({

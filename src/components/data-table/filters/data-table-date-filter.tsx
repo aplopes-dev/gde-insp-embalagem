@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { FilterOperatorType, FilterType } from "@/types/filter";
-import { getDateLocale } from "@/helpers/locale";
+import { getDateLocale } from "@/shared/utils/locale";
 import { Column } from "@tanstack/react-table";
 import { CalendarIcon, ChevronDown } from "lucide-react";
 import { useState } from "react";

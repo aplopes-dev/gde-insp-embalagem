@@ -1,4 +1,4 @@
-import { FilterClauseType } from "../types/filter";
+import { FilterClauseType } from "@/types/filter";
 
 export function getOwnFilterClauses(clauses: FilterClauseType[]) {
   let whereClauses: any = {};

@@ -2,8 +2,8 @@
 
 import prisma from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
-import { getOwnFilterClauses } from "@/utils/filter";
 import { OpDto } from "../../types/op-dto";
+import { getOwnFilterClauses } from "@/shared/utils/filter";
 
 type OpQuantityProducedDto = {
   code: string;

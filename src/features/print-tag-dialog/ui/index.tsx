@@ -9,7 +9,6 @@ import { getBarcodeFromOpId } from "@/shared/services/jerp/jerp";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
-// import { getBarcodeFromOpId } from "../actions";
 import { ReactBarcode } from "react-jsbarcode";
 
 const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });

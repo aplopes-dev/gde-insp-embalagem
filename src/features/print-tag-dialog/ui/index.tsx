@@ -5,13 +5,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getBarcodeFromOpId } from "@/shared/services/jerp/jerp";
+import { getBarcodeFromOpId } from "@/shared/services/jerp";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 import { ReactBarcode } from "react-jsbarcode";
 
-const myFont = localFont({ src: "./fonts/LibreBarcode39-Regular.ttf" });
+const myFont = localFont({ src: "../fonts/LibreBarcode39-Regular.ttf" });
 
 type PrintTagProps = {
   isOpen: boolean;

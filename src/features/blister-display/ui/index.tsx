@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/shared/utils/tw-merge";
-import { OpBoxBlisterInspection } from "../../../../types/op-box-inspection-dto";
+import { OpBoxBlisterInspection } from "@/types/op-box-inspection-dto";
 
 function getStatusColor(status?: number) {
   switch (status) {
@@ -89,7 +89,6 @@ const BlisterDisplay = ({
             </TableRow>
           )}
 
-          {/* Linhas normais da tabela */}
           {blisters.map((data, index) => (
             <TableRow
               key={data.id}

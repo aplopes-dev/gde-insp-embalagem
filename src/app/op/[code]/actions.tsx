@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/providers/database";
-import { getOpFromCode } from "@/shared/services/jerp/jerp";
+import { getOpFromCode } from "@/shared/services/jerp";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";

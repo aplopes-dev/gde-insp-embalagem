@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { OpBox, OpBoxBlister } from "@prisma/client";
 import { useEffect, useState } from "react";
-import { getOpBoxWithBlistersById } from "../../actions";
+import { getOpBoxWithBlistersById } from "../actions";
 import Image from "next/image";
 
 const ImageModal = ({

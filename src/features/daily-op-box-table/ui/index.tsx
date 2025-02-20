@@ -5,25 +5,21 @@ import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { useState } from "react";
-import { getPaginatedBoxOp } from "../../actions";
-import BlisterListDialog from "../blister-list-dialog";
+import { getPaginatedBoxOp } from "../actions";
 import { useBoxOpColumns } from "./columns";
 import { BoxOpDataTableToolbar } from "./toolbar";
 
-export function DailyOpBoxTable({ opId, opCode }: { opId: number, opCode: string }) {
-  const onCLickView = (value: any) => {
-    setActiveKey(value);
-    setOpenBlisterDialog(true);
-  };
-
-  const { columns } = useBoxOpColumns({ onCLickView });
+export default function DailyOpBoxTable({
+  opId,
+  onClickView,
+}: {
+  opId: number;
+  onClickView: (v: any) => void;
+}) {
+  const { columns } = useBoxOpColumns({ onCLickView: onClickView });
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);
   const { sorting, onSortingChange, field, order } = useSorting();
   const { columnFilters, onColumnFiltersChange } = useFiltering();
-
-  const [activeKey, setActiveKey] = useState<any>(null);
-  const [openBlisterDialog, setOpenBlisterDialog] = useState<boolean>(false);
 
   const [data, count, loading] = useActionPageApi({
     pagination: { skip, limit },
@@ -60,12 +56,6 @@ export function DailyOpBoxTable({ opId, opCode }: { opId: number, opCode: string
         childs={{
           toolbar: BoxOpDataTableToolbar,
         }}
-      />
-      <BlisterListDialog
-        opCode={opCode}
-        activeKey={activeKey}
-        isOpen={openBlisterDialog}
-        onOpenChange={setOpenBlisterDialog}
       />
     </div>
   );

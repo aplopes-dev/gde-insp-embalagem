@@ -15,11 +15,13 @@ import { useForm } from "react-hook-form";
 import { io } from "socket.io-client";
 import { ValidationFormType, validationSchema } from "../schema";
 
+const SOCKET_URL = `${process.env.NEXT_PUBLIC_SOCKET_URL}`;
+
 const CamForm = () => {
   const sendNotification = (data: any) => {
-    const socket = io("http://localhost:3001");
+    const socket = io(SOCKET_URL);
     socket.emit("detectionUpdate", data);
-    sendMessageToRabbitMq(data)
+    sendMessageToRabbitMq(data);
   };
 
   async function sendMessageToRabbitMq(message: any) {
@@ -46,13 +48,12 @@ const CamForm = () => {
     }
   }
 
-
   const form = useForm<ValidationFormType>({
     resolver: zodResolver(validationSchema),
     defaultValues: {
       itemId: "",
       count: "",
-      code: ""
+      code: "",
     },
     mode: "onChange",
   });
@@ -66,7 +67,7 @@ const CamForm = () => {
     await sendNotification({
       itemId,
       count: Number(count),
-      code
+      code,
     });
   });
 

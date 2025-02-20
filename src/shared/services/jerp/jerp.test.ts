@@ -1,4 +1,4 @@
-import { getOpFromCode } from './jerp';
+import { getOpFromCode } from '.';
 import axios from 'axios';
 
 const JERP_API = process.env.JERP_API;

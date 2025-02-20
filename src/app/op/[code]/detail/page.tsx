@@ -1,11 +1,12 @@
 "use client";
 
+import Header from "@/components/header";
+import { Badge } from "@/components/ui/badge";
+import BlisterListDialog from "@/features/blister-list-dialog";
+import DailyOpBoxTable from "@/features/daily-op-box-table";
+import { OpDto } from "@/types/op-dto";
 import { useEffect, useState } from "react";
 import { getOpByCode } from "../actions";
-import { DailyOpBoxTable } from "./_components/daily-op-box-table";
-import { Badge } from "@/components/ui/badge";
-import { OpDto } from "@/types/op-dto";
-import Header from "@/components/header";
 
 const BoxPage = ({
   params: { code },
@@ -15,6 +16,14 @@ const BoxPage = ({
   };
 }) => {
   const [data, setData] = useState<OpDto>();
+
+  const [activeKey, setActiveKey] = useState<any>(null);
+  const [openBlisterDialog, setOpenBlisterDialog] = useState<boolean>(false);
+
+  const onCLickView = (value: any) => {
+    setActiveKey(value);
+    setOpenBlisterDialog(true);
+  };
 
   const loadData = async () => {
     const opData = await getOpByCode(code);
@@ -107,7 +116,16 @@ const BoxPage = ({
                 </div>
               </div>
             </div>
-            <DailyOpBoxTable opCode={code} opId={data.id} />
+            <DailyOpBoxTable
+              opId={data.id}
+              onClickView={onCLickView}
+            />
+            <BlisterListDialog
+              opCode={code}
+              activeKey={activeKey}
+              isOpen={openBlisterDialog}
+              onOpenChange={setOpenBlisterDialog}
+            />
           </div>
         </div>
       )}

@@ -3,11 +3,11 @@
 import logger from "@/libs/logger";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
+import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import axios from "axios";
 
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
-
 
 if (!JERP_API || !JERP_TOKEN) {
   const errorMessage = "As variáveis de ambiente JERP_API e JERP_TOKEN são obrigatórias.";
@@ -27,7 +27,7 @@ export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined
   }
 }
 
-export async function getBarcodeFromOpId(id: number, quantity: number): Promise<number | undefined> {
+export async function getBarcodeFromOpId(id: number, quantity: number): Promise<PrintTagJerpDto | undefined> {
   try {
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,

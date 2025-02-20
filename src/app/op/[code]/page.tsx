@@ -1,14 +1,23 @@
 "use client";
 
+import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import BlisterDisplay from "@/features/blister-display";
+import ManagerAuthFormDialog from "@/features/manager-auth-form-dialog";
+import BoxDisplay from "@/features/op-box-display";
+import OpDisplay from "@/features/op-display";
+import PrintTagDialog from "@/features/print-tag-dialog/ui";
+import {
+  sendMessageToRabbitMq,
+  sendMessageToRabbitMqMobile,
+} from "@/shared/services/rabbitmq";
 import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+import { sendDetectionReceived, sendToIA } from "@/shared/services/socket";
 import { io } from "socket.io-client";
-import BlisterDisplay from "./_components/blister-display";
-import BoxDisplay from "./_components/box-display";
-import OpDisplay from "./_components/op-display";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
@@ -19,14 +28,8 @@ import {
   persistWithOpBreak,
   syncAndGetOpToProduceByCode,
 } from "./actions";
-import Header from "@/components/header";
-import ManagerAuthFormDialog from "@/features/manager-auth-form-dialog";
-import PrintTagDialog from "@/features/print-tag-dialog/ui";
 
-type ActiveItemDto = {
-  itemId: string;
-  quantity?: number;
-};
+const SOCKET_URL = `${process.env.NEXT_PUBLIC_SOCKET_URL}`;
 
 type DetectionDto = {
   itemId: string;
@@ -37,11 +40,6 @@ type DetectionDto = {
 type ActionDto = {
   action: "BREAK_OP";
   params: any;
-};
-
-type DetectionReceivedDto = {
-  receivedItemId: string;
-  receivedCount: number;
 };
 
 export default function PackagingInspection({
@@ -76,67 +74,7 @@ export default function PackagingInspection({
 
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
 
-  const sendToIA = (data: ActiveItemDto) => {
-    const socket = io("http://localhost:3001");
-    socket.emit("iaHandler", data);
-  };
-
-  const sendDetectionReceived = (data: DetectionReceivedDto) => {
-    const socket = io("http://localhost:3001");
-    socket.emit("iaHandler", data);
-  };
-
-  async function sendMessageToRabbitMq(message: any) {
-    console.log("%c FRONT:", "color: lightgreen;");
-    console.log(message);
-    console.log("%c ------------------------------", "color: lightgreen;");
-
-    try {
-      const res = await fetch("/api/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...message }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Erro: ${res.status}`);
-      }
-
-      const data = await res.json();
-    } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-    }
-  }
-
-  async function sendMessageToRabbitMqMobile(message: any) {
-    console.log("%c MOBILE:", "color: lightblue;");
-    console.log(message);
-    console.log("%c ------------------------------", "color: lightblue;");
-
-    try {
-      const res = await fetch("/api/send/mobile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...message }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Erro: ${res.status}`);
-      }
-
-      const data = await res.json();
-    } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-    }
-  }
-
   function sendWithDelay(message: any, delay: number = 2000) {
-    console.log("SENDING");
-
     setTimeout(() => sendMessageToRabbitMq(message), delay);
   }
 
@@ -188,7 +126,7 @@ export default function PackagingInspection({
     let socket: any;
     loadData()
       .then((_) => {
-        socket = io("http://localhost:3001");
+        socket = io(SOCKET_URL);
         socket.on("detectionUpdate", (message: DetectionDto) => {
           console.log("%c BACK:", "color: orange;");
           console.log(message);
@@ -326,7 +264,6 @@ export default function PackagingInspection({
   function inspectBlister(message: ObjectValidation) {
     if (activeObjectType == "blister") {
       if (message.itemId == data?.blisterType.name && message.count == 1) {
-        // message.code = (Math.random()*10).toString()
         if (!message.code) {
           setDisplayMessage("ENVE O CÓDIGO DO BLISTER.");
           setDisplayColor("red");
@@ -385,7 +322,6 @@ export default function PackagingInspection({
             itemId: `${data!.productType.name}`,
             quantity: blisters[targetBlister!].quantity,
             fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${message.code}`,
-            // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
           });
           setBlisterCodes([...blisterCodes, message.code]);
           setStep(2);
@@ -463,7 +399,6 @@ export default function PackagingInspection({
           fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
             blisterCodes[targetBlister!]
           }`,
-          // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       } else if (
         (message.count == data!.blisterType.slots &&
@@ -541,7 +476,6 @@ export default function PackagingInspection({
           fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
             blisterCodes[targetBlister!]
           }`,
-          // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       }
     } else {
@@ -562,7 +496,6 @@ export default function PackagingInspection({
         fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
           blisterCodes[targetBlister!]
         }`,
-        // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
       });
     }
   }
@@ -592,12 +525,6 @@ export default function PackagingInspection({
         });
       await printTag(currentBlisters);
     }
-  }
-
-  async function reload() {
-    await loadData();
-    setTargetBlister(undefined);
-    setStep(0);
   }
 
   async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
@@ -799,7 +726,6 @@ export default function PackagingInspection({
         onManagerAuth={(quantity, managerId) =>
           configLastBlisterQuantity(quantity, managerId)
         }
-        // onManagerAuth={(managerId) => forceOpFinalization(managerId)}
       />
       {data && (
         <PrintTagDialog
@@ -811,7 +737,6 @@ export default function PackagingInspection({
               });
               redirectAction("/");
             }, 2000);
-            // issetNextBox ? reload() : redirectAction("/");
           }}
           itemName={data.productType.name}
           itemDescription={data.productType.description}

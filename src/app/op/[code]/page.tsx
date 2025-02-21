@@ -35,11 +35,12 @@ import {
   syncAndGetOpToProduceByCode,
 } from "./actions";
 
-type DisplayColors = "blue" | "red" | "green";
+type DisplayColors = "blue" | "red" | "green" | "black";
 const mobileColorKeysMap = new Map<string, number>([
   ["blue", 1],
   ["red", 2],
   ["green", 3],
+  ["black", 4],
 ]);
 
 export default function PackagingInspection({
@@ -89,11 +90,9 @@ export default function PackagingInspection({
     setDisplayColor("blue");
     if (!opData) throw new Error("OP não retornada!");
     if (opData.finishedAt) {
-      const message: string = "OP FINALIZADA!";
-      setDisplayMessage(message);
-      sendMessageToRabbitMqMobile({
-        mensagem: message,
-        cor: 1,
+      sendValidationMessage({
+        message: "OP FINALIZADA!",
+        color: "blue",
       });
     } else {
       mountInspecionState(opData.nextBox!, opData.blisterCodes);
@@ -454,14 +453,14 @@ export default function PackagingInspection({
         .filter((bl) => bl.status == 1)
         .reduce((acc, i) => acc + i.quantity, 0);
       setQuantityToPrint(productQuantity);
-      sendMessageToRabbitMqMobile({
-        mensagem: "IMPRIMINDO ETIQUETA...",
-        cor: 4,
-      });
-      sendWithDelay({
-        itemId: `ITEM_INVALIDO`,
+
+      sendValidationMessage({
+        message: "IMPRIMINDO ETIQUETA...",
+        color: "black",
         quantity: 1,
+        itemId: "TAG",
       });
+
       setOpenPrintTagDialog(true);
     }, 2000);
   }
@@ -550,11 +549,9 @@ export default function PackagingInspection({
       setBlisters(newBlisters);
       setOpBrakeManagerId(managerId);
     } else {
-      setDisplayMessage("QUANTIDADE DEVE SER MENOR QUE A ATUAL!");
-      setDisplayColor("red");
-      sendMessageToRabbitMqMobile({
-        mensagem: "QUANTIDADE DEVE SER MENOR QUE A ATUAL!",
-        cor: 2,
+      sendValidationMessage({
+        message: "QUANTIDADE DEVE SER MENOR QUE A ATUAL!",
+        color: "red",
       });
     }
   }
@@ -651,9 +648,9 @@ export default function PackagingInspection({
         <PrintTagDialog
           onPrintSuccess={() => {
             setTimeout(() => {
-              sendMessageToRabbitMqMobile({
-                mensagem: "CAIXA FINALIZADA COM SUCESSO!",
-                cor: 3,
+              sendValidationMessage({
+                message: "CAIXA FINALIZADA COM SUCESSO!",
+                color: "green",
               });
               redirectAction("/");
             }, 2000);

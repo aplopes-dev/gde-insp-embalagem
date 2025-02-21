@@ -1,0 +1,1 @@
+export { getProductTypeFromName } from './api/get-product-type-from-name';

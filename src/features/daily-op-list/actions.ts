@@ -1,6 +1,6 @@
 "use server";
 
-import prisma from "@/providers/database";
+import db from "@/providers/database";
 import { FilterPaginationParams } from "@/types/filter";
 import { OpDto } from "../../types/op-dto";
 import { getOwnFilterClauses } from "@/shared/utils/filter";
@@ -23,11 +23,11 @@ export async function getPaginatedOp({
     ...whereClauses,
   };
 
-  const transaction = await prisma.$transaction([
-    prisma.op.count({
+  const transaction = await db.$transaction([
+    db.op.count({
       where: whereClauses,
     }),
-    prisma.op.findMany({
+    db.op.findMany({
       where: whereClauses,
       orderBy: [
         {
@@ -52,7 +52,7 @@ export async function getPaginatedOp({
 
   if (ids && ids.length > 0) {
     quantityArr =
-      await prisma.$queryRawUnsafe(`select op.code, CAST(sum(bl.quantity) AS INTEGER) as produced from "OpBoxBlister" as bl
+      await db.$queryRawUnsafe(`select op.code, CAST(sum(bl.quantity) AS INTEGER) as produced from "OpBoxBlister" as bl
     inner join "OpBox" bx on bx."id" = bl."opBoxId"
     inner join "Op" op on op."id" = bx."opId"
     where bl."packedAt" is not null and op.id in(${ids.join(",")})

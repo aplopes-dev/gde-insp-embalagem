@@ -17,7 +17,7 @@ if (!JERP_API || !JERP_TOKEN) {
 
 export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined> {
   try {
-    const response = await axios.get(`${JERP_API}/ordemproducaoe/${code}`, {
+    const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
       headers: getJerpHeaders(),
     });
     logger.info({ message: "OP recuperada com sucesso", code });

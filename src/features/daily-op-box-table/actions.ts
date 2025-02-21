@@ -1,6 +1,6 @@
 "use server";
 
-import prisma from "@/providers/database";
+import db from "@/providers/database";
 import { getOwnFilterClauses } from "@/shared/utils/filter";
 import OpBoxDto from "@/types/dtos/op-box-dto";
 import { FilterPaginationParams } from "@/types/filter";
@@ -13,11 +13,11 @@ export async function getPaginatedBoxOp({
   filters,
 }: FilterPaginationParams) {
   let whereClauses = getOwnFilterClauses(filters);
-  const transaction = await prisma.$transaction([
-    prisma.opBox.count({
+  const transaction = await db.$transaction([
+    db.opBox.count({
       where: whereClauses,
     }),
-    prisma.opBox.findMany({
+    db.opBox.findMany({
       where: whereClauses,
       orderBy: [
         {

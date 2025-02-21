@@ -1,0 +1,1 @@
+export { getFirstBlisterTypeInNames } from "./api/get-first-blister-type-in-names"

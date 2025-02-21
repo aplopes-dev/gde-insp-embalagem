@@ -10,43 +10,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
+import { sendMessageToRabbitMq } from "@/shared/services/rabbitmq";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { io } from "socket.io-client";
 import { ValidationFormType, validationSchema } from "../schema";
 
-const SOCKET_URL = `${process.env.NEXT_PUBLIC_SOCKET_URL}`;
-
 const CamForm = () => {
+  const { sendSocketEvent } = useSocketEmmiter();
+
   const sendNotification = (data: any) => {
-    const socket = io(SOCKET_URL);
-    socket.emit("detectionUpdate", data);
+    sendSocketEvent("detectionUpdate", data);
     sendMessageToRabbitMq(data);
   };
-
-  async function sendMessageToRabbitMq(message: any) {
-    console.log("%c FRONT:", "color: lightgreen;");
-    console.log(message);
-    console.log("%c ------------------------------", "color: lightgreen;");
-
-    try {
-      const res = await fetch("/api/send/back", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...message }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Erro: ${res.status}`);
-      }
-
-      const data = await res.json();
-    } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-    }
-  }
 
   const form = useForm<ValidationFormType>({
     resolver: zodResolver(validationSchema),

@@ -1,7 +1,11 @@
 "use server";
 
-import prisma from "@/providers/database";
+import { getFirstBlisterTypeInNames } from "@/entities/blister-type";
+import { getFirstBoxTypeInNames } from "@/entities/box-type";
+import { getProductTypeFromName } from "@/entities/product-type";
+import db from "@/providers/database";
 import { getOpFromCode } from "@/shared/services/jerp";
+import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";
@@ -21,7 +25,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
       throw new Error(`OP ${code} não encontrada na API externa.`);
     }
 
-    let internalOp = await prisma.op.findFirst({
+    let internalOp = await db.op.findFirst({
       where: { code: `${externalOp.numero}` },
     });
 
@@ -33,8 +37,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     // Busca dados relacionados à OP
     return await fetchOpDetails(internalOp);
   } catch (error) {
-    console.error("Erro ao sincronizar OP:", error);
-    throw new Error("Erro ao sincronizar OP. Tente novamente mais tarde.");
+    handleError(error, "Erro ao sincronizar OP");
   }
 }
 
@@ -46,15 +49,15 @@ async function createInternalOp(externalOp: OpJerpDto, code: string) {
     emb.nome.toUpperCase()
   );
 
-  const transaction = await prisma.$transaction([
-    prisma.productType.findFirst({ where: { name: externalOp.produto.nome } }),
-    prisma.blisterType.findFirst({ where: { name: { in: packagingNames } } }),
-    prisma.boxType.findFirst({ where: { name: { in: packagingNames } } }),
+  const transaction = await db.$transaction([
+    getProductTypeFromName({ name: externalOp.produto.nome }),
+    getFirstBlisterTypeInNames({ names: packagingNames }),
+    getFirstBoxTypeInNames({ names: packagingNames }),
   ]);
 
   validateReferences(transaction, ["Produto", "Blister", "Caixa"]);
 
-  return await prisma.op.create({
+  return await db.op.create({
     data: {
       id: externalOp.id,
       code: `${externalOp.numero}`,
@@ -96,22 +99,22 @@ function validateReferences(
  * Busca detalhes da OP interna para inspeção
  */
 async function fetchOpDetails(internalOp: Op) {
-  const transaction = await prisma.$transaction([
-    prisma.opBox.count({ where: { opId: internalOp.id } }),
-    prisma.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
-    prisma.opBox.findFirst({
+  const transaction = await db.$transaction([
+    db.opBox.count({ where: { opId: internalOp.id } }),
+    db.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
+    db.opBox.findFirst({
       where: { opId: internalOp.id, packedAt: null },
       orderBy: { id: "asc" },
       include: { OpBoxBlister: true },
     }),
-    prisma.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
-    prisma.boxType.findFirst({ where: { id: internalOp.boxTypeId } }),
-    prisma.productType.findFirst({ where: { id: internalOp.productTypeId } }),
-    prisma.opBoxBlister.aggregate({
+    db.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
+    db.boxType.findFirst({ where: { id: internalOp.boxTypeId } }),
+    db.productType.findFirst({ where: { id: internalOp.productTypeId } }),
+    db.opBoxBlister.aggregate({
       _sum: { quantity: true },
       where: { packedAt: { not: null }, opBox: { opId: internalOp.id } },
     }),
-    prisma.opBoxBlister.findMany({
+    db.opBoxBlister.findMany({
       select: { code: true },
       where: { opBox: { opId: internalOp.id } },
     }),
@@ -153,7 +156,7 @@ export async function persistBoxStatusWithBlisters(
   const { id, status } = boxDto;
 
   const queryCollection: any[] = blisters.map((bl) =>
-    prisma.opBoxBlister.update({
+    db.opBoxBlister.update({
       data: {
         packedAt: bl.packedAt?.toISOString(),
         code: bl.code,
@@ -166,7 +169,7 @@ export async function persistBoxStatusWithBlisters(
   );
 
   queryCollection.push(
-    prisma.opBox.update({
+    db.opBox.update({
       data: {
         packedAt: new Date(),
         status: status,
@@ -179,7 +182,7 @@ export async function persistBoxStatusWithBlisters(
 
   if (finalizeOp) {
     queryCollection.push(
-      prisma.op.update({
+      db.op.update({
         data: {
           finishedAt: new Date(),
           status: 1,
@@ -191,7 +194,7 @@ export async function persistBoxStatusWithBlisters(
     );
   }
 
-  await prisma.$transaction(queryCollection);
+  await db.$transaction(queryCollection);
 }
 
 export async function persistWithOpBreak(
@@ -207,7 +210,7 @@ export async function persistWithOpBreak(
   const queryCollection: any[] = blisters
     .filter((bl) => bl.packedAt)
     .map((bl) =>
-      prisma.opBoxBlister.update({
+      db.opBoxBlister.update({
         data: {
           packedAt: bl.packedAt?.toISOString(),
           quantity: bl.quantity,
@@ -221,7 +224,7 @@ export async function persistWithOpBreak(
     );
   if (blistersToRemove.length > 0) {
     queryCollection.push(
-      prisma.opBoxBlister.deleteMany({
+      db.opBoxBlister.deleteMany({
         where: {
           id: {
             in: blistersToRemove,
@@ -231,7 +234,7 @@ export async function persistWithOpBreak(
     );
   }
   queryCollection.push(
-    prisma.opBox.update({
+    db.opBox.update({
       data: {
         packedAt: new Date(),
         status: 2,
@@ -245,8 +248,8 @@ export async function persistWithOpBreak(
 
   try {
     // Persist blister and boxes after packeging
-    await prisma.$transaction(queryCollection);
-    const initialQuantity = await prisma.op.findUnique({
+    await db.$transaction(queryCollection);
+    const initialQuantity = await db.op.findUnique({
       select: {
         quantityToProduce: true,
       },
@@ -254,7 +257,7 @@ export async function persistWithOpBreak(
         id: opId,
       },
     });
-    const countPackageItems = await prisma.opBoxBlister.aggregate({
+    const countPackageItems = await db.opBoxBlister.aggregate({
       _sum: {
         quantity: true,
       },
@@ -275,7 +278,7 @@ export async function persistWithOpBreak(
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
     }
   } catch (error) {
-    console.log(error);
+    handleError(error, "Falha ao persistir caixa com quebra");
   }
 }
 
@@ -283,7 +286,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
   opId: number,
   quantityToProduce: number
 ) {
-  const op = await prisma.op.findUnique({
+  const op = await db.op.findUnique({
     where: {
       id: opId,
     },
@@ -301,8 +304,8 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     op.OpBox.length
   );
 
-  await prisma.$transaction([
-    prisma.opBoxBlister.deleteMany({
+  await db.$transaction([
+    db.opBoxBlister.deleteMany({
       where: {
         packedAt: null,
         opBox: {
@@ -310,7 +313,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
         },
       },
     }),
-    prisma.opBox.deleteMany({
+    db.opBox.deleteMany({
       where: {
         opId,
         packedAt: null,
@@ -318,7 +321,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     }),
   ]);
 
-  return prisma.op.update({
+  return db.op.update({
     data: {
       OpBox: {
         create: boxes,
@@ -332,7 +335,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
 }
 
 export async function getOpByCode(code: string) {
-  const op = await prisma.op.findFirst({
+  const op = await db.op.findFirst({
     where: { code },
     include: { product: true, box: true, blister: true },
   });

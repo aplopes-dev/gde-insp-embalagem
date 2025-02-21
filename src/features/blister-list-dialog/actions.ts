@@ -1,9 +1,9 @@
 "use server"
 
-import prisma from "@/providers/database";
+import db from "@/providers/database";
 
 export async function getOpBoxWithBlistersById(id: number) {
-  return prisma.opBox.findUnique({
+  return db.opBox.findUnique({
     where: {
       id,
     },

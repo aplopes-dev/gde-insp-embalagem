@@ -1,0 +1,1 @@
+export { getFirstBoxTypeInNames } from "./api/get-first-box-type-in-names"

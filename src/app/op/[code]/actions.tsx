@@ -14,6 +14,7 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
+import { createOpData, createOpBoxesData } from "@/usecases/op/create-op-data";
 
 const bcrypt = require("bcrypt");
 
@@ -31,7 +32,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
 
     // Se não existir internamente, cria a OP
     if (!internalOp) {
-      internalOp = await createInternalOp(externalOp, code);
+      internalOp = await createInternalOp(externalOp);
     }
 
     // Busca dados relacionados à OP
@@ -44,7 +45,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
 /**
  * Cria a OP internamente, validando as referências necessárias
  */
-async function createInternalOp(externalOp: OpJerpDto, code: string) {
+async function createInternalOp(externalOp: OpJerpDto) {
   const packagingNames = externalOp.embalagens.map((emb) =>
     emb.nome.toUpperCase()
   );
@@ -57,22 +58,38 @@ async function createInternalOp(externalOp: OpJerpDto, code: string) {
 
   validateReferences(transaction, ["Produto", "Blister", "Caixa"]);
 
-  return await db.op.create({
-    data: {
-      id: externalOp.id,
-      code: `${externalOp.numero}`,
-      productTypeId: Number(transaction[0]?.id),
-      blisterTypeId: Number(transaction[1]?.id),
-      boxTypeId: Number(transaction[2]?.id),
-      quantityToProduce: externalOp.quantidadeAProduzir,
-      OpBox: {
-        create: getCollectionToCreateBlisterBoxes(
-          externalOp.quantidadeAProduzir,
-          transaction[1]!.slots,
-          transaction[1]!.limitPerBox
-        ),
-      },
+  const op = createOpData({
+    id: externalOp.id,
+    code: `${externalOp.numero}`,
+    productTypeId: Number(transaction[0]?.id),
+    blisterTypeId: Number(transaction[1]?.id),
+    boxTypeId: Number(transaction[2]?.id),
+    quantityToProduce: externalOp.quantidadeAProduzir,
+    blisterPerBox: transaction[1]!.limitPerBox,
+    blisterSlots: transaction[1]!.slots,
+    boxGap: 0,
+  });
+
+  const boxes = [...(op.boxes || [])];
+  delete op["boxes"];
+  const opCreateData = {
+    ...op,
+    OpBox: {
+      create: boxes?.map((box) => {
+        const blisters = [...(box.blisters || [])];
+        delete box["blisters"];
+        return {
+          ...box,
+          OpBoxBlister: {
+            create: blisters,
+          },
+        };
+      }),
     },
+  };
+
+  return await db.op.create({
+    data: opCreateData,
   });
 }
 
@@ -297,12 +314,12 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     throw new Error(`Not found OP with ID: ${opId}`);
   }
 
-  const boxes = getCollectionToCreateBlisterBoxes(
+  const boxes = createOpBoxesData({
     quantityToProduce,
-    op.blister?.slots,
-    op.blister?.limitPerBox,
-    op.OpBox.length
-  );
+    blisterSlots: op.blister?.slots,
+    blisterPerBox: op.blister?.limitPerBox,
+    boxGap: op.OpBox.length,
+  });
 
   await db.$transaction([
     db.opBoxBlister.deleteMany({
@@ -324,7 +341,16 @@ export async function recalculateBoxesFromOpAndItemQuantity(
   return db.op.update({
     data: {
       OpBox: {
-        create: boxes,
+        create: boxes?.map((box) => {
+          const blisters = [...(box.blisters || [])];
+          delete box["blisters"];
+          return {
+            ...box,
+            OpBoxBlister: {
+              create: blisters,
+            },
+          };
+        }),
       },
       status: 2,
     },
@@ -363,50 +389,4 @@ export async function getOpByCode(code: string) {
         finishedAt: op.finishedAt,
       } as OpDto)
     : null;
-}
-
-// ## ------- INTERNAL FUNCTIONS --------
-
-function getCollectionToCreateBlisterBoxes(
-  quantityToProduce: number,
-  itemPerBlister: number,
-  blisterPerBox: number,
-  boxGap: number = 0
-) {
-  const modItemPerBlister = quantityToProduce % itemPerBlister;
-  let blistersToProduce =
-    (quantityToProduce - modItemPerBlister) / itemPerBlister;
-  let lastBlisterQuantity = itemPerBlister;
-  if (modItemPerBlister > 0) {
-    blistersToProduce++;
-    lastBlisterQuantity = modItemPerBlister;
-  }
-
-  const modBlisterPerBox = blistersToProduce % blisterPerBox;
-  let boxesToProduce = (blistersToProduce - modBlisterPerBox) / blisterPerBox;
-  let lastBoxQuantity = blisterPerBox;
-  if (modBlisterPerBox > 0) {
-    boxesToProduce++;
-    lastBoxQuantity = modBlisterPerBox;
-  }
-
-  const boxes = Array.from(Array(boxesToProduce)).map((_, i) => {
-    const isLastBox = i + 1 == boxesToProduce;
-    const blisterCount = isLastBox ? lastBoxQuantity : blisterPerBox;
-    return {
-      code: `${i + 1 + boxGap}`,
-      OpBoxBlister: {
-        create: Array.from(Array(blisterCount)).map((_, j) => {
-          const isLastBlister = j + 1 == blisterCount;
-          const quantity =
-            isLastBox && isLastBlister ? lastBlisterQuantity : itemPerBlister;
-          return {
-            code: `${j + 1}`,
-            quantity,
-          };
-        }),
-      },
-    };
-  });
-  return boxes;
 }

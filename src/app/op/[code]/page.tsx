@@ -607,7 +607,7 @@ export default function PackagingInspection({
         cor: 4,
       });
       sendWithDelay({
-        itemId: `ITEM_INVALIDO`,
+        itemId: `FINALIZADO`,
         quantity: 1,
       });
       setOpenPrintTagDialog(true);

@@ -430,44 +430,44 @@ export async function getOpByCode(code: string) {
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   // Requet from jerp:
   
-  const dynamicData = await fetch(
-    `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
-    {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.JERP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id,
-        quantidadeApontada: quantity,
-      }),
-    }
-  );
+  // const dynamicData = await fetch(
+  //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
+  //   {
+  //     method: "POST",
+  //     headers: {
+  //       authorization: `Bearer ${process.env.JERP_TOKEN}`,
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({
+  //       id,
+  //       quantidadeApontada: quantity,
+  //     }),
+  //   }
+  // );
 
-  console.log("ID / QTD OP ---------");
-  console.log(id);
-  console.log(quantity);
+  // console.log("ID / QTD OP ---------");
+  // console.log(id);
+  // console.log(quantity);
   
-  try {
-    const data = await dynamicData.json();
-    console.log("POST JERP ETIQUETA ---------");
-    console.log(data);
-    return data;
-  } catch (error) {
-    console.log(error);
-  }
+  // try {
+  //   const data = await dynamicData.json();
+  //   console.log("POST JERP ETIQUETA ---------");
+  //   console.log(data);
+  //   return data;
+  // } catch (error) {
+  //   console.log(error);
+  // }
 
 
   
   // return data as OpJerpDto;
 
-  // return {
-  //   message: "Apontamento com sucesso",
-  //   id: id,
-  //   quantidadeApontada: quantity,
-  //   idBarras: 1161792,
-  // };
+  return {
+    message: "Apontamento com sucesso",
+    id: id,
+    quantidadeApontada: quantity,
+    idBarras: 1161792,
+  };
 }
 
 export async function getBoxById(id: number) {

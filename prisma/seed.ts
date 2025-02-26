@@ -5,9 +5,10 @@ async function main() {
   const boxTypesSeed$ = prisma.boxType.createMany({
     data: [
       {
-        id: 1,
+        id: 3457,
         name: "CAIXA 520X320X170 TRIPLEX",
-        description: "Descrição da caixa 01",
+        code: "CAIXA 520X320X170 TRIPLEX",
+        description: "CAIXA DE PAPELÃO 520X320X170 TRIPLEX",
       },
     ]
   })
@@ -15,49 +16,55 @@ async function main() {
   const blisterTypesSeed$ = prisma.blisterType.createMany({
     data: [
       {
-        id: 1,
+        id: 38810,
         name: "BLISTER_XBB",
-        description: "Descrição blister blister_xbb",
+        code: "Blister B515 Antiestático",
+        description: "Blister B515 em Poliestireno de Alto Impacto (HIPS) Preto Antiestático 0.5mm - 56 Cavidades",
         slots: 56,
         limitPerBox: 6,
         boxTypeId: 1
       },
       {
-        id: 2,
+        id: 44203,
         name: "BLISTER-A25-090",
-        description: "Descrição blister A25-090",
+        code: "BLISTER-TL-A25-090",
+        description: "BLISTER-TL-A25-090 em Poliestireno de Alto Impacto (HIPS) Preto Antiestático",
         slots: 6,
         limitPerBox: 9,
         boxTypeId: 1
       },
       {
-        id: 3,
-        name: "BLISTER-LE-TL23411AA",
-        description: "Descrição blister le-tl23411aa",
-        slots: 10,
-        limitPerBox: 4,
-        boxTypeId: 1
-      },
-      {
-        id: 4,
-        name: "BLISTER-BL-03833070LE",
-        description: "Descrição blister BL-03833070LE",
-        slots: 10,
-        limitPerBox: 4,
-        boxTypeId: 1
-      },
-      {
-        id: 5,
+        id: 42333,
         name: "BLISTER-BL-03832070LD",
-        description: "Descrição blister BL-03832070LD",
+        code: "BLISTER-TL-23411AA/23412AA",
+        description: "BLISTER-TL-23411AA/23412AA em Poliestireno de Alto Impacto (HIPS) Preto Antiestático 0.5mm",
+        slots: 10,
+        limitPerBox: 4,
+        boxTypeId: 1
+      },
+      {
+        id: 45206,
+        name: "BLISTER-BL-03832070LD",
+        code: "BLISTER-BL-03832070LD_01-ESD",
+        description: "Blister BL-03832070LD_01 em Poliestireno de Alto Impacto (HIPS) Preto Antiestático 0.5mm - 4 Cavidades",
         slots: 4,
         limitPerBox: 3,
         boxTypeId: 1
       },
       {
-        id: 6,
+        id: 45207,
+        name: "BLISTER-BL-03833070LE",
+        code: "BLISTER-BL-03833070LE_01-ESD",
+        description: "Blister BL-03833070LE_01 em Poliestireno de Alto Impacto (HIPS) Preto Antiestático 0.5mm - 4 Cavidades",
+        slots: 10,
+        limitPerBox: 4,
+        boxTypeId: 1
+      },
+      {
+        id: 45174,
         name: "BLISTER_TL-23489AA-LE/TL23490AA-LD",
-        description: "Descrição blister TL-23489AA-LE/TL-23490AA-LD",
+        code: "BLISTER-TL-23489-23490",
+        description: "BLISTER-TL-23489-23490 em Poliestireno de Alto Impacto (HIPS) Preto Antiestático - 0,5mm",
         slots: 3,
         limitPerBox: 3,
         boxTypeId: 1
@@ -68,47 +75,53 @@ async function main() {
   const productTypesSeed$ = prisma.productType.createMany({
     data: [
       {
-        id: 1,
-        code: "XBB",
+        id: 42262,
         name: "XBB",
-        description: "Descrição xbb"
+        code: "SR-23495AA-LE_01",
+        description: "SIDE REPEATER 23495AA - LADO ESQUERDO SR-XBB"
       },
       {
-        id: 2,
-        code: "A25-090",
+        id: 42263,
+        name: "XBB",
+        code: "SR-23496AA-LD_01",
+        description: "SIDE REPEATER 23496AA - LADO DIREITO SR-XBB"
+      },
+      {
+        id: 41673,
         name: "A25-090",
-        description: "Descrição A25-090"
+        code: "TL-A25-090_00",
+        description: "PCI DRIVER + LED - LANTERNA TL"
       },
       {
-        id: 3,
-        code: "LE-TL23411AA",
+        id: 41219,
         name: "LE-TL23411AA",
-        description: "Descrição LE-TL23411AA"
+        code: "TL-23411AA-LE-REV00",
+        description: "Conjunto LDM+LED T2 Applique G1NC SPIN Lado Esquerdo"
       },
-      {
-        id: 4,
-        code: "BL-03833070LE",
-        name: "BL-03833070LE",
-        description: "Descrição BL-03833070LE"
-      },
-      {
-        id: 5,
-        code: "BL-03832070LD",
-        name: "BL-03832070LD",
-        description: "Descrição BL-03832070LD"
-      },
-      {
-        id: 6,
-        code: "TL-23489AA-LE",
-        name: "TL-23489AA-LE",
-        description: "Descrição TL-23489AA-LE"
-      },
-      {
-        id: 7,
-        code: "TL-23490AA-LD",
-        name: "TL-23490AA-LD",
-        description: "Descrição TL-23490AA-LD"
-      },
+      // {
+      //   id: 4,
+      //   code: "BL-03833070LE",
+      //   name: "BL-03833070LE",
+      //   description: "Descrição BL-03833070LE"
+      // },
+      // {
+      //   id: 5,
+      //   code: "BL-03832070LD",
+      //   name: "BL-03832070LD",
+      //   description: "Descrição BL-03832070LD"
+      // },
+      // {
+      //   id: 6,
+      //   code: "TL-23489AA-LE",
+      //   name: "TL-23489AA-LE",
+      //   description: "Descrição TL-23489AA-LE"
+      // },
+      // {
+      //   id: 7,
+      //   code: "TL-23490AA-LD",
+      //   name: "TL-23490AA-LD",
+      //   description: "Descrição TL-23490AA-LD"
+      // },
     ]
   })
 

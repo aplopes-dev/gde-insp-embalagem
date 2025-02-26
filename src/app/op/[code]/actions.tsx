@@ -1,7 +1,7 @@
 "use server";
 
 import { OpDto } from "@/app/(home)/_types/op-dto";
-import { getOpFromNexinToProduceByCode } from "@/app/(home)/actions";
+import { getOpFromNexinToProduceById } from "@/app/(home)/actions";
 import prisma from "@/providers/database";
 import { isSamePass } from "@/utils/bcrypt";
 import {
@@ -12,24 +12,22 @@ import {
 
 const bcrypt = require("bcrypt");
 
-export async function syncAndGetOpToProduceByCode(code: string) {
-  const externalOp = await getOpFromNexinToProduceByCode(code);
+export async function syncAndGetOpToProduceById(id: string) {
+  const externalOp = await getOpFromNexinToProduceById(id);
   let internalOp = await prisma.op.findFirst({
     where: {
-      code: `${externalOp.numero}`,
+      id: externalOp.id,
     },
   });
 
   if (!internalOp) {
     const refNames = ["Produto", "Blister", "Caixa"];
-    const packagingNames = externalOp.embalagens.map((emb) =>
-      emb.nome.toUpperCase()
-    );
-    const refValue = [`${externalOp.produto.nome}`];
+    const packagingIds = externalOp.embalagens.map((emb) => emb.id);
+    const refValue = externalOp.produto.id;
     const transaction = await prisma.$transaction([
       prisma.productType.findFirst({
         where: {
-          name: refValue[0],
+          id: refValue,
         },
         select: {
           id: true,
@@ -37,8 +35,8 @@ export async function syncAndGetOpToProduceByCode(code: string) {
       }),
       prisma.blisterType.findFirst({
         where: {
-          name: {
-            in: packagingNames,
+          id: {
+            in: packagingIds,
           },
         },
         select: {
@@ -49,8 +47,8 @@ export async function syncAndGetOpToProduceByCode(code: string) {
       }),
       prisma.boxType.findFirst({
         where: {
-          name: {
-            in: packagingNames,
+          id: {
+            in: packagingIds,
           },
         },
         select: {
@@ -59,7 +57,6 @@ export async function syncAndGetOpToProduceByCode(code: string) {
       }),
     ]);
 
-    
     const indexNullReference = transaction.findIndex((rf) => !rf?.id);
     if (indexNullReference >= 0) {
       throw new Error(
@@ -77,7 +74,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
         quantityToProduce: externalOp.quantidadeAProduzir,
         OpBox: {
           create: getCollectionToCreateBlisterBoxes(
-            `OP_${code}_BOX`,
+            `OP_${externalOp.numero}_BOX`,
             externalOp.quantidadeAProduzir,
             transaction[1]!.slots,
             transaction[1]!.limitPerBox
@@ -141,7 +138,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     }),
     prisma.opBoxBlister.findMany({
       select: {
-        code: true
+        code: true,
       },
       where: {
         opBox: {
@@ -167,7 +164,7 @@ export async function syncAndGetOpToProduceByCode(code: string) {
     createdAt,
     finishedAt,
     quantityToProduce,
-    blisterCodes: transaction[7]?.map(bl => bl.code) || [],
+    blisterCodes: transaction[7]?.map((bl) => bl.code) || [],
     itemsPacked: transaction[6]._sum.quantity,
     productType: transaction[5],
     blisterType: transaction[3],
@@ -190,7 +187,7 @@ export async function persistBoxStatusWithBlisters(
     prisma.opBoxBlister.update({
       data: {
         packedAt: bl.packedAt?.toISOString(),
-        code: bl.code
+        code: bl.code,
       },
       where: {
         id: bl.id,
@@ -245,7 +242,7 @@ export async function persistWithOpBreak(
         data: {
           packedAt: bl.packedAt?.toISOString(),
           quantity: bl.quantity,
-          code: bl.code
+          code: bl.code,
         },
         where: {
           id: bl.id,
@@ -281,14 +278,13 @@ export async function persistWithOpBreak(
     // Persist blister and boxes after packeging
     await prisma.$transaction(queryCollection);
     const initialQuantity = await prisma.op.findUnique({
-        select: {
-          quantityToProduce: true
-        },
-        where: {
-          id: opId,
-        },
+      select: {
+        quantityToProduce: true,
       },
-    );
+      where: {
+        id: opId,
+      },
+    });
     const countPackageItems = await prisma.opBoxBlister.aggregate({
       _sum: {
         quantity: true,
@@ -303,7 +299,8 @@ export async function persistWithOpBreak(
       },
     });
     if (initialQuantity?.quantityToProduce && countPackageItems._sum.quantity) {
-      const quantityPending = initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
+      const quantityPending =
+        initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
       await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
     } else {
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
@@ -388,7 +385,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
       OpBox: {
         create: boxes,
       },
-      status: 2
+      status: 2,
     },
     where: {
       id: opId,
@@ -429,7 +426,7 @@ export async function getOpByCode(code: string) {
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   // Requet from jerp:
-  
+
   // const dynamicData = await fetch(
   //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
   //   {
@@ -448,7 +445,7 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
   // console.log("ID / QTD OP ---------");
   // console.log(id);
   // console.log(quantity);
-  
+
   // try {
   //   const data = await dynamicData.json();
   //   console.log("POST JERP ETIQUETA ---------");
@@ -458,8 +455,6 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
   //   console.log(error);
   // }
 
-
-  
   // return data as OpJerpDto;
 
   return {
@@ -468,6 +463,21 @@ export async function getBarcodeFromOpId(id: number, quantity: number) {
     quantidadeApontada: quantity,
     idBarras: 1161792,
   };
+}
+
+export async function saveTagId(opBoxId: number, barCode: string) {
+  try {
+    await prisma.opBox.update({
+      data: {
+        code: barCode,
+      },
+      where: {
+        id: opBoxId,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 export async function getBoxById(id: number) {
@@ -520,7 +530,7 @@ function getCollectionToCreateBlisterBoxes(
           const quantity =
             isLastBox && isLastBlister ? lastBlisterQuantity : itemPerBlister;
           return {
-            code: `${j + 1}`,
+            code: `GEN_${j + 1}`,
             quantity,
           };
         }),

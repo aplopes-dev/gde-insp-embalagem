@@ -20,7 +20,7 @@ type PrintTagProps = {
   batchCode: string;
   quantity: number;
   onOpenChange: (open: boolean) => void;
-  onPrintSuccess: () => void;
+  onPrintSuccess: (idBarras: string) => void;
 };
 
 type PrintTagJerpData = {
@@ -44,16 +44,31 @@ const PrintTagDialog = ({
   const [data, setData] = useState<PrintTagJerpData>();
 
   const loadData = async () => {
-    const tagData: PrintTagJerpData = await getBarcodeFromOpId(opId, quantity);
-    setData(tagData);
-    setTimeout(() => {
-      const printContent = printRef.current!.innerHTML;
-      enviarParaImpressao(printContent);
-    }, 2000);
+    if(!data){
+      const tagData: PrintTagJerpData = await getBarcodeFromOpId(opId, quantity);
+      setData(tagData);
+      console.log("Data");
+      console.log(tagData);
+      
+      printTag(tagData.idBarras)
+    }else{
+      console.log("tagData");
+      console.log(data);
+      
+      printTag(data.idBarras)
+    }
   };
 
-  const enviarParaImpressao = async (data: any) => {
-    const conteudoDiv = data;
+  const printTag = (idBarras: number) => {
+    setTimeout(() => {
+      const printContent = printRef.current!.innerHTML;
+      enviarParaImpressao(idBarras, printContent);
+    }, 2000);
+  }
+
+  const enviarParaImpressao = async (idBarras: number, divData: any) => {
+    if(!idBarras) throw new Error("Falha ao carregar codigo de barras")
+    const conteudoDiv = divData;
 
     const resposta = await fetch("/api/imprimir", {
       method: "POST",
@@ -65,7 +80,7 @@ const PrintTagDialog = ({
 
     if (resposta.ok) {
       console.log("Conteúdo enviado para impressão");
-      onPrintSuccess()
+      onPrintSuccess(`${idBarras}`)
       onOpenChange(false);
     } else {
       console.error("Erro ao enviar para impressão");

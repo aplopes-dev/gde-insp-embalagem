@@ -37,12 +37,14 @@ export type OpBoxBlisterInspection = {
 export type ProductTypeDto = {
   id: number;
   name: string;
+  code: string;
   description: string;
 };
 
 export type BlisterTypeDto = {
   id: number;
   name: string;
+  code: string;
   description: string;
   slots: number;
   limitPerBox: number;
@@ -51,5 +53,6 @@ export type BlisterTypeDto = {
 export type BoxTypeDto = {
   id: number;
   name: string;
+  code: string;
   description: string;
 };

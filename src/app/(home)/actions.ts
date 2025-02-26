@@ -94,57 +94,57 @@ type OpQuantityProducedDto = {
 //   } as OpJerpDto
 
 // TL-23489AA-LE
-  export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
-    await delay(1000);
-    // New payload:
-    return {
-      id: 74577896,
-      numero: Number(code),
-      produto: {
-        id: 6,
-        nome: "TL-23489AA-LE"
-      },
-      quantidadeAProduzir: 6,
-      embalagens: [
-        {
-          id: 6,
-          nome: "BLISTER_TL-23489AA-LE/TL23490AA-LD",
-          quantidadeAlocada: 2
-        },
-        {
-          id: 1,
-          nome: "CAIXA 520X320X170 TRIPLEX",
-          quantidadeAlocada: 1
-        },
-      ]
-    } as OpJerpDto
+export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
+  await delay(1000);
+  // New payload:
+  // return {
+  //   id: 74577896,
+  //   numero: Number(code),
+  //   produto: {
+  //     id: 6,
+  //     nome: "TL-23489AA-LE"
+  //   },
+  //   quantidadeAProduzir: 6,
+  //   embalagens: [
+  //     {
+  //       id: 6,
+  //       nome: "BLISTER_TL-23489AA-LE/TL23490AA-LD",
+  //       quantidadeAlocada: 2
+  //     },
+  //     {
+  //       id: 1,
+  //       nome: "CAIXA 520X320X170 TRIPLEX",
+  //       quantidadeAlocada: 1
+  //     },
+  //   ]
+  // } as OpJerpDto
 
 
   // TODO: Integrate with Nexin
-// export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
-//   await delay(1000);
-//   // New payload:
-//   return {
-//     id: 327117,
-//     numero: Number(code),
-//     produto: {
-//       id: 1,
-//       nome: "XBB"
-//     },
-//     quantidadeAProduzir: 112,
-//     embalagens: [
-//       {
-//         id: 2,
-//         nome: "BLISTER_XBB",
-//         quantidadeAlocada: 20
-//       },
-//       {
-//         id: 1,
-//         nome: "CAIXA 520X320X170 TRIPLEX",
-//         quantidadeAlocada: 2
-//       },
-//     ]
-//   } as OpJerpDto
+  // export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJerpDto> {
+  //   await delay(1000);
+  //   // New payload:
+  //   return {
+  //     id: 327117,
+  //     numero: Number(code),
+  //     produto: {
+  //       id: 1,
+  //       nome: "XBB"
+  //     },
+  //     quantidadeAProduzir: 112,
+  //     embalagens: [
+  //       {
+  //         id: 2,
+  //         nome: "BLISTER_XBB",
+  //         quantidadeAlocada: 20
+  //       },
+  //       {
+  //         id: 1,
+  //         nome: "CAIXA 520X320X170 TRIPLEX",
+  //         quantidadeAlocada: 2
+  //       },
+  //     ]
+  //   } as OpJerpDto
 
   // Old payload:
   // return {
@@ -161,27 +161,73 @@ type OpQuantityProducedDto = {
 
   // Requet from jerp:
 
-  // const dynamicData = await fetch(
-  //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${code}`,
-  //   {
-  //     headers: {
-  //       authorization: `Bearer ${process.env.JERP_TOKEN}`,
-  //     }, 
-  //     cache: "no-store",
-  //   }
-  // );
- 
+  const dynamicData = await fetch(
+    `https://jerpapiprod.azurewebsites.net/api/ordemproducao/${code}`,
+    {
+      headers: {
+        authorization: `Bearer ${process.env.JERP_TOKEN}`,
+      }, 
+      cache: "no-store",
+    }
+  );
 
-  // const data = await dynamicData.json();
 
-  // console.log("CODE OP ---------");
-  // console.log(code);
-  
-  // console.log("GET JERP OP ---------");
-  // console.log(data);
-  
+  const data = await dynamicData.json();
 
-  // return data as OpJerpDto;
+  console.log("CODE OP ---------");
+  console.log(code);
+
+  console.log("GET JERP OP ---------");
+  console.log(data);
+
+
+  return data as OpJerpDto;
+}
+
+export async function getOpFromNexinToProduceById(id: string): Promise<OpJerpDto> {
+  await delay(1000);
+  const dynamicData = await fetch(
+    `https://jerpapiprod.azurewebsites.net/api/ordemproducaoid/${id}`,
+    {
+      headers: {
+        authorization: `Bearer ${process.env.JERP_TOKEN}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+
+  const data = await dynamicData.json();
+
+  console.log("ID OP ---------");
+  console.log(id);
+
+  console.log("GET JERP OP ---------");
+  console.log(data);
+
+  return data as OpJerpDto;
+
+  // return {
+  //   id: 7457781,
+  //   numero: 3214,
+  //   produto: {
+  //     id: 42263,
+  //     nome: "SR-23496AA-LD_01"
+  //   },
+  //   quantidadeAProduzir: 124,
+  //   embalagens: [
+  //     {
+  //       id: 38810,
+  //       nome: "Blister B515 Antiestático",
+  //       quantidadeAlocada: 3
+  //     },
+  //     {
+  //       id: 3457,
+  //       nome: "CAIXA 520X320X170 TRIPLEX",
+  //       quantidadeAlocada: 1
+  //     },
+  //   ]
+  // } as OpJerpDto
 }
 
 export async function getPaginatedOp({

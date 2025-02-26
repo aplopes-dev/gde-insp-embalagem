@@ -20,7 +20,8 @@ import PrintTagDialog from "./_components/print-tag-dialog";
 import {
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
-  syncAndGetOpToProduceByCode,
+  saveTagId,
+  syncAndGetOpToProduceById,
 } from "./actions";
 import { useRouter } from "next/navigation";
 
@@ -143,7 +144,7 @@ export default function PackagingInspection({
   }
 
   const loadData = async () => {
-    const opData = await syncAndGetOpToProduceByCode(code);
+    const opData = await syncAndGetOpToProduceById(code);
     setData(opData);
     setDisplayColor("blue");
     if (opData.finishedAt) {
@@ -158,7 +159,7 @@ export default function PackagingInspection({
         mensagem: "AGUARDANDO CAIXA...",
         cor: 1,
       });
-      setBlisterCodes(opData.blisterCodes)
+      setBlisterCodes(opData.blisterCodes);
       setBlisters(opData.nextBox?.OpBoxBlister);
       const itemQuantity = opData.nextBox.OpBoxBlister.reduce(
         (total, blister) => total + blister.quantity,
@@ -462,7 +463,9 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+            blisterCodes[targetBlister!]
+          }`,
           // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       } else if (
@@ -538,7 +541,9 @@ export default function PackagingInspection({
         sendWithDelay({
           itemId: `${data!.productType.name}`,
           quantity: blisters[targetBlister!].quantity,
-          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+          fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+            blisterCodes[targetBlister!]
+          }`,
           // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
         });
       }
@@ -557,7 +562,9 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.productType.name}`,
         quantity: blisters[targetBlister!].quantity,
-        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisterCodes[targetBlister!]}`,
+        fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+          blisterCodes[targetBlister!]
+        }`,
         // fileName: `OP_${data!.opCode}_BOX_${box?.code}_BL_${blisters[targetBlister!].code}`,
       });
     }
@@ -708,6 +715,18 @@ export default function PackagingInspection({
     }
   }
 
+  function handlePrintSuccess(idBarras: string) {
+    setTimeout(() => {
+      if (!box?.id) throw new Error("Falha ao obter ID da caixa");
+      saveTagId(box.id, idBarras);
+      sendMessageToRabbitMqMobile({
+        mensagem: "CAIXA FINALIZADA COM SUCESSO!",
+        cor: 3,
+      });
+      redirectAction("/");
+    }, 2000);
+  }
+
   return (
     <div className="h-screen flex flex-col gap-4 lg:gap-10 exl:gap-16">
       <Header />
@@ -730,6 +749,11 @@ export default function PackagingInspection({
             {!data.finishedAt && (
               <>
                 <div className="flex justify-end gap-6 mt-8">
+                  {step == 3 && (
+                    <Button onClick={() => setOpenPrintTagDialog(true)}>
+                      Imprimir novamente
+                    </Button>
+                  )}
                   <Button
                     className="bg-blue-700 hover:bg-blue-600"
                     onClick={() => setOpenRestartDialog(true)}
@@ -746,8 +770,9 @@ export default function PackagingInspection({
                 </div>
                 <div className="mt-2">
                   <h3 className="font-bold uppercase">Caixa</h3>
+                  {/* name={data.boxType.name} */}
                   <BoxDisplay
-                    name={data.boxType.name}
+                    name={data.boxType.code}
                     isTarget={step == 0}
                     description={data.boxType.description}
                     displayColor="blue"
@@ -758,10 +783,12 @@ export default function PackagingInspection({
                 <div className="mt-8">
                   <div className="flex gap-4">
                     <div>
-                      <strong>Blister:</strong> {data.blisterType.name}
+                      <strong>Blister:</strong> {data.blisterType.code}
+                      {/* <strong>Blister:</strong> {data.blisterType.name} */}
                     </div>
                     <div>
-                      <strong>Item:</strong> {data.productType.name}
+                      <strong>Item:</strong> {data.productType.code}
+                      {/* <strong>Item:</strong> {data.productType.name} */}
                     </div>
                     <div>
                       <strong>Quantidade na Caixa:</strong> {quantityInBox}
@@ -773,9 +800,11 @@ export default function PackagingInspection({
                 </div>
                 <div className="mt-8">
                   <h3 className="font-bold uppercase">Embalagem</h3>
+                  {/* blisterName={data.blisterType.name}
+                  itemName={data.productType.name} */}
                   <BlisterDisplay
-                    blisterName={data.blisterType.name}
-                    itemName={data.productType.name}
+                    blisterName={data.blisterType.code}
+                    itemName={data.productType.code}
                     blisters={blisters}
                     targetIndex={targetBlister}
                   />
@@ -809,16 +838,7 @@ export default function PackagingInspection({
       />
       {data && (
         <PrintTagDialog
-          onPrintSuccess={() => {
-            setTimeout(() => {
-              sendMessageToRabbitMqMobile({
-                mensagem: "CAIXA FINALIZADA COM SUCESSO!",
-                cor: 3,
-              });
-              redirectAction("/");
-            }, 2000);
-            // issetNextBox ? reload() : redirectAction("/");
-          }}
+          onPrintSuccess={handlePrintSuccess}
           itemName={data.productType.name}
           itemDescription={data.productType.description}
           opId={data.opId}

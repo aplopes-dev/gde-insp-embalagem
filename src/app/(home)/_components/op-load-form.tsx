@@ -5,7 +5,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PackagingJerpDto, ProductJerpDto } from "../_types/op-jerp-dto";
-import { getOpFromNexinToProduceByCode } from "../actions";
+import { getOpFromNexinToProduceById } from "../actions";
 
 const OpLoadForm = () => {
   const textStyleClasses =
@@ -22,12 +22,12 @@ const OpLoadForm = () => {
     router.push(`${uri}`);
   }
 
-  const handleRegistration = (op: string) => {
+  const handleRegistration = (opId: string) => {
     setIsLoading(true);
-    getOpFromNexinToProduceByCode(op)
+    getOpFromNexinToProduceById(opId)
       .then((res) => {
         setIsLoading(false);
-        opIsValid(res) && redirectAction(`/op/${res.numero}`);
+        opIsValid(res) && redirectAction(`/op/${res.id}`);
       })
       .catch((_) => {
         setIsLoading(false);

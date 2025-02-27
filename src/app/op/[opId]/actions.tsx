@@ -33,9 +33,6 @@ export async function syncAndGetOpToProduceById(id: string) {
   return await fetchOpDetails(internalOp);
 }
 
-/**
- * Cria a OP internamente, validando as referências necessárias
- */
 async function createInternalOp(externalOp: OpJerpDto) {
   const packagingNames = externalOp.embalagens.map((emb) =>
     emb.nome.toUpperCase()
@@ -84,9 +81,6 @@ async function createInternalOp(externalOp: OpJerpDto) {
   });
 }
 
-/**
- * Valida se todas as referências existem no banco de dados
- */
 function validateReferences(
   transactionResults: [
     productType: ProductType | null,
@@ -103,9 +97,6 @@ function validateReferences(
   }
 }
 
-/**
- * Busca detalhes da OP interna para inspeção
- */
 async function fetchOpDetails(internalOp: Op) {
   const transaction = await db.$transaction([
     db.opBox.count({ where: { opId: internalOp.id } }),

@@ -108,8 +108,11 @@ export default function PackagingInspection({
         }
       })
       .catch((error) => {
-        console.log(error);
-        
+        toast({
+          title: "Erro ao carregar OP",
+          description: error?.message || "Falha na sincronização da OP",
+          variant: "destructive"
+        });
       });
   };
 
@@ -666,7 +669,7 @@ export default function PackagingInspection({
         </div>
       ) : (
         <div className="container flex flex-col items-center mt-8 gap-6">
-          <h2 className="text-xl">OP não encontrada!</h2>
+          <h2 className="text-xl">Falha ao carregar OP!</h2>
           <Button onClick={() => redirectAction("/")}>Voltar</Button>
         </div>
       )}

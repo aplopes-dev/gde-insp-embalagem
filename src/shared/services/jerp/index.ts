@@ -20,10 +20,22 @@ export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined
     const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
       headers: getJerpHeaders(),
     });
-    logger.info({ message: "OP recuperada com sucesso", code });
+    logger.info({ message: "OP recuperada com sucesso", code: response.data.numero });
     return response.data as OpJerpDto;
   } catch (error) {
     handleError(error, `Falha ao obter OP para o código: ${code}`);
+  }
+}
+
+export async function getOpFromId(id: string): Promise<OpJerpDto | undefined> {
+  try {
+    const response = await axios.get(`${JERP_API}/ordemproducaoid/${id}`, {
+      headers: getJerpHeaders(),
+    });
+    logger.info({ message: "OP recuperada com sucesso", id: response.data.id });
+    return response.data as OpJerpDto;
+  } catch (error) {
+    handleError(error, `Falha ao obter OP para o id: ${id}`);
   }
 }
 

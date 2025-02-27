@@ -1,7 +1,5 @@
-import { getOpFromCode } from '.';
 import axios from 'axios';
-
-const JERP_API = process.env.JERP_API;
+import { getOpFromCode, getOpFromId } from '.';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -12,20 +10,21 @@ jest.mock('@/libs/logger', () => ({
 }));
 
 describe('getOpFromCode', () => {
-  
   it('deve retornar os dados da OP quando a API responde com sucesso', async () => {
-    const mockCode = '123456';
+    jest.resetAllMocks();
+    const mockCode = 123456;
     const mockData = {
       id: 1,
-      numero: mockCode,
+      numero: 123456,
       produto: { nome: 'Produto A' },
       quantidadeAProduzir: 100,
       embalagens: [{ nome: 'Blister' }, { nome: 'Caixa' }]
     };
 
     mockedAxios.get.mockResolvedValueOnce({ data: mockData });
-    const result = await getOpFromCode(mockCode);
+    const result = await getOpFromCode(`${mockCode}`);
     expect(result).toEqual(mockData);
+    expect(result?.numero).toEqual(mockCode);
 
     expect(require('@/libs/logger').info).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -39,6 +38,39 @@ describe('getOpFromCode', () => {
     const mockCode = '123456';
     mockedAxios.get.mockRejectedValueOnce(new Error("Erro na API"));
     await expect(getOpFromCode(mockCode)).rejects.toThrow(`Falha ao obter OP para o código: ${mockCode}`);
+  });
+
+});
+
+describe('getOpFromId', () => {
+  it('deve retornar os dados da OP quando a API responde com sucesso', async () => {
+    jest.resetAllMocks();
+    const mockId = 34;
+    const mockData = {
+      id: 34,
+      numero: mockId,
+      produto: { nome: 'Produto A' },
+      quantidadeAProduzir: 100,
+      embalagens: [{ nome: 'Blister' }, { nome: 'Caixa' }]
+    };
+
+    mockedAxios.get.mockResolvedValueOnce({ data: mockData });
+    const result = await getOpFromId(`${mockId}`);
+    expect(result).toEqual(mockData);
+    expect(result?.id).toEqual(mockId);
+
+    expect(require('@/libs/logger').info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'OP recuperada com sucesso',
+        id: mockId,
+      })
+    );
+  });
+
+  it('deve lançar erro quando a API falha', async () => {
+    const mockId = '123456';
+    mockedAxios.get.mockRejectedValueOnce(new Error("Erro na API"));
+    await expect(getOpFromId(mockId)).rejects.toThrow(`Falha ao obter OP para o id: ${mockId}`);
   });
 
 });

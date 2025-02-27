@@ -32,7 +32,7 @@ import {
 import {
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
-  syncAndGetOpToProduceByCode,
+  syncAndGetOpToProduceById,
 } from "./actions";
 
 type DisplayColors = "blue" | "red" | "green" | "black";
@@ -85,7 +85,7 @@ export default function PackagingInspection({
   }
 
   const loadData = async () => {
-    const opData = await syncAndGetOpToProduceByCode(code);
+    const opData = await syncAndGetOpToProduceById(code);
     setData(opData);
     setDisplayColor("blue");
     if (!opData) throw new Error("OP não retornada!");

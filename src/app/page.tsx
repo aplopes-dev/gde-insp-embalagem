@@ -27,7 +27,7 @@ export default function Home() {
 
   function handleOpLoad(data: OpJerpDto) {
     if (opIsValid(data)) {
-      redirectAction(`/op/${data.numero}`);
+      redirectAction(`/op/${data.id}`);
     }
   }
 

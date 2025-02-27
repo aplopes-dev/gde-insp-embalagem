@@ -4,26 +4,26 @@ import { getFirstBlisterTypeInNames } from "@/entities/blister-type";
 import { getFirstBoxTypeInNames } from "@/entities/box-type";
 import { getProductTypeFromName } from "@/entities/product-type";
 import db from "@/providers/database";
-import { getOpFromCode } from "@/shared/services/jerp";
+import { getOpFromId } from "@/shared/services/jerp";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
+import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
 import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
-import { createOpData, createOpBoxesData } from "@/usecases/op/create-op-data";
 
 const bcrypt = require("bcrypt");
 
-export async function syncAndGetOpToProduceByCode(code: string) {
+export async function syncAndGetOpToProduceById(id: string) {
   try {
     // Busca OP externa
-    const externalOp = await getOpFromCode(code);
+    const externalOp = await getOpFromId(id);
     if (!externalOp) {
-      throw new Error(`OP ${code} não encontrada na API externa.`);
+      throw new Error(`OP ${id} não encontrada na API externa.`);
     }
 
     let internalOp = await db.op.findFirst({

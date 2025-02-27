@@ -2,7 +2,7 @@
 
 import DebouncedInput from "@/components/data-table-debounce-text-filter";
 import { toast } from "@/components/ui/use-toast";
-import { getOpFromCode } from "@/shared/services/jerp";
+import { getOpFromId } from "@/shared/services/jerp";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { useEffect, useState } from "react";
 
@@ -21,7 +21,7 @@ const OpLoadForm = ({ onLoadOp }: OpLoadFormProps) => {
   const handleRegistration = async (op: string) => {
     setIsLoading(true);
     try {
-      const res = await getOpFromCode(op);
+      const res = await getOpFromId(op);
       if (res && onLoadOp) onLoadOp(res);
     } catch (error: any) {
       toast({
@@ -43,7 +43,7 @@ const OpLoadForm = ({ onLoadOp }: OpLoadFormProps) => {
           value={opValue}
           onChange={setOpValue}
           debounceTime={500}
-          placeholder="Código da OP"
+          placeholder="Insira o ID da OP"
         />
       </div>
     </div>

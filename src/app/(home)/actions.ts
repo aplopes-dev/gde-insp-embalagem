@@ -261,6 +261,7 @@ export async function getPaginatedOp({
         product: {
           select: {
             code: true,
+            description: true,
             name: true,
           },
         },

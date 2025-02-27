@@ -14,7 +14,7 @@ export type OpDto = {
 type OpProductDto = {
   code: string;
   name: string;
-  description: string;
+  description: string | null;
 };
 
 type OpBoxDto = {

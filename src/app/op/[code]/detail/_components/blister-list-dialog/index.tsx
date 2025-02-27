@@ -93,7 +93,7 @@ const BlisterListDialog = ({
             <DialogTitle>Caixa</DialogTitle>
             <DialogDescription>
               Código: <strong>{data?.code}</strong>
-              <Button className="ml-2" onClick={() => setReprintOpen(true)}>Reimprimir</Button>
+              {data?.packedAt && <Button className="ml-2" onClick={() => setReprintOpen(true)}>Reimprimir</Button>}
             </DialogDescription>
           </DialogHeader>
           {data && (
@@ -110,7 +110,7 @@ const BlisterListDialog = ({
                   {data.OpBoxBlister.map((item: any, index: number) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <Image
+                        {data.packedAt && <Image
                           width={100}
                           height={50}
                           src={`/api/images/OP_${opCode}_BOX_${data.code}_BL_${
@@ -125,7 +125,7 @@ const BlisterListDialog = ({
                               }.jpg?path=${formatDateISO(data.packedAt!)}`
                             )
                           }
-                        />
+                        />}
                       </TableCell>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{item.quantity}</TableCell>

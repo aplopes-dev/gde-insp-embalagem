@@ -214,12 +214,12 @@ export async function getOpFromNexinToProduceById(id: string): Promise<OpJerpDto
   //     id: 42263,
   //     nome: "SR-23496AA-LD_01"
   //   },
-  //   quantidadeAProduzir: 124,
+  //   quantidadeAProduzir: 56,
   //   embalagens: [
   //     {
   //       id: 38810,
   //       nome: "Blister B515 Antiestático",
-  //       quantidadeAlocada: 3
+  //       quantidadeAlocada: 1
   //     },
   //     {
   //       id: 3457,

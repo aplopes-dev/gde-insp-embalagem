@@ -35,12 +35,13 @@ body{
 }
 
 .title {
+  font-size: 20px;
   text-transform: uppercase;
   font-weight: bold;
 }
 
 .description {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .batch {
@@ -67,12 +68,18 @@ body{
   font-size: 18px;
   font-weight: bold;
 }
+
+.no-warp-line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>`
 
 export async function POST(request: Request) {
   const data = await request.json();
   const { conteudo } = data;
-  console.log(conteudo);
 
   try {
     const browser = await puppeteer.launch({ args: ['--no-sandbox'] });

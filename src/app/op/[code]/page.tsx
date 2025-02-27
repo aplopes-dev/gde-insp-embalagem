@@ -839,7 +839,7 @@ export default function PackagingInspection({
       {data && (
         <PrintTagDialog
           onPrintSuccess={handlePrintSuccess}
-          itemName={data.productType.name}
+          itemName={data.productType.code}
           itemDescription={data.productType.description}
           opId={data.opId}
           quantity={quantityToPrint}

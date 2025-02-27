@@ -407,10 +407,12 @@ export async function getOpByCode(code: string) {
           id: op.product.id,
           code: op.product.code,
           name: op.product.name,
+          description: op.product.description
         },
         box: {
           id: op.box.id,
           name: op.box.name,
+          code: op.box.code
         },
         blister: {
           id: op.blister.id,

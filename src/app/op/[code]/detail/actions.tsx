@@ -67,6 +67,14 @@ export async function getOpBoxWithBlistersById(id: number) {
     where: {
       id,
     },
-    include: { OpBoxBlister: true },
+    include: { 
+      OpBoxBlister: true,
+      op: {
+        select: {
+          code: true,
+          product: true
+        }
+      }
+    },
   });
 }

@@ -14,10 +14,12 @@ export type OpDto = {
 type OpProductDto = {
   code: string;
   name: string;
+  description: string;
 };
 
 type OpBoxDto = {
   id: number
+  code: string;
   name: string
 }
 

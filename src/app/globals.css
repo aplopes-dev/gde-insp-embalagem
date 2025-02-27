@@ -113,3 +113,10 @@
   font-size: 12px;
   font-weight: bold;
 }
+
+.no-warp-line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

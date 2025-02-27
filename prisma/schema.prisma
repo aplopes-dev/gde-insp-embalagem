@@ -14,19 +14,20 @@ datasource db {
 }
 
 model BoxType {
-  id          Int      @id @default(autoincrement())
+  id          Int      @id
   name        String
+  code        String   @unique 
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   Op          Op[]
-  BlisterType BlisterType[]
 }
 
 model BlisterType {
-  id          Int      @id @default(autoincrement())
+  id          Int      @id
   name        String
+  code        String   @unique
   description String?
   slots       Int      @default(0)
   createdAt   DateTime @default(now())
@@ -34,12 +35,11 @@ model BlisterType {
   boxTypeId   Int
   limitPerBox Int
 
-  box BoxType @relation(fields: [boxTypeId], references: [id])
   Op  Op[]
 }
 
 model ProductType {
-  id          Int      @id @default(autoincrement())
+  id          Int      @id
   name        String
   code        String   @unique
   description String?
@@ -50,7 +50,7 @@ model ProductType {
 }
 
 model Op {
-  id                Int       @id @default(autoincrement())
+  id                Int       @id
   code              String
   boxTypeId         Int
   blisterTypeId     Int

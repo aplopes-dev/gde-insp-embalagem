@@ -42,7 +42,7 @@ const OpLoadForm = ({ onLoadOp }: OpLoadFormProps) => {
           disabled={isLoading}
           value={opValue}
           onChange={setOpValue}
-          debounceTime={500}
+          debounceTime={1500}
           placeholder="Insira o ID da OP"
         />
       </div>

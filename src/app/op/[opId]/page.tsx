@@ -32,8 +32,10 @@ import {
 import {
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
+  saveTagId,
   syncAndGetOpToProduceById,
 } from "./actions";
+import { getBarcodeFromOpId } from "@/shared/services/jerp";
 
 type DisplayColors = "blue" | "red" | "green" | "black";
 const mobileColorKeysMap = new Map<string, number>([
@@ -44,10 +46,10 @@ const mobileColorKeysMap = new Map<string, number>([
 ]);
 
 export default function PackagingInspection({
-  params: { code },
+  params: { opId },
 }: {
   params: {
-    code: string;
+    opId: string;
   };
 }) {
   const router = useRouter();
@@ -68,6 +70,7 @@ export default function PackagingInspection({
   const [blisters, setBlisters] = useState<OpBoxBlisterInspection[]>([]);
   const [displayColor, setDisplayColor] = useState<DisplayColors>("blue");
   const [quantityToPrint, setQuantityToPrint] = useState<number>(0);
+  const [barcodeToPrint, setBarcodeToPrint] = useState<number>();
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
 
@@ -85,23 +88,29 @@ export default function PackagingInspection({
   }
 
   const loadData = async () => {
-    const opData = await syncAndGetOpToProduceById(code);
-    setData(opData);
-    setDisplayColor("blue");
-    if (!opData) throw new Error("OP não retornada!");
-    if (opData.finishedAt) {
-      sendValidationMessage({
-        message: "OP FINALIZADA!",
-        color: "blue",
+    syncAndGetOpToProduceById(opId)
+      .then((opData) => {
+        setData(opData);
+        setDisplayColor("blue");
+        if (!opData) throw new Error("OP não retornada!");
+        if (opData.finishedAt) {
+          sendValidationMessage({
+            message: "OP FINALIZADA!",
+            color: "blue",
+          });
+        } else {
+          mountInspecionState(opData.nextBox!, opData.blisterCodes);
+          const message: string = "AGUARDANDO CAIXA...";
+          const color: DisplayColors = "blue";
+          const itemId: string | undefined = data?.boxType.name;
+          const quantity: number = 1;
+          sendValidationMessage({ message, color, itemId, quantity });
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+        
       });
-    } else {
-      mountInspecionState(opData.nextBox!, opData.blisterCodes);
-      const message: string = "AGUARDANDO CAIXA...";
-      const color: DisplayColors = "blue";
-      const itemId: string | undefined = data?.boxType.name;
-      const quantity: number = 1;
-      sendValidationMessage({ message, color, itemId, quantity });
-    }
   };
 
   useEffect(() => {
@@ -447,12 +456,11 @@ export default function PackagingInspection({
     }
   }
 
-  async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
-    setTimeout(() => {
+  function printTag(currentBlisters: OpBoxBlisterInspection[]) {
+    setTimeout(async () => {
       const productQuantity = currentBlisters
         .filter((bl) => bl.status == 1)
         .reduce((acc, i) => acc + i.quantity, 0);
-      setQuantityToPrint(productQuantity);
 
       sendValidationMessage({
         message: "IMPRIMINDO ETIQUETA...",
@@ -461,7 +469,22 @@ export default function PackagingInspection({
         itemId: "TAG",
       });
 
-      setOpenPrintTagDialog(true);
+      try {
+        const tagData = await getBarcodeFromOpId(
+          data!.opId,
+          box!.id,
+          productQuantity
+        );
+        setQuantityToPrint(tagData!.quantidadeApontada);
+        setBarcodeToPrint(tagData!.idBarras);
+        setOpenPrintTagDialog(true);
+      } catch (error) {
+        toast({
+          title: "Erro",
+          variant: "destructive",
+          description: "Falha ao gerar etiqueta!",
+        });
+      }
     }, 2000);
   }
 
@@ -556,10 +579,20 @@ export default function PackagingInspection({
     }
   }
 
+  function handlePrintSuccess(idBarras: string) {
+    sendMessageToRabbitMqMobile({
+      mensagem: "CAIXA FINALIZADA COM SUCESSO!",
+      cor: 3,
+    });
+    setTimeout(() => {
+      redirectAction("/");
+    }, 2000);
+  }
+
   return (
     <div className="h-screen w-full flex flex-col">
       <Header />
-      {data && (
+      {data ? (
         <div className="flex-1 flex justify-center overflow-y-auto">
           <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
             <OpDisplay
@@ -631,6 +664,11 @@ export default function PackagingInspection({
             )}
           </div>
         </div>
+      ) : (
+        <div className="container flex flex-col items-center mt-8 gap-6">
+          <h2 className="text-xl">OP não encontrada!</h2>
+          <Button onClick={() => redirectAction("/")}>Voltar</Button>
+        </div>
       )}
       <ManagerAuthFormDialog
         title={"Autorizar quebra de Caixa"}
@@ -646,19 +684,13 @@ export default function PackagingInspection({
       />
       {data && (
         <PrintTagDialog
-          onPrintSuccess={() => {
-            setTimeout(() => {
-              sendValidationMessage({
-                message: "CAIXA FINALIZADA COM SUCESSO!",
-                color: "green",
-              });
-              redirectAction("/");
-            }, 2000);
-          }}
-          itemName={data.productType.name}
+          onPrintSuccess={handlePrintSuccess}
+          itemName={data.productType.code}
           itemDescription={data.productType.description}
-          opId={data.opId}
-          quantity={quantityToPrint}
+          printConfig={{
+            barcode: `${barcodeToPrint}`,
+            quantity: quantityToPrint,
+          }}
           batchCode={data.opCode}
           isOpen={openPrintTagDialog}
           onOpenChange={setOpenPrintTagDialog}

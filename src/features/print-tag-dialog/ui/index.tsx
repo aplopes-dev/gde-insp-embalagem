@@ -5,25 +5,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getBarcodeFromOpId } from "@/shared/services/jerp";
-import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
-import localFont from "next/font/local";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ReactBarcode } from "react-jsbarcode";
-
-const myFont = localFont({ src: "../fonts/LibreBarcode39-Regular.ttf" });
 
 type PrintTagProps = {
   isOpen: boolean;
-  opId: number;
   itemName: string;
   itemDescription: string;
   batchCode: string;
-  quantity: number;
+  printConfig: {
+    barcode: string;
+    quantity: number;
+  };
   onOpenChange: (open: boolean) => void;
-  onPrintSuccess: () => void;
+  onPrintSuccess?: (barcode: string) => void;
 };
-
 
 const PrintTagDialog = ({
   isOpen,
@@ -32,35 +28,36 @@ const PrintTagDialog = ({
   itemName,
   itemDescription,
   batchCode,
-  quantity,
-  opId,
+  printConfig,
 }: PrintTagProps) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<PrintTagJerpDto>();
 
-  const loadData = async () => {
-    const tagData = await getBarcodeFromOpId(opId, quantity);
-    setData(tagData);
+  const printTag = () => {
     setTimeout(() => {
       const printContent = printRef.current!.innerHTML;
       enviarParaImpressao(printContent);
     }, 2000);
   };
 
-  const enviarParaImpressao = async (data: any) => {
-    const conteudoDiv = data;
+  const enviarParaImpressao = async (divData: any) => {
+    if (!printConfig) throw new Error("Falha ao carregar codigo de barras");
+    const conteudoDiv = divData;
+    const parsedJSON = JSON.stringify({ conteudo: conteudoDiv })
+
+    console.log(conteudoDiv);
+    
 
     const resposta = await fetch("/api/imprimir", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ conteudo: conteudoDiv }),
+      body: parsedJSON,
     });
 
     if (resposta.ok) {
       console.log("Conteúdo enviado para impressão");
-      onPrintSuccess();
+      onPrintSuccess && onPrintSuccess(`${printConfig.barcode}`);
       onOpenChange(false);
     } else {
       console.error("Erro ao enviar para impressão");
@@ -69,9 +66,7 @@ const PrintTagDialog = ({
 
   useEffect(() => {
     if (isOpen) {
-      loadData();
-    } else {
-      setData(undefined);
+      printTag();
     }
   }, [isOpen]);
 
@@ -83,17 +78,19 @@ const PrintTagDialog = ({
           <DialogDescription>Etiqueta para impressão</DialogDescription>
         </DialogHeader>
         <div key="tag-area" ref={printRef}>
-          {data && (
+          {printConfig && (
             <div className="tag-area">
-              <div className="title">{itemName}</div>
-              <div className="description">{itemDescription}</div>
+              <div className="title no-warp-line">{itemName}</div>
+              <div className="description no-warp-line">{itemDescription}</div>
               <div className="batch">Lote: {batchCode}</div>
               <div className="barcode-row">
                 <ReactBarcode
-                  value={`${data.idBarras}`}
+                  value={`${printConfig.barcode}`}
                   options={{ format: "CODE39", height: 50 }}
                 />
-                <div className="quantity">Quantidade: {quantity}</div>
+                <div className="quantity">
+                  Quantidade: {printConfig.quantity}
+                </div>
               </div>
             </div>
           )}

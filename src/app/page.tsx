@@ -36,7 +36,7 @@ export default function Home() {
       <Header />
       <div className="container flex flex-col gap-6 lg:gap-16">
         <h1 className="text-xl xl:text-4xl exl:text-8xl uppercase font-bold text-center">
-          Digite o código da OP
+          Insira o ID da OP
         </h1>
         <OpLoadForm onLoadOp={handleOpLoad} />
       </div>

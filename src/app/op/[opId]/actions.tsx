@@ -16,30 +16,21 @@ import {
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
 
-const bcrypt = require("bcrypt");
-
 export async function syncAndGetOpToProduceById(id: string) {
-  try {
-    // Busca OP externa
-    const externalOp = await getOpFromId(id);
-    if (!externalOp) {
-      throw new Error(`OP ${id} não encontrada na API externa.`);
-    }
-
-    let internalOp = await db.op.findFirst({
-      where: { code: `${externalOp.numero}` },
-    });
-
-    // Se não existir internamente, cria a OP
-    if (!internalOp) {
-      internalOp = await createInternalOp(externalOp);
-    }
-
-    // Busca dados relacionados à OP
-    return await fetchOpDetails(internalOp);
-  } catch (error) {
-    handleError(error, "Erro ao sincronizar OP");
+  const externalOp = await getOpFromId(id);
+  if (!externalOp) {
+    throw new Error(`OP ${id} não encontrada na API externa.`);
   }
+
+  let internalOp = await db.op.findFirst({
+    where: { code: `${externalOp.numero}` },
+  });
+
+  if (!internalOp) {
+    internalOp = await createInternalOp(externalOp);
+  }
+
+  return await fetchOpDetails(internalOp);
 }
 
 /**
@@ -389,4 +380,19 @@ export async function getOpByCode(code: string) {
         finishedAt: op.finishedAt,
       } as OpDto)
     : null;
+}
+
+export async function saveTagId(opBoxId: number, barCode: string) {
+  try {
+    await db.opBox.update({
+      data: {
+        code: barCode,
+      },
+      where: {
+        id: opBoxId,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+  }
 }

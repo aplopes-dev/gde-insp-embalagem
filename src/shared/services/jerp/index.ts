@@ -1,5 +1,6 @@
 "use server"
 
+import { saveTagId } from "@/app/op/[opId]/actions";
 import logger from "@/libs/logger";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
@@ -39,14 +40,17 @@ export async function getOpFromId(id: string): Promise<OpJerpDto | undefined> {
   }
 }
 
-export async function getBarcodeFromOpId(id: number, quantity: number): Promise<PrintTagJerpDto | undefined> {
+export async function getBarcodeFromOpId(id: number, opBoxId: number, quantity: number): Promise<PrintTagJerpDto | undefined> {
+  if(!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
+  if(!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
   try {
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,
       { id, quantidadeApontada: quantity },
       { headers: getJerpHeaders() }
     );
-    logger.info({ message: "Código de barras gerado", id, quantity });
+    await saveTagId(opBoxId, response.data.idBarras)
+    logger.info({ message: "Código de barras gerado e associado a caixa da OP", id, quantity, barcode: response.data.idBarras });
     return response.data;
   } catch (error) {
     handleError(error, `Falha ao obter código de barras para OP: ${id}`);

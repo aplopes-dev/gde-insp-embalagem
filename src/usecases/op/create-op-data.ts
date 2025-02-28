@@ -84,7 +84,7 @@ export function createOpBoxBlistersData(blistersConfig: OpBlisterConfig): OpBlis
   const lastBlisterQuantity = quantityToProduce % blisterSlots || blisterSlots;
 
   return Array.from({ length: blisterCount }, (_, i) => ({
-    code: `${i + 1}`,
+    code: `GEN_${i + 1}`,
     quantity: isLastBox && i + 1 === blisterCount ? lastBlisterQuantity : blisterSlots,
   }));
 }

@@ -103,15 +103,16 @@ export default function PackagingInspection({
           const message: string = "AGUARDANDO CAIXA...";
           const color: DisplayColors = "blue";
           const itemId: string | undefined = data?.boxType.name;
+          const model: string | undefined = data?.productType.name;
           const quantity: number = 1;
-          sendValidationMessage({ message, color, itemId, quantity });
+          sendValidationMessage({ message, color, itemId, quantity, model });
         }
       })
       .catch((error) => {
         toast({
           title: "Erro ao carregar OP",
           description: error?.message || "Falha na sincronização da OP",
-          variant: "destructive"
+          variant: "destructive",
         });
       });
   };
@@ -316,6 +317,7 @@ export default function PackagingInspection({
     quantity?: number;
     itemId?: string;
     fileName?: string;
+    model?: string;
   }) {
     setDisplayColor(validation.color);
     setDisplayMessage(validation.message);

@@ -1,18 +1,8 @@
-import { Op, OpBlister, OpBox } from "@/types/op"
+import { Op, OpBlister, OpBox } from "@/types/op";
+import { OpBlisterConfig, OpBoxesConfig, OpConfig } from "@/types/op-config";
 
-type InternalOpConfig = {
-  id: number
-  code: string
-  productTypeId: number
-  blisterTypeId: number
-  boxTypeId: number
-  quantityToProduce: number
-  blisterSlots: number
-  blisterPerBox: number
-  boxGap: number
-}
 
-export function createOpData(opConfig: InternalOpConfig): Op {
+export function createOpData(opConfig: OpConfig): Op {
   const { id, code, productTypeId, blisterTypeId, boxTypeId, quantityToProduce, blisterSlots, blisterPerBox, boxGap } = opConfig;
 
   if (!id || !code || !productTypeId || !blisterTypeId || !boxTypeId) throw new Error("Campos obrigatórios da OP ausentes.");
@@ -33,12 +23,6 @@ export function createOpData(opConfig: InternalOpConfig): Op {
   };
 }
 
-type OpBoxesConfig = {
-  quantityToProduce: number
-  blisterSlots: number
-  blisterPerBox: number
-  boxGap: number
-}
 
 export function createOpBoxesData(boxesConfig: OpBoxesConfig): OpBox[] {
   const { quantityToProduce, blisterSlots, blisterPerBox, boxGap = 0 } = boxesConfig;
@@ -62,13 +46,6 @@ export function createOpBoxesData(boxesConfig: OpBoxesConfig): OpBox[] {
   }));
 }
 
-type OpBlisterConfig = {
-  quantityToProduce: number
-  blisterPerBox: number
-  blisterSlots: number
-  boxIndex: number
-  boxesToProduce: number
-}
 
 export function createOpBoxBlistersData(blistersConfig: OpBlisterConfig): OpBlister[] {
   const { quantityToProduce, blisterSlots, blisterPerBox, boxIndex, boxesToProduce } = blistersConfig;

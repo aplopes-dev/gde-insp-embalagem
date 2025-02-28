@@ -186,27 +186,28 @@ export async function getOpFromNexinToProduceByCode(code: string): Promise<OpJer
 
 export async function getOpFromNexinToProduceById(id: string): Promise<OpJerpDto> {
   await delay(1000);
-  const dynamicData = await fetch(
-    `https://jerpapiprod.azurewebsites.net/api/ordemproducaoid/${id}`,
-    {
-      headers: {
-        authorization: `Bearer ${process.env.JERP_TOKEN}`,
-      },
-      cache: "no-store",
-    }
-  );
+  // const dynamicData = await fetch(
+  //   `https://jerpapiprod.azurewebsites.net/api/ordemproducaoid/${id}`,
+  //   {
+  //     headers: {
+  //       authorization: `Bearer ${process.env.JERP_TOKEN}`,
+  //     },
+  //     cache: "no-store",
+  //   }
+  // );
 
 
-  const data = await dynamicData.json();
+  // const data = await dynamicData.json();
 
-  console.log("ID OP ---------");
-  console.log(id);
+  // console.log("ID OP ---------");
+  // console.log(id);
 
-  console.log("GET JERP OP ---------");
-  console.log(data);
+  // console.log("GET JERP OP ---------");
+  // console.log(data);
 
-  return data as OpJerpDto;
+  // return data as OpJerpDto;
 
+  // //XBB
   // return {
   //   id: 7457781,
   //   numero: 3214,
@@ -228,6 +229,30 @@ export async function getOpFromNexinToProduceById(id: string): Promise<OpJerpDto
   //     },
   //   ]
   // } as OpJerpDto
+
+  //XBB
+  return {
+    id: 778165,
+    numero: 3214,
+    produto: {
+      id: 42115,
+      nome: "TL-23489-LE_00"
+    },
+    quantidadeAProduzir: 9,
+    embalagens: [
+      {
+        id: 45174,
+        nome: "BLISTER-TL-23489-23490",
+        quantidadeAlocada: 3
+      },
+      {
+        id: 3457,
+        nome: "CAIXA 520X320X170 TRIPLEX",
+        quantidadeAlocada: 1
+      },
+    ]
+  } as OpJerpDto
+
 }
 
 export async function getPaginatedOp({

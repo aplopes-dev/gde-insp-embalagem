@@ -66,7 +66,7 @@ async function main() {
         code: "BLISTER-TL-23489-23490",
         description: "BLISTER-TL-23489-23490 em Poliestireno de Alto Impacto (HIPS) Preto Antiestático - 0,5mm",
         slots: 3,
-        limitPerBox: 3,
+        limitPerBox: 9,
         boxTypeId: 1
       },
     ]
@@ -97,6 +97,12 @@ async function main() {
         name: "LE-TL23411AA",
         code: "TL-23411AA-LE-REV00",
         description: "Conjunto LDM+LED T2 Applique G1NC SPIN Lado Esquerdo"
+      },
+      {
+        id: 42115,
+        code: "TL-23489-LE_00",
+        name: "TL-23489AA-LE",
+        description: "Tail Lamp VW270-3 LAPA T2 Lado Esquerdo"
       },
       // {
       //   id: 4,

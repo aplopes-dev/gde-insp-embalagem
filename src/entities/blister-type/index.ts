@@ -1,1 +1,1 @@
-export { getFirstBlisterTypeInNames } from "./api/get-first-blister-type-in-names"
+export * from "./api/find-first-blister-type-in-ids"

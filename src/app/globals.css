@@ -114,6 +114,13 @@
   font-weight: bold;
 }
 
+.no-warp-line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 
 ::-webkit-scrollbar {
   width: 10px;

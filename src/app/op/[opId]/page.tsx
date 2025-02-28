@@ -18,12 +18,14 @@ import { useEffect, useState } from "react";
 
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
+import { generateBarcode } from "@/shared/services/jerp";
 import {
   InspectionEnum,
   objectInspection,
 } from "@/shared/services/object-inspection";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
+import { Loader2 } from "lucide-react";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
@@ -32,10 +34,8 @@ import {
 import {
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
-  saveTagId,
   syncAndGetOpToProduceById,
 } from "./actions";
-import { getBarcodeFromOpId } from "@/shared/services/jerp";
 
 type DisplayColors = "blue" | "red" | "green" | "black";
 const mobileColorKeysMap = new Map<string, number>([
@@ -52,6 +52,7 @@ export default function PackagingInspection({
     opId: string;
   };
 }) {
+  const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
@@ -107,6 +108,7 @@ export default function PackagingInspection({
           const quantity: number = 1;
           sendValidationMessage({ message, color, itemId, quantity, model });
         }
+        setLoading(false);
       })
       .catch((error) => {
         toast({
@@ -114,6 +116,7 @@ export default function PackagingInspection({
           description: error?.message || "Falha na sincronização da OP",
           variant: "destructive",
         });
+        setLoading(false);
       });
   };
 
@@ -267,7 +270,7 @@ export default function PackagingInspection({
           message = "BLISTER VÁLIDO";
           color = "green";
           quantity = blisters[targetBlister!].quantity;
-          fileName = `OP_${data!.opCode}_BOX_${box?.code}_BL_${
+          fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${
             inspection.code
           }`;
           nextObjectValidation(inspection, ObjectTypes.product);
@@ -305,6 +308,9 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
         color = "green";
+        fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${
+          inspection.code
+        }_ITEMS`;
         verifyNextBlisterOrFinalize(inspection);
         break;
     }
@@ -475,7 +481,7 @@ export default function PackagingInspection({
       });
 
       try {
-        const tagData = await getBarcodeFromOpId(
+        const tagData = await generateBarcode(
           data!.opId,
           box!.id,
           productQuantity
@@ -597,83 +603,92 @@ export default function PackagingInspection({
   return (
     <div className="h-screen w-full flex flex-col">
       <Header />
-      {data ? (
-        <div className="flex-1 flex justify-center overflow-y-auto">
-          <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
-            <OpDisplay
-              code={data.opCode}
-              boxesCount={data.totalBoxes}
-              boxesPacked={data.totalBoxes - data.pendingBoxes}
-              itemsCount={data.quantityToProduce}
-              itemsPacked={data.itemsPacked}
-              displayMessage={displayMessage}
-              displayColor={displayColor}
-              statusMessage={getStatusName(data?.status) || ""}
-              statusVariant={getStatusVariant(data?.status) || "secondary"}
-              startDate={data?.createdAt || new Date()}
-              endDate={data?.finishedAt}
-            />
-            {!data.finishedAt && (
-              <>
-                <div>
-                  <div className="flex justify-end gap-6 mt-8">
-                    <Button
-                      className="bg-red-700 hover:bg-red-600"
-                      variant={"destructive"}
-                      onClick={() => setOpenForceFinalizationDialog(true)}
-                    >
-                      Finalizar com quebra
-                    </Button>
-                  </div>
-
-                  <div className="mt-2">
-                    <h3 className="font-bold uppercase">Caixa</h3>
-                    <BoxDisplay
-                      name={data.boxType.name}
-                      isTarget={step == 0}
-                      description={data.boxType.description}
-                      displayColor="blue"
-                      statusText={getStatusName(box?.status) || ""}
-                      statusVariant={
-                        getStatusVariant(box?.status) || "secondary"
-                      }
-                    />
-                  </div>
-                  <div className="mt-8 flex-1 overflow-y-auto">
-                    <div className="flex gap-4">
-                      <div>
-                        <strong>Blister:</strong> {data.blisterType.name}
-                      </div>
-                      <div>
-                        <strong>Item:</strong> {data.productType.name}
-                      </div>
-                      <div>
-                        <strong>Quantidade na Caixa:</strong> {quantityInBox}
-                      </div>
-                      <div>
-                        <strong>Quantidade verificada:</strong>{" "}
-                        {checkedQuantity}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-auto">
-                  <BlisterDisplay
-                    blisterName={data.blisterType.name}
-                    itemName={data.productType.name}
-                    blisters={blisters}
-                    targetIndex={targetBlister}
-                  />
-                </div>
-              </>
-            )}
-          </div>
+      {loading ? (
+        <div className="absolute w-full h-full flex justify-center items-center z-10">
+          <Loader2 className="h-24 w-24 animate-spin" />
         </div>
       ) : (
-        <div className="container flex flex-col items-center mt-8 gap-6">
-          <h2 className="text-xl">Falha ao carregar OP!</h2>
-          <Button onClick={() => redirectAction("/")}>Voltar</Button>
-        </div>
+        <>
+          {data ? (
+            <div className="flex-1 flex justify-center overflow-y-auto">
+              <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
+                <OpDisplay
+                  code={data.opCode}
+                  boxesCount={data.totalBoxes}
+                  boxesPacked={data.totalBoxes - data.pendingBoxes}
+                  itemsCount={data.quantityToProduce}
+                  itemsPacked={data.itemsPacked}
+                  displayMessage={displayMessage}
+                  displayColor={displayColor}
+                  statusMessage={getStatusName(data?.status) || ""}
+                  statusVariant={getStatusVariant(data?.status) || "secondary"}
+                  startDate={data?.createdAt || new Date()}
+                  endDate={data?.finishedAt}
+                />
+                {!data.finishedAt && (
+                  <>
+                    <div>
+                      <div className="flex justify-end gap-6 mt-8">
+                        <Button
+                          className="bg-red-700 hover:bg-red-600"
+                          variant={"destructive"}
+                          onClick={() => setOpenForceFinalizationDialog(true)}
+                        >
+                          Finalizar com quebra
+                        </Button>
+                      </div>
+
+                      <div className="mt-2">
+                        <h3 className="font-bold uppercase">Caixa</h3>
+                        <BoxDisplay
+                          name={data.boxType.name}
+                          isTarget={step == 0}
+                          description={data.boxType.description}
+                          displayColor="blue"
+                          statusText={getStatusName(box?.status) || ""}
+                          statusVariant={
+                            getStatusVariant(box?.status) || "secondary"
+                          }
+                        />
+                      </div>
+                      <div className="mt-8 flex-1 overflow-y-auto">
+                        <div className="flex gap-4">
+                          <div>
+                            <strong>Blister:</strong> {data.blisterType.name}
+                          </div>
+                          <div>
+                            <strong>Item:</strong> {data.productType.name}
+                          </div>
+                          <div>
+                            <strong>Quantidade na Caixa:</strong>{" "}
+                            {quantityInBox}
+                          </div>
+                          <div>
+                            <strong>Quantidade verificada:</strong>{" "}
+                            {checkedQuantity}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-auto">
+                      <BlisterDisplay
+                        blisterName={data.blisterType.code}
+                        itemName={data.productType.code}
+                        blisters={blisters}
+                        targetIndex={targetBlister}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="container flex flex-col items-center mt-8 gap-6">
+              <h2 className="text-xl">Falha ao carregar OP!</h2>
+              <Button onClick={() => redirectAction("/")}>Voltar</Button>
+            </div>
+          )}
+        </>
       )}
       <ManagerAuthFormDialog
         title={"Autorizar quebra de Caixa"}

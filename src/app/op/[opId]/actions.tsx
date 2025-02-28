@@ -1,8 +1,8 @@
 "use server";
 
-import { getFirstBlisterTypeInNames } from "@/entities/blister-type";
-import { getFirstBoxTypeInNames } from "@/entities/box-type";
-import { getProductTypeFromName } from "@/entities/product-type";
+import { findFirstBlisterTypeInIds } from "@/entities/blister-type";
+import { findFirstBoxTypeInIds } from "@/entities/box-type";
+import { findProductTypeById } from "@/entities/product-type";
 import db from "@/providers/database";
 import { getOpFromId } from "@/shared/services/jerp";
 import { handleError } from "@/shared/utils/errorHandler";
@@ -34,17 +34,21 @@ export async function syncAndGetOpToProduceById(id: string) {
 }
 
 async function createInternalOp(externalOp: OpJerpDto) {
-  const packagingNames = externalOp.embalagens.map((emb) =>
-    emb.nome.toUpperCase()
-  );
+  const productId = externalOp.produto.id;
+  const packagingIds = externalOp.embalagens.map((emb) => emb.id);
 
   const transaction = await db.$transaction([
-    getProductTypeFromName({ name: externalOp.produto.nome }),
-    getFirstBlisterTypeInNames({ names: packagingNames }),
-    getFirstBoxTypeInNames({ names: packagingNames }),
+    findProductTypeById({ id: productId }),
+    findFirstBlisterTypeInIds({ ids: packagingIds }),
+    findFirstBoxTypeInIds({ ids: packagingIds }),
   ]);
 
-  validateReferences(transaction, ["Produto", "Blister", "Caixa"]);
+  referencesIsValid(
+    transaction,
+    ["Produto", "Blister", "Caixa"],
+    productId,
+    packagingIds
+  );
 
   const op = createOpData({
     id: externalOp.id,
@@ -81,18 +85,23 @@ async function createInternalOp(externalOp: OpJerpDto) {
   });
 }
 
-function validateReferences(
+function referencesIsValid(
   transactionResults: [
     productType: ProductType | null,
     blisterType: BlisterType | null,
     boxType: BoxType | null
   ],
-  refNames: string[]
+  refNames: string[],
+  productId: number,
+  packagingIds: number[]
 ) {
   const indexNullReference = transactionResults.findIndex((rf) => !rf?.id);
   if (indexNullReference >= 0) {
     throw new Error(
-      `Referência de ${refNames[indexNullReference]} não encontrada.`
+      `Referência de ${refNames[indexNullReference]} não encontrada.
+       Produto: ${productId}
+       Embalagens: [${packagingIds.join(",")}] 
+      `
     );
   }
 }

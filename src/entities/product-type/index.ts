@@ -1,1 +1,1 @@
-export { getProductTypeFromName } from './api/get-product-type-from-name';
+export * from './api/find-product-type-by-id';

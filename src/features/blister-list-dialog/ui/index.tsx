@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { OpBox, OpBoxBlister } from "@prisma/client";
+import PrintTagDialog from "@/features/print-tag-dialog/ui";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getOpBoxWithBlistersById } from "../actions";
-import Image from "next/image";
 
 const ImageModal = ({
   imageSrc,
@@ -49,12 +50,17 @@ const BlisterListDialog = ({
   opCode,
   onOpenChange,
 }: BlisterListDialogProps) => {
-  const [data, setData] = useState<OpBox & { OpBoxBlister: OpBoxBlister[] }>();
+  const [data, setData] = useState<any>();
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
+  const [reprintOpen, setReprintOpen] = useState(false);
+  const [boxQuantity, setBoxQuantity] = useState(0);
 
   const loadData = async () => {
     const opData = await getOpBoxWithBlistersById(activeKey);
+    const qtd =
+      opData?.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0) || 0;
+    setBoxQuantity(qtd);
     opData && setData(opData);
   };
 
@@ -71,12 +77,11 @@ const BlisterListDialog = ({
   };
 
   const formatDateISO = (date: Date) => {
-    if (date) {
-      const isoString = date.toISOString();
-      const formattedDate = isoString.split("T")[0];
-      return formattedDate;
-    }
-    return "";
+    // Convert the date to ISO string
+    const isoString = date.toISOString();
+    // Split at the "T" character to get the date part
+    const formattedDate = isoString.split("T")[0];
+    return formattedDate;
   };
 
   return (
@@ -87,44 +92,66 @@ const BlisterListDialog = ({
             <DialogTitle>Caixa</DialogTitle>
             <DialogDescription>
               Código: <strong>{data?.code}</strong>
+              {data?.packedAt && (
+                <Button className="ml-2" onClick={() => setReprintOpen(true)}>
+                  Reimprimir
+                </Button>
+              )}
             </DialogDescription>
           </DialogHeader>
           {data && (
-            <Table>
-              <TableHeader>
-                <TableRow className="h-8">
-                  <TableHead className="w-[50%]">Imagem</TableHead>
-                  <TableHead className="w-[50%]">Blister</TableHead>
-                  <TableHead className="w-[50%]">Quantidade</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.OpBoxBlister.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Image
-                        width={100}
-                        height={50}
-                        src={`/api/images/OP_${opCode}_BOX_${data.code}_BL_${
-                          item.code
-                        }.jpg?path=${formatDateISO(data.packedAt!)}`}
-                        alt="GDE"
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleImageClick(
-                            `/api/images/OP_${opCode}_BOX_${data.code}_BL_${
-                              item.code
-                            }.jpg?path=${formatDateISO(data.packedAt!)}`
-                          )
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow className="h-8">
+                    <TableHead className="w-[50%]">Imagem</TableHead>
+                    <TableHead className="w-[50%]">Blister</TableHead>
+                    <TableHead className="w-[50%]">Quantidade</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data.OpBoxBlister.map((item: any, index: number) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        {data.packedAt && (
+                          <Image
+                            width={100}
+                            height={50}
+                            src={`/api/images/OP_${opCode}_BOX_${
+                              data.code
+                            }_BL_${item.code}.jpg?path=${formatDateISO(
+                              data.packedAt!
+                            )}`}
+                            alt="GDE"
+                            className="cursor-pointer"
+                            onClick={() =>
+                              handleImageClick(
+                                `/api/images/OP_${opCode}_BOX_${data.code}_BL_${
+                                  item.code
+                                }.jpg?path=${formatDateISO(data.packedAt!)}`
+                              )
+                            }
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <PrintTagDialog
+                isOpen={reprintOpen}
+                onOpenChange={setReprintOpen}
+                batchCode={data.op.code}
+                itemDescription={data.op.product.description}
+                itemName={data.op.product.code}
+                printConfig={{
+                  quantity: boxQuantity,
+                  barcode: data.code,
+                }}
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>

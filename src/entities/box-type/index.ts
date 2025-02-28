@@ -1,1 +1,1 @@
-export { getFirstBoxTypeInNames } from "./api/get-first-box-type-in-names"
+export * from "./api/find-first-box-type-in-ids"

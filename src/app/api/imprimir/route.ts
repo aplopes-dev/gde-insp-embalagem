@@ -35,12 +35,13 @@ body{
 }
 
 .title {
+  font-size: 20px;
   text-transform: uppercase;
   font-weight: bold;
 }
 
 .description {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .batch {
@@ -66,6 +67,13 @@ body{
   text-transform: uppercase;
   font-size: 18px;
   font-weight: bold;
+}
+
+.no-warp-line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>`
 

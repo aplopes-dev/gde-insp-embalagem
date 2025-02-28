@@ -21,7 +21,6 @@ export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined
     const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
       headers: getJerpHeaders(),
     });
-    logger.info({ message: "OP recuperada com sucesso", code: response.data.numero });
     return response.data as OpJerpDto;
   } catch (error) {
     handleError(error, `Falha ao obter OP para o código: ${code}`);
@@ -33,24 +32,25 @@ export async function getOpFromId(id: string): Promise<OpJerpDto | undefined> {
     const response = await axios.get(`${JERP_API}/ordemproducaoid/${id}`, {
       headers: getJerpHeaders(),
     });
-    logger.info({ message: "OP recuperada com sucesso", id: response.data.id });
     return response.data as OpJerpDto;
   } catch (error) {
     handleError(error, `Falha ao obter OP para o id: ${id}`);
   }
 }
 
-export async function getBarcodeFromOpId(id: number, opBoxId: number, quantity: number): Promise<PrintTagJerpDto | undefined> {
-  if(!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
-  if(!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
+export async function generateBarcode(id: number, opBoxId: number, quantity: number): Promise<PrintTagJerpDto | undefined> {
+  if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
+  if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
   try {
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,
       { id, quantidadeApontada: quantity },
       { headers: getJerpHeaders() }
     );
-    await saveTagId(opBoxId, response.data.idBarras)
-    logger.info({ message: "Código de barras gerado e associado a caixa da OP", id, quantity, barcode: response.data.idBarras });
+    await saveTagId(opBoxId, `${response.data.idBarras}`)
+    if (quantity != response.data.quantidadeApontada) {
+      logger.alert({ message: "Quantidade apontada diferente da solicitada", responseBody: response.data })
+    }
     return response.data;
   } catch (error) {
     handleError(error, `Falha ao obter código de barras para OP: ${id}`);

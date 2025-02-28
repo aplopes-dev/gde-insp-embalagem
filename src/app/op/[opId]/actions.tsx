@@ -8,6 +8,7 @@ import { getOpFromId } from "@/shared/services/jerp";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
+import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
 import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";
 import {
@@ -18,16 +19,14 @@ import {
 
 export async function syncAndGetOpToProduceById(id: string) {
   const externalOp = await getOpFromId(id);
-  if (!externalOp) {
-    throw new Error(`OP ${id} não encontrada na API externa.`);
-  }
+  validateOpJerpToProduce(externalOp!);
 
   let internalOp = await db.op.findFirst({
-    where: { code: `${externalOp.numero}` },
+    where: { code: `${externalOp!.numero}` },
   });
 
   if (!internalOp) {
-    internalOp = await createInternalOp(externalOp);
+    internalOp = await createInternalOp(externalOp!);
   }
 
   return await fetchOpDetails(internalOp);

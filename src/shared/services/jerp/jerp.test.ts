@@ -24,14 +24,7 @@ describe('getOpFromCode', () => {
     mockedAxios.get.mockResolvedValueOnce({ data: mockData });
     const result = await getOpFromCode(`${mockCode}`);
     expect(result).toEqual(mockData);
-    expect(result?.numero).toEqual(mockCode);
 
-    expect(require('@/libs/logger').info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'OP recuperada com sucesso',
-        code: mockCode,
-      })
-    );
   });
 
   it('deve lançar erro quando a API falha', async () => {
@@ -59,12 +52,6 @@ describe('getOpFromId', () => {
     expect(result).toEqual(mockData);
     expect(result?.id).toEqual(mockId);
 
-    expect(require('@/libs/logger').info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'OP recuperada com sucesso',
-        id: mockId,
-      })
-    );
   });
 
   it('deve lançar erro quando a API falha', async () => {

@@ -103,8 +103,8 @@ export default function PackagingInspection({
           mountInspecionState(opData.nextBox!, opData.blisterCodes);
           const message: string = "AGUARDANDO CAIXA...";
           const color: DisplayColors = "blue";
-          const itemId: string | undefined = data?.boxType.name;
-          const model: string | undefined = data?.productType.name;
+          const itemId: string | undefined = opData?.boxType.name;
+          const model: string | undefined = opData?.productType.name;
           const quantity: number = 1;
           sendValidationMessage({ message, color, itemId, quantity, model });
         }

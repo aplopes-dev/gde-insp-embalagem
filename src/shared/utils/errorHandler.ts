@@ -16,8 +16,8 @@ export function handleError(error: any, message: string) {
   } else {
     logger.error({
       message,
-      error: error.message || error,
-      stack: error.stack || "Sem stack trace",
+      error: error?.message || error,
+      stack: error?.stack || "Sem stack trace",
     });
   }
   throw new Error(message);

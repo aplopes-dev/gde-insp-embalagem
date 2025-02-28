@@ -1,10 +1,11 @@
-"use client"
+"use client";
 
 import Header from "@/components/header";
 import { toast } from "@/components/ui/use-toast";
 import DailyOpList from "@/features/daily-op-list";
 import OpLoadForm from "@/features/op-load-form";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
+import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -13,21 +14,17 @@ export default function Home() {
   function redirectAction(uri: string) {
     router.push(`${uri}`);
   }
- 
-  function opIsValid(op?: OpJerpDto): boolean {
-    if (!op || !op.quantidadeAProduzir || op.quantidadeAProduzir <= 0) {
-      toast({
-        title: "Alerta",
-        description: "Não existem itens pendentes para embalagem",
-      });
-      return false;
-    }
-    return true;
-  }
 
   function handleOpLoad(data: OpJerpDto) {
-    if (opIsValid(data)) {
+    try {
+      validateOpJerpToProduce(data);
       redirectAction(`/op/${data.id}`);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao Validar OP JERP",
+        description: error?.message || error,
+        variant: "warning"
+      });
     }
   }
 

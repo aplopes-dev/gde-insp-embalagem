@@ -477,23 +477,41 @@ export default function PackagingInspection({
         itemId: "TAG",
       });
 
-      const tagDataReq = await generateBarcode(
-        data!.opId,
-        box!.id,
-        productQuantity
-      );
-      if (tagDataReq.isRight()) {
-        const tagData = tagDataReq.get();
-        setQuantityToPrint(tagData!.quantidadeApontada);
-        setBarcodeToPrint(tagData!.idBarras);
-        setOpenPrintTagDialog(true);
-      } else {
+      try {
+        const response = await fetch("/api/op-jerp/barcode", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            opId: data!.opId,
+            boxId: box!.id,
+            quantity: productQuantity,
+          }),
+        });
+  
+        if (!response.ok) {
+          const { error, errorData } = await response.json();
+          toast({
+            title: error,
+            description: errorData,
+            variant: "destructive",
+          });
+        } else {
+          const tagData = await response.json();
+          setQuantityToPrint(tagData!.quantidadeApontada);
+          setBarcodeToPrint(tagData!.idBarras);
+          setOpenPrintTagDialog(true);
+        }
+      } catch (error) {
         toast({
-          title: "Falha ao gerar etiqueta!",
-          description: tagDataReq.getLeft().error,
+          title: "Erro",
+          description: "Falha ao gerar etiqueta!",
           variant: "destructive",
         });
       }
+
+
     }, 2000);
   }
 

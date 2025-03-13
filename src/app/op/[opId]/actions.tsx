@@ -10,7 +10,14 @@ import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
-import { BlisterType, BoxType, Op, ProductType } from "@prisma/client";
+import {
+  BlisterType,
+  BoxType,
+  Op,
+  OpBoxStatus,
+  OpStatus,
+  ProductType,
+} from "@prisma/client";
 import {
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
@@ -18,18 +25,23 @@ import {
 } from "../../../types/op-box-inspection-dto";
 
 export async function syncAndGetOpToProduceById(id: string) {
-  const externalOp = await getOpFromId(id);
-  validateOpJerpToProduce(externalOp!);
+  const externalOpRed = await getOpFromId(id);
+  if (externalOpRed.isRight()) {
+    const externalOp = externalOpRed.get();
+    validateOpJerpToProduce(externalOp!);
 
-  let internalOp = await db.op.findFirst({
-    where: { code: `${externalOp!.numero}` },
-  });
+    let internalOp = await db.op.findFirst({
+      where: { code: `${externalOp!.numero}` },
+    });
 
-  if (!internalOp) {
-    internalOp = await createInternalOp(externalOp!);
+    if (!internalOp) {
+      internalOp = await createInternalOp(externalOp!);
+    }
+
+    return await fetchOpDetails(internalOp);
+  } else {
+    throw Error(externalOpRed.getLeft().error);
   }
-
-  return await fetchOpDetails(internalOp);
 }
 
 async function createInternalOp(externalOp: OpJerpDto) {
@@ -179,7 +191,7 @@ export async function persistBoxStatusWithBlisters(
     db.opBox.update({
       data: {
         packedAt: new Date(),
-        status: status,
+        status: OpBoxStatus.PACKAGED,
       },
       where: {
         id,
@@ -192,7 +204,7 @@ export async function persistBoxStatusWithBlisters(
       db.op.update({
         data: {
           finishedAt: new Date(),
-          status: 1,
+          status: OpStatus.COMPLETED,
         },
         where: {
           id: opId,
@@ -244,7 +256,7 @@ export async function persistWithOpBreak(
     db.opBox.update({
       data: {
         packedAt: new Date(),
-        status: 2,
+        status: OpBoxStatus.PACKAGED_W_BREAK,
         breakAuthorizerId: managerId,
       },
       where: {
@@ -342,7 +354,6 @@ export async function recalculateBoxesFromOpAndItemQuantity(
           };
         }),
       },
-      status: 2,
     },
     where: {
       id: opId,

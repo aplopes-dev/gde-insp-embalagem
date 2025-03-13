@@ -1,7 +1,9 @@
+import { OpStatus } from "@prisma/client";
+
 export type OpDto = {
   id: number;
   code: string;
-  status: number;
+  status: OpStatus;
   quantityToProduce: number;
   productTypeId: number;
   product: OpProductDto;

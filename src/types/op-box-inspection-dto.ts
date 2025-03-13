@@ -1,7 +1,9 @@
+import { OpBoxStatus, OpStatus } from "@prisma/client";
+
 export type OpInspectionDto = {
   opId: number;
   opCode: string;
-  status: number;
+  status: OpStatus;
   quantityToProduce: number;
   productType: ProductTypeDto;
   blisterType: BlisterTypeDto;
@@ -18,7 +20,7 @@ export type OpInspectionDto = {
 export type OpBoxInspectionDto = {
   id: number;
   code: string;
-  status: number;
+  status: OpBoxStatus;
   createdAt: Date;
   packedAt?: Date;
   OpBoxBlister?: OpBoxBlisterInspection[];

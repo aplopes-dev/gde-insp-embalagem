@@ -25,6 +25,7 @@ import {
 } from "@/shared/services/object-inspection";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
+import { OpBoxStatus, OpStatus } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 import {
   OpBoxBlisterInspection,
@@ -270,9 +271,7 @@ export default function PackagingInspection({
           message = "BLISTER VÁLIDO";
           color = "green";
           quantity = blisters[targetBlister!].quantity;
-          fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${
-            inspection.code
-          }`;
+          fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
           nextObjectValidation(inspection, ObjectTypes.product);
         }
         break;
@@ -308,9 +307,7 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
         color = "green";
-        fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${
-          inspection.code
-        }_ITEMS`;
+        fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}_ITEMS`;
         verifyNextBlisterOrFinalize(inspection);
         break;
     }
@@ -371,7 +368,7 @@ export default function PackagingInspection({
         box &&
           setBox({
             ...box,
-            status: 1,
+            status: OpBoxStatus.COMPLETED,
           });
         break;
       case ObjectTypes.product:
@@ -480,20 +477,21 @@ export default function PackagingInspection({
         itemId: "TAG",
       });
 
-      try {
-        const tagData = await generateBarcode(
-          data!.opId,
-          box!.id,
-          productQuantity
-        );
+      const tagDataReq = await generateBarcode(
+        data!.opId,
+        box!.id,
+        productQuantity
+      );
+      if (tagDataReq.isRight()) {
+        const tagData = tagDataReq.get();
         setQuantityToPrint(tagData!.quantidadeApontada);
         setBarcodeToPrint(tagData!.idBarras);
         setOpenPrintTagDialog(true);
-      } catch (error) {
+      } else {
         toast({
-          title: "Erro",
+          title: "Falha ao gerar etiqueta!",
+          description: tagDataReq.getLeft().error,
           variant: "destructive",
-          description: "Falha ao gerar etiqueta!",
         });
       }
     }, 2000);
@@ -505,7 +503,7 @@ export default function PackagingInspection({
   ) {
     const issetPackedBlister = currentBlisters.find((bl) => bl.packedAt);
 
-    if (box?.status != 1 || !issetPackedBlister) {
+    if (box?.status != OpBoxStatus.COMPLETED || !issetPackedBlister) {
       toast({
         title: "Erro",
         variant: "destructive",
@@ -536,25 +534,25 @@ export default function PackagingInspection({
     }
   }
 
-  function getStatusVariant(status?: number) {
+  function getStatusVariant(status?: OpBoxStatus) {
     switch (status) {
-      case 1:
+      case OpStatus.COMPLETED:
         return "success";
-      case 2:
+      case OpStatus.PENDING:
         return "destructive";
       default:
         return "secondary";
     }
   }
 
-  function getStatusName(status?: number) {
+  function getStatusName(status?: OpBoxStatus) {
     switch (status) {
-      case 1:
+      case OpStatus.COMPLETED:
         return "Concluído";
-      case 2:
-        return "Quebra de Caixa";
-      default:
+      case OpStatus.PENDING:
         return "Pendente";
+      default:
+        return "Indefinidos";
     }
   }
 

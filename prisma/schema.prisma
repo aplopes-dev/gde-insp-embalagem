@@ -55,7 +55,7 @@ model Op {
   boxTypeId         Int
   blisterTypeId     Int
   productTypeId     Int
-  status            Int       @default(0)
+  status            OpStatus  @default(PENDING)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   finishedAt        DateTime?
@@ -69,12 +69,12 @@ model Op {
 }
 
 model OpBox {
-  id                 Int       @id @default(autoincrement())
+  id                 Int         @id @default(autoincrement())
   opId               Int
   code               String
   barCode            String?
-  status             Int       @default(0)
-  createdAt          DateTime  @default(now())
+  status             OpBoxStatus @default(PENDING)
+  createdAt          DateTime    @default(now())
   barCodeGeneratedAt DateTime?
   packedAt           DateTime?
   breakAuthorizerId  Int?
@@ -109,3 +109,14 @@ model Manager {
   OpBox OpBox[]
 }
 
+enum OpStatus {
+  PENDING
+  COMPLETED
+}
+
+enum OpBoxStatus {
+  PENDING
+  PACKAGED
+  PACKAGED_W_BREAK
+  COMPLETED
+}

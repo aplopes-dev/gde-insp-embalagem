@@ -24,7 +24,11 @@ describe('getOpFromCode', () => {
 
     mockedAxios.get.mockResolvedValueOnce({ data: mockData });
     const result = await getOpFromCode(`${mockCode}`);
-    expect(result).toEqual(mockData);
+    if (result.isRight()) {
+      const data = result.get()
+      expect(data).toEqual(mockData);
+      expect(data?.numero).toEqual(mockCode);
+    }
 
   });
 
@@ -91,8 +95,11 @@ describe('getOpFromId', () => {
 
     mockedAxios.get.mockResolvedValueOnce({ data: mockData });
     const result = await getOpFromId(`${mockId}`);
-    expect(result).toEqual(mockData);
-    expect(result?.id).toEqual(mockId);
+    if (result.isRight()) {
+      const data = result.get()
+      expect(data).toEqual(mockData);
+      expect(data?.id).toEqual(mockId);
+    }
 
   });
 

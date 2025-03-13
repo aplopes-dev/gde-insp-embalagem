@@ -64,9 +64,6 @@ export async function getPaginatedOp({
   );
 
   const _data: OpDto[] = transaction[1].map((op) => {
-    console.log("status");
-    console.log(op.status);
-    
     return {
       id: op.id,
       code: op.code,

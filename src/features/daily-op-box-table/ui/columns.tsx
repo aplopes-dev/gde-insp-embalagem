@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { OpBoxStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
 import { EyeIcon } from "lucide-react";
 
@@ -12,24 +13,27 @@ export function useBoxOpColumns({
 }): {
   columns: any[];
 } {
-  function getStatusBadge(status: number) {
+  function getStatusBadge(status: OpBoxStatus) {
     let label;
     let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
-      case 1:
+      case OpBoxStatus.COMPLETED:
         label = "Concluído";
         variant = "success";
         break;
-      case 2:
+      case OpBoxStatus.PACKAGED_W_BREAK:
         label = "Quebra de Caixa";
         variant = "destructive";
         break;
-      case 3:
+      case OpBoxStatus.PACKAGED:
         label = "Embalada";
         variant = "warning";
         break;
-      default:
+      case OpBoxStatus.PENDING:
         label = "Pendente";
+        break;
+      default:
+        label = "Indefinido";
     }
     return <Badge variant={variant}>{label}</Badge>;
   }
@@ -93,7 +97,7 @@ export function useBoxOpColumns({
         className: "flex-1 text-right",
       },
       cell: ({ row }) => {
-        const status = row.getValue("status") as number;
+        const status = row.getValue("status") as OpBoxStatus;
         return <div className="flex justify-end">{getStatusBadge(status)}</div>;
       },
     },

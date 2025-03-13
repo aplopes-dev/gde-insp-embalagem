@@ -2,10 +2,11 @@
 
 import { saveTagId } from "@/app/op/[opId]/actions";
 import logger from "@/libs/logger";
-import { handleError } from "@/shared/utils/errorHandler";
+import { ApiResponseError, handleApiResponseError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import axios from "axios";
+import { Either, makeLeft, makeRight } from '@/shared/utils/either';
 
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
@@ -16,29 +17,29 @@ if (!JERP_API || !JERP_TOKEN) {
   throw new Error(errorMessage);
 }
 
-export async function getOpFromCode(code: string): Promise<OpJerpDto | undefined> {
+export async function getOpFromCode(code: string): Promise<Either<ApiResponseError, OpJerpDto>> {
   try {
     const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
       headers: getJerpHeaders(),
     });
-    return response.data as OpJerpDto;
+    return makeRight(response.data);
   } catch (error) {
-    handleError(error, `Falha ao obter OP para o código: ${code}`);
+    return makeLeft(handleApiResponseError(error, `Falha ao obter OP para o código: ${code}`))
   }
 }
 
-export async function getOpFromId(id: string): Promise<OpJerpDto | undefined> {
+export async function getOpFromId(id: string): Promise<Either<ApiResponseError, OpJerpDto>> {
   try {
     const response = await axios.get(`${JERP_API}/ordemproducaoid/${id}`, {
       headers: getJerpHeaders(),
     });
-    return response.data as OpJerpDto;
+    return makeRight(response.data);
   } catch (error) {
-    handleError(error, `Falha ao obter OP para o id: ${id}`);
+    return makeLeft(handleApiResponseError(error, `Falha ao obter OP para o id: ${id}`));
   }
 }
 
-export async function generateBarcode(id: number, opBoxId: number, quantity: number): Promise<PrintTagJerpDto | undefined> {
+export async function generateBarcode(id: number, opBoxId: number, quantity: number): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
@@ -50,10 +51,9 @@ export async function generateBarcode(id: number, opBoxId: number, quantity: num
     );
 
     await saveTagId(opBoxId, `${response.data.idBarras}`);
-    return response.data;
+    return makeRight(response.data);
   } catch (error: any) {
-    handleError(error, `Falha ao obter código de barras para OP: ${id}`);
-    return undefined
+    return makeLeft(handleApiResponseError(error, `Falha ao obter código de barras para OP: ${id}`));
   }
 }
 

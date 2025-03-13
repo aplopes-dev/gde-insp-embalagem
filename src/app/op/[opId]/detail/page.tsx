@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import BlisterListDialog from "@/features/blister-list-dialog";
 import DailyOpBoxTable from "@/features/daily-op-box-table";
 import { OpDto } from "@/types/op-dto";
+import { OpStatus } from "@prisma/client";
 import { useEffect, useState } from "react";
 import { getOpByCode } from "../actions";
 
@@ -34,24 +35,20 @@ const BoxPage = ({
     loadData();
   }, []);
 
-  function getStatusVariant(status?: number) {
+  function getStatusVariant(status?: OpStatus) {
     switch (status) {
-      case 1:
+      case OpStatus.COMPLETED:
         return "success";
-      case 2:
-        return "destructive";
-      default:
+      case OpStatus.PENDING:
         return "secondary";
     }
   }
 
-  function getStatusName(status?: number) {
+  function getStatusName(status?: OpStatus) {
     switch (status) {
-      case 1:
+      case OpStatus.COMPLETED:
         return "Concluído";
-      case 2:
-        return "Quebra de OP";
-      default:
+      case OpStatus.PENDING:
         return "Pendente";
     }
   }
@@ -116,10 +113,7 @@ const BoxPage = ({
                 </div>
               </div>
             </div>
-            <DailyOpBoxTable
-              opId={data.id}
-              onClickView={onCLickView}
-            />
+            <DailyOpBoxTable opId={data.id} onClickView={onCLickView} />
             <BlisterListDialog
               opCode={code}
               activeKey={activeKey}

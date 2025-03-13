@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
-import { CheckIcon, EyeIcon, XIcon } from "lucide-react";
+import { EyeIcon } from "lucide-react";
 
 export function useBoxOpColumns({
   onCLickView,
@@ -13,8 +13,8 @@ export function useBoxOpColumns({
   columns: any[];
 } {
   function getStatusBadge(status: number) {
-    let label = "Pendente";
-    let variant: "default" | "success" | "destructive" = "default";
+    let label;
+    let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
       case 1:
         label = "Concluído";
@@ -24,6 +24,12 @@ export function useBoxOpColumns({
         label = "Quebra de Caixa";
         variant = "destructive";
         break;
+      case 3:
+        label = "Embalada";
+        variant = "warning";
+        break;
+      default:
+        label = "Pendente";
     }
     return <Badge variant={variant}>{label}</Badge>;
   }

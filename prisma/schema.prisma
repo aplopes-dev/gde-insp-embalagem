@@ -16,12 +16,12 @@ datasource db {
 model BoxType {
   id          Int      @id
   name        String
-  code        String   @unique 
+  code        String   @unique
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  Op          Op[]
+  Op Op[]
 }
 
 model BlisterType {
@@ -35,7 +35,7 @@ model BlisterType {
   boxTypeId   Int
   limitPerBox Int
 
-  Op  Op[]
+  Op Op[]
 }
 
 model ProductType {
@@ -69,13 +69,15 @@ model Op {
 }
 
 model OpBox {
-  id                Int       @id @default(autoincrement())
-  opId              Int
-  code              String
-  status            Int       @default(0)
-  createdAt         DateTime  @default(now())
-  packedAt          DateTime?
-  breakAuthorizerId Int?
+  id                 Int       @id @default(autoincrement())
+  opId               Int
+  code               String
+  barCode            String?
+  status             Int       @default(0)
+  createdAt          DateTime  @default(now())
+  barCodeGeneratedAt DateTime?
+  packedAt           DateTime?
+  breakAuthorizerId  Int?
 
   op              Op       @relation(fields: [opId], references: [id], onDelete: Cascade)
   breakAuthorizer Manager? @relation(fields: [breakAuthorizerId], references: [id])
@@ -85,7 +87,7 @@ model OpBox {
 
 model OpBoxBlister {
   id       Int       @id @default(autoincrement())
-  code     String 
+  code     String
   opBoxId  Int
   quantity Int       @default(0)
   packedAt DateTime?
@@ -106,3 +108,4 @@ model Manager {
 
   OpBox OpBox[]
 }
+

@@ -385,7 +385,8 @@ export async function saveTagId(opBoxId: number, barCode: string) {
   try {
     await db.opBox.update({
       data: {
-        code: barCode,
+        barCode,
+        barCodeGeneratedAt: new Date(),
       },
       where: {
         id: opBoxId,

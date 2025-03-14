@@ -118,5 +118,4 @@ enum OpBoxStatus {
   PENDING
   PACKAGED
   PACKAGED_W_BREAK
-  COMPLETED
 }

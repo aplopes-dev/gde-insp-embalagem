@@ -18,21 +18,22 @@ import { useEffect, useState } from "react";
 
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
-import { generateBarcode } from "@/shared/services/jerp";
 import {
   InspectionEnum,
   objectInspection,
 } from "@/shared/services/object-inspection";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
-import { OpBoxStatus, OpStatus } from "@prisma/client";
+import { OpStatus } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 import {
+  InspectionStatus,
   OpBoxBlisterInspection,
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
 import {
+  opCompletionNowHandler,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
   syncAndGetOpToProduceById,
@@ -148,7 +149,10 @@ export default function PackagingInspection({
     setQuantityInBox(itemQuantity);
     setCheckedQuantity(checkQuantity);
     setActiveObjectType("box");
-    setBox(boxData);
+    setBox({
+      ...boxData,
+      status: InspectionStatus.PENDING,
+    });
   }
 
   function handleDetectionUpdate(data: DetectionDto) {
@@ -368,7 +372,7 @@ export default function PackagingInspection({
         box &&
           setBox({
             ...box,
-            status: OpBoxStatus.COMPLETED,
+            status: InspectionStatus.VALID,
           });
         break;
       case ObjectTypes.product:
@@ -441,17 +445,13 @@ export default function PackagingInspection({
     currentBlisters: OpBoxBlisterInspection[]
   ) {
     if (box) {
-      await persistBoxStatusWithBlisters(
-        box,
-        currentBlisters,
-        data!.opId,
-        data?.pendingBoxes == 1
-      )
+      await persistBoxStatusWithBlisters(box.id, currentBlisters)
         .then((_) => {
           toast({
             title: "Sucesso",
             description: "Inspeção de caixa finalizada com sucesso!",
           });
+          printTag(currentBlisters);
         })
         .catch((err) => {
           toast({
@@ -460,9 +460,18 @@ export default function PackagingInspection({
             variant: "destructive",
           });
         });
-      await printTag(currentBlisters);
     }
   }
+
+  const handleCheckOpCompletion = async () => {
+    const opCompletion = await opCompletionNowHandler(data!.opId);
+    if (opCompletion) {
+      sendValidationMessage({
+        message: "OP FINALIZADA COM SUCESSO!",
+        color: "green",
+      });
+    }
+  };
 
   function printTag(currentBlisters: OpBoxBlisterInspection[]) {
     setTimeout(async () => {
@@ -489,7 +498,7 @@ export default function PackagingInspection({
             quantity: productQuantity,
           }),
         });
-  
+
         if (!response.ok) {
           const { error, errorData } = await response.json();
           toast({
@@ -502,6 +511,7 @@ export default function PackagingInspection({
           setQuantityToPrint(tagData!.quantidadeApontada);
           setBarcodeToPrint(tagData!.idBarras);
           setOpenPrintTagDialog(true);
+          handleCheckOpCompletion();
         }
       } catch (error) {
         toast({
@@ -510,8 +520,6 @@ export default function PackagingInspection({
           variant: "destructive",
         });
       }
-
-
     }, 2000);
   }
 
@@ -521,7 +529,7 @@ export default function PackagingInspection({
   ) {
     const issetPackedBlister = currentBlisters.find((bl) => bl.packedAt);
 
-    if (box?.status != OpBoxStatus.COMPLETED || !issetPackedBlister) {
+    if (box?.status != InspectionStatus.VALID || !issetPackedBlister) {
       toast({
         title: "Erro",
         variant: "destructive",
@@ -552,7 +560,7 @@ export default function PackagingInspection({
     }
   }
 
-  function getStatusVariant(status?: OpBoxStatus) {
+  function getStatusVariant(status?: OpStatus) {
     switch (status) {
       case OpStatus.COMPLETED:
         return "success";
@@ -563,7 +571,7 @@ export default function PackagingInspection({
     }
   }
 
-  function getStatusName(status?: OpBoxStatus) {
+  function getStatusName(status?: OpStatus) {
     switch (status) {
       case OpStatus.COMPLETED:
         return "Concluído";
@@ -660,11 +668,7 @@ export default function PackagingInspection({
                           name={data.boxType.name}
                           isTarget={step == 0}
                           description={data.boxType.description}
-                          displayColor="blue"
-                          statusText={getStatusName(box?.status) || ""}
-                          statusVariant={
-                            getStatusVariant(box?.status) || "secondary"
-                          }
+                          status={box?.status}
                         />
                       </div>
                       <div className="mt-8 flex-1 overflow-y-auto">

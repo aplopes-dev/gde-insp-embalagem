@@ -167,13 +167,9 @@ async function fetchOpDetails(internalOp: Op) {
 }
 
 export async function persistBoxStatusWithBlisters(
-  boxDto: OpBoxInspectionDto,
-  blisters: OpBoxBlisterInspection[],
-  opId: number,
-  finalizeOp: boolean
+  opBoxId: number,
+  blisters: OpBoxBlisterInspection[]
 ) {
-  const { id, status } = boxDto;
-
   const queryCollection: any[] = blisters.map((bl) =>
     db.opBoxBlister.update({
       data: {
@@ -182,7 +178,7 @@ export async function persistBoxStatusWithBlisters(
       },
       where: {
         id: bl.id,
-        opBoxId: id,
+        opBoxId,
       },
     })
   );
@@ -194,24 +190,10 @@ export async function persistBoxStatusWithBlisters(
         status: OpBoxStatus.PACKAGED,
       },
       where: {
-        id,
+        id: opBoxId,
       },
     })
   );
-
-  if (finalizeOp) {
-    queryCollection.push(
-      db.op.update({
-        data: {
-          finishedAt: new Date(),
-          status: OpStatus.COMPLETED,
-        },
-        where: {
-          id: opId,
-        },
-      })
-    );
-  }
 
   await db.$transaction(queryCollection);
 }
@@ -406,4 +388,34 @@ export async function saveTagId(opBoxId: number, barCode: string) {
   } catch (error) {
     console.log(error);
   }
+}
+
+export async function opCompletionNowHandler(opId: number) {
+  const opWithBoxes = await db.op.findUnique({
+    where: { id: opId },
+    include: {
+      OpBox: true,
+    },
+  });
+
+  if (opWithBoxes && !opWithBoxes?.finishedAt) {
+    const allBoxesCompleted = opWithBoxes.OpBox.every(
+      (box) => box.packedAt !== null && box.barCodeGeneratedAt !== null
+    );
+
+    if (allBoxesCompleted) {
+      const finishedNow = await db.op.update({
+        where: {
+          id: opId,
+        },
+        data: {
+          finishedAt: new Date(),
+          status: OpStatus.COMPLETED
+        },
+      });
+
+      return !!finishedNow;
+    }
+  }
+  return false;
 }

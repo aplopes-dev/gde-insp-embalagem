@@ -8,14 +8,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/shared/utils/tw-merge";
-import { OpBoxBlisterInspection } from "@/types/op-box-inspection-dto";
+import { InspectionStatus, OpBoxBlisterInspection } from "@/types/op-box-inspection-dto";
 
 function getStatusColor(status?: number) {
   switch (status) {
-    case 1:
+    case InspectionStatus.VALID:
       return "green";
-    case 2:
-      return "red";
     default:
       return "gray";
   }
@@ -23,16 +21,16 @@ function getStatusColor(status?: number) {
 
 function getStatusVariant(status?: number) {
   switch (status) {
-    case 1:
+    case InspectionStatus.VALID:
       return "success";
     default:
       return "secondary";
   }
 }
 
-function getStatusName(status?: number) {
+function getStatusName(status?: InspectionStatus) {
   switch (status) {
-    case 1:
+    case InspectionStatus.VALID:
       return "Aprovado";
     default:
       return "Pendente";

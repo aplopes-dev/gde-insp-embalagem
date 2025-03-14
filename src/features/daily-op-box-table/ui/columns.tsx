@@ -13,14 +13,11 @@ export function useBoxOpColumns({
 }): {
   columns: any[];
 } {
-  function getStatusBadge(status: OpBoxStatus) {
+  
+  function getOpBoxStatusBadge(status: OpBoxStatus) {
     let label;
     let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
-      case OpBoxStatus.COMPLETED:
-        label = "Concluído";
-        variant = "success";
-        break;
       case OpBoxStatus.PACKAGED_W_BREAK:
         label = "Quebra de Caixa";
         variant = "destructive";
@@ -98,7 +95,7 @@ export function useBoxOpColumns({
       },
       cell: ({ row }) => {
         const status = row.getValue("status") as OpBoxStatus;
-        return <div className="flex justify-end">{getStatusBadge(status)}</div>;
+        return <div className="flex justify-end">{getOpBoxStatusBadge(status)}</div>;
       },
     },
   ] as ColumnDef<any>[];

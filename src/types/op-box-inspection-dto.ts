@@ -20,7 +20,7 @@ export type OpInspectionDto = {
 export type OpBoxInspectionDto = {
   id: number;
   code: string;
-  status: OpBoxStatus;
+  status: InspectionStatus;
   createdAt: Date;
   packedAt?: Date;
   OpBoxBlister?: OpBoxBlisterInspection[];
@@ -58,3 +58,8 @@ export type BoxTypeDto = {
   name: string;
   description: string;
 };
+
+export enum InspectionStatus {
+  PENDING,
+  VALID
+}

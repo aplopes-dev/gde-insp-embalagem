@@ -2,6 +2,7 @@
 
 import { DataTableCommonActions } from "@/components/data-table/components/data-table-common-actions";
 import { Badge } from "@/components/ui/badge";
+import { OpStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -13,26 +14,25 @@ export function useBoxOpColumns(): { columns: any[] } {
     router.push(`${resourcePath}${uri}`);
   }
 
-  function getStatusVariant(status?: number) {
+  function getOpBoxStatusBadge(status: OpStatus) {
+    let label;
+    let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
-      case 1:
-        return "success";
-      case 2:
-        return "destructive";
+      // case OpBoxStatus.PACKAGED_W_BREAK:
+      //   label = "Quebra de Caixa";
+      //   variant = "destructive";
+      //   break;
+      case OpStatus.COMPLETED:
+        label = "Concluído";
+        variant = "success";
+        break;
+      case OpStatus.PENDING:
+        label = "Pendente";
+        break;
       default:
-        return "secondary";
+        label = "Indefinido";
     }
-  }
-
-  function getStatusName(status?: number) {
-    switch (status) {
-      case 1:
-        return "Concluído";
-      case 2:
-        return "Quebra de OP";
-      default:
-        return "Pendente";
-    }
+    return <Badge variant={variant}>{label}</Badge>;
   }
 
   const columns = [
@@ -117,13 +117,9 @@ export function useBoxOpColumns(): { columns: any[] } {
         className: "flex-1 text-right",
       },
       cell: ({ row }) => {
-        const status = Number(row.getValue("status"));
+        const status = row.getValue("status") as OpStatus;
         return (
-          <div className="flex justify-end">
-            <Badge variant={getStatusVariant(status)}>
-              {getStatusName(status)}
-            </Badge>
-          </div>
+          <div className="flex justify-end">{getOpBoxStatusBadge(status)}</div>
         );
       },
     },

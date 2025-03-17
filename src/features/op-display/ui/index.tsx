@@ -8,7 +8,7 @@ type OpDisplayProps = {
   itemsPacked: number;
   itemsCount: number;
   statusMessage: string;
-  statusVariant: "secondary" | "warning" | "destructive" | "success";
+  statusVariant: "secondary" | "warning" | "destructive" | "success" | "default";
   displayMessage: string;
   displayColor: "blue" | "red" | "green" | "black";
   startDate: Date;
@@ -51,7 +51,7 @@ const OpDisplay = ({
       <div
         className={cn(
           "text-white font-bold text-lg lg:text-2xl flex-auto w-full md:w-auto h-16 md:h-28 flex justify-center items-center order-last md:order-none mt-6 md:mt-0 bg-blue-600",
-          "bg-" + displayColor + "-600"
+          displayColor ? `bg-${displayColor}-600` : "bg-blue-600"
         )}
       >
         {displayMessage}

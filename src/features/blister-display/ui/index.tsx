@@ -24,7 +24,7 @@ function getStatusVariant(status?: number) {
     case InspectionStatus.VALID:
       return "success";
     default:
-      return "secondary";
+      return "default";
   }
 }
 

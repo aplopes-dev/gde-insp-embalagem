@@ -5,6 +5,9 @@ export function validateOpJerpToProduce(op: OpJerpDto) {
 
   const { embalagens, produto, id, numero, quantidadeAProduzir } = op
 
+  console.log("PASSOU");
+  
+
   if (!id) throw new Error("O ID da OP é obrigatório")
   if (!numero) throw new Error("O numero da OP é obrigatório")
   if (!produto?.id) throw new Error("O ID do produto é obrigatório")

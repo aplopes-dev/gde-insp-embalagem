@@ -45,6 +45,9 @@ export async function getPaginatedBoxOp({
   ]);
 
   const _data: OpBoxDto[] = transaction[1].map((item) => {
+    console.log("item");
+    console.log(item);
+    
     return {
       id: item.id,
       code: item.code,
@@ -52,6 +55,8 @@ export async function getPaginatedBoxOp({
       productName: item.op.product.name,
       opCode: item.op.code,
       packedAt: item.packedAt || undefined,
+      barCode: item.barCode || undefined,
+      barCodeGeneratedAt: item.barCodeGeneratedAt || undefined,
       createdAt: item.createdAt,
       status: item.status,
       quantity: item.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0),

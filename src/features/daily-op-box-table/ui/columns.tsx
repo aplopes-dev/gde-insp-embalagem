@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OpBoxStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
-import { EyeIcon } from "lucide-react";
+import { Barcode, EyeIcon } from "lucide-react";
 
 export function useBoxOpColumns({
   onCLickView,
@@ -13,18 +13,17 @@ export function useBoxOpColumns({
 }): {
   columns: any[];
 } {
-  
   function getOpBoxStatusBadge(status: OpBoxStatus) {
     let label;
     let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
       case OpBoxStatus.PACKAGED_W_BREAK:
         label = "Quebra de Caixa";
-        variant = "destructive";
+        variant = "warning";
         break;
       case OpBoxStatus.PACKAGED:
         label = "Embalada";
-        variant = "warning";
+        variant = "success";
         break;
       case OpBoxStatus.PENDING:
         label = "Pendente";
@@ -87,6 +86,37 @@ export function useBoxOpColumns({
       },
     },
     {
+      id: "barCodeGeneratedAt",
+      header: "Cod. Etiqueta",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const barCodeGeneratedAt = row.getValue("barCodeGeneratedAt");
+        const barCode = row?.original?.barCode || undefined;
+        const status = row.getValue("status") as OpBoxStatus;
+
+        const formatted = barCodeGeneratedAt
+          ? new Date(`${barCodeGeneratedAt}`).toLocaleDateString("pt-BR", {
+              day: "numeric",
+              month: "numeric",
+              year: "numeric",
+            })
+          : "";
+
+        return (
+          <div className="font-medium">
+            {barCode ? (
+              <div className="flex gap-1 items-center" title={barCode}>
+                <Barcode />
+                <span className="ml-1">{formatted}</span>
+              </div>
+            ) : (
+              <Badge variant={"default"}>Pendente</Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       id: "status",
       header: "Status",
       enableSorting: false,
@@ -95,7 +125,9 @@ export function useBoxOpColumns({
       },
       cell: ({ row }) => {
         const status = row.getValue("status") as OpBoxStatus;
-        return <div className="flex justify-end">{getOpBoxStatusBadge(status)}</div>;
+        return (
+          <div className="flex justify-end">{getOpBoxStatusBadge(status)}</div>
+        );
       },
     },
   ] as ColumnDef<any>[];

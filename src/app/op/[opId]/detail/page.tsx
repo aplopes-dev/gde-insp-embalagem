@@ -40,7 +40,8 @@ const BoxPage = ({
       case OpStatus.COMPLETED:
         return "success";
       case OpStatus.PENDING:
-        return "secondary";
+        return "default";
+
     }
   }
 

@@ -146,3 +146,16 @@
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--primary) / 0.7) hsl(var(--muted));
 }
+
+.bg-red-600 {
+  background-color: #dc2626;
+}
+.bg-blue-600 {
+  background-color: #0e66e9;
+}
+.bg-green-600 {
+  background-color: #2fad08;
+}
+.bg-black-600 {
+  background-color: #111827;
+}

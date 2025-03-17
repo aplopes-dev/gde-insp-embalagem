@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import PrintTagDialog from "@/features/print-tag-dialog/ui";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getOpBoxWithBlistersById } from "../actions";
@@ -53,14 +51,9 @@ const BlisterListDialog = ({
   const [data, setData] = useState<any>();
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
-  const [reprintOpen, setReprintOpen] = useState(false);
-  const [boxQuantity, setBoxQuantity] = useState(0);
 
   const loadData = async () => {
     const opData = await getOpBoxWithBlistersById(activeKey);
-    const qtd =
-      opData?.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0) || 0;
-    setBoxQuantity(qtd);
     opData && setData(opData);
   };
 
@@ -92,11 +85,6 @@ const BlisterListDialog = ({
             <DialogTitle>Caixa</DialogTitle>
             <DialogDescription>
               Código: <strong>{data?.code}</strong>
-              {data?.packedAt && (
-                <Button className="ml-2" onClick={() => setReprintOpen(true)}>
-                  Reimprimir
-                </Button>
-              )}
             </DialogDescription>
           </DialogHeader>
           {data && (
@@ -140,17 +128,6 @@ const BlisterListDialog = ({
                   ))}
                 </TableBody>
               </Table>
-              <PrintTagDialog
-                isOpen={reprintOpen}
-                onOpenChange={setReprintOpen}
-                batchCode={data.op.code}
-                itemDescription={data.op.product.description}
-                itemName={data.op.product.code}
-                printConfig={{
-                  quantity: boxQuantity,
-                  barcode: data.code,
-                }}
-              />
             </>
           )}
         </DialogContent>

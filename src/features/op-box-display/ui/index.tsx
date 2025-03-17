@@ -16,7 +16,7 @@ const BoxInspectionDisplay = ({
 }) => {
   function getOpBoxStatusBadge(status: InspectionStatus) {
     let label;
-    let variant: "secondary" | "success" = "secondary";
+    let variant: "default" | "success" = "default";
     switch (status) {
       case InspectionStatus.VALID:
         label = "Validado";
@@ -26,11 +26,9 @@ const BoxInspectionDisplay = ({
         label = "Pendente";
         break;
     }
-    console.log("status");
-    console.log(status);
 
     return (
-      <Badge className="xl:p-2" variant={variant}>
+      <Badge variant={variant}>
         {label}
       </Badge>
     );
@@ -48,8 +46,10 @@ const BoxInspectionDisplay = ({
           <strong>{name}</strong>
           <span>{description}</span>
         </div>
-        {(status || status === InspectionStatus.PENDING) &&
-          getOpBoxStatusBadge(status)}
+        <div>
+          {(status || status === InspectionStatus.PENDING) &&
+            getOpBoxStatusBadge(status)}
+        </div>
       </CardContent>
     </Card>
   );

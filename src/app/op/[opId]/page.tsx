@@ -564,10 +564,8 @@ export default function PackagingInspection({
     switch (status) {
       case OpStatus.COMPLETED:
         return "success";
-      case OpStatus.PENDING:
-        return "destructive";
       default:
-        return "secondary";
+        return "default";
     }
   }
 
@@ -645,7 +643,7 @@ export default function PackagingInspection({
                   displayMessage={displayMessage}
                   displayColor={displayColor}
                   statusMessage={getStatusName(data?.status) || ""}
-                  statusVariant={getStatusVariant(data?.status) || "secondary"}
+                  statusVariant={getStatusVariant(data?.status) || "default"}
                   startDate={data?.createdAt || new Date()}
                   endDate={data?.finishedAt}
                 />

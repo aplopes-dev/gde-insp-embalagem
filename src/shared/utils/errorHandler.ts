@@ -37,6 +37,6 @@ export function handleApiResponseError(error: any, message: string, status: numb
   return {
     status,
     error: message,
-    ...isAxiosError && { status: error.response?.status, errorData: error.response?.data }
+    ...isAxiosError && { status: error.response?.status || status, errorData: error.response?.data }
   } as ApiResponseError
 }

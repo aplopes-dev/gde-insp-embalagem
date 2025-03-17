@@ -2,16 +2,18 @@
 
 import DebouncedInput from "@/components/data-table-debounce-text-filter";
 import { toast } from "@/components/ui/use-toast";
-import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
+import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type OpLoadFormProps = {
-  onLoadOp?: (data: OpJerpDto) => void;
-};
-
-const OpLoadForm = ({ onLoadOp }: OpLoadFormProps) => {
+const OpLoadForm = () => {
+  const router = useRouter();
   const [opValue, setOpValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  function redirectAction(uri: string) {
+    router.push(`${uri}`);
+  }
 
   useEffect(() => {
     opValue && handleInputChange(opValue);
@@ -19,28 +21,21 @@ const OpLoadForm = ({ onLoadOp }: OpLoadFormProps) => {
 
   const handleInputChange = async (opCode: string) => {
     setIsLoading(true);
-    const res = await fetch(`/api/op-jerp/${opCode}`);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/op-jerp/${opCode}`);
+      if (!res.ok) throw new Error("Falha ao carregar OP");
       const reqData = await res.json();
-      if (reqData.error) {
-        const { error, errorData } = reqData;
-        toast({
-          title: error,
-          description: errorData,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Falha ao carregar OP",
-          variant: "destructive",
-        });
-      }
-    } else {
-      const reqData = await res.json();
-      onLoadOp && onLoadOp(reqData);
+      validateOpJerpToProduce(reqData);
+      redirectAction(`/op/${reqData.id}`);
+      setIsLoading(false);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar OP JERP",
+        description: error?.message || error,
+        variant: "destructive",
+      });
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

@@ -1,9 +1,13 @@
+import { OpBoxStatus } from "@prisma/client";
+
 type OpBoxDto = {
   id: number;
   code: string;
+  barCode?: string;
+  barCodeGeneratedAt?: Date;
   createdAt: Date;
   packedAt?: Date;
-  status: number;
+  status: OpBoxStatus;
   opCode: string;
   boxName: string;
   productName: string;

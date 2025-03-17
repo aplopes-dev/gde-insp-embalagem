@@ -8,8 +8,12 @@ import { Barcode, EyeIcon } from "lucide-react";
 
 export function useBoxOpColumns({
   onCLickView,
+  onCLickGenBarcode,
+  onCLickPrint,
 }: {
   onCLickView: (value: any) => void;
+  onCLickGenBarcode: (boxId: number) => void;
+  onCLickPrint: (value: any) => void;
 }): {
   columns: any[];
 } {
@@ -60,18 +64,16 @@ export function useBoxOpColumns({
     {
       id: "quantity",
       header: "Quantidade",
-      meta: {
-        className: "flex-1 text-center",
-      },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
         const id = row.original.id;
         const quantity = Number(row.getValue("quantity"));
         return (
-          <div className="flex justify-center">
+          <div className="flex">
             <Button
-              variant="ghost"
+              size={"sm"}
+              variant={"secondary"}
               title="Visualizar blisters"
               onClick={() => {
                 onCLickView(id);
@@ -87,12 +89,11 @@ export function useBoxOpColumns({
     },
     {
       id: "barCodeGeneratedAt",
-      header: "Cod. Etiqueta",
+      header: "Etiqueta",
       enableSorting: false,
       cell: ({ row }) => {
         const barCodeGeneratedAt = row.getValue("barCodeGeneratedAt");
         const barCode = row?.original?.barCode || undefined;
-        const status = row.getValue("status") as OpBoxStatus;
 
         const formatted = barCodeGeneratedAt
           ? new Date(`${barCodeGeneratedAt}`).toLocaleDateString("pt-BR", {
@@ -106,11 +107,38 @@ export function useBoxOpColumns({
           <div className="font-medium">
             {barCode ? (
               <div className="flex gap-1 items-center" title={barCode}>
-                <Barcode />
-                <span className="ml-1">{formatted}</span>
+                <Button
+                  size={"sm"}
+                  variant={"default"}
+                  title="Imprimir novamente"
+                  onClick={() => {
+                    onCLickPrint(row.original);
+                  }}
+                >
+                  <Barcode className="w-4 h-4" />
+                </Button>
+                <div className="flex flex-col ml-1">
+                  <span>
+                    <strong>Código:</strong> {barCode}
+                  </span>
+                  <span>
+                    <strong>Gerado em:</strong> {formatted}
+                  </span>
+                </div>
               </div>
             ) : (
-              <Badge variant={"default"}>Pendente</Badge>
+              <div className="flex items-center gap-1">
+                <Badge variant={"default"}>Pendente</Badge>
+                <Button
+                  size={"sm"}
+                  variant={"secondary"}
+                  onClick={() => {
+                    onCLickGenBarcode(row.original.id);
+                  }}
+                >
+                  <Barcode className="mr-2 w-4 h-4" /> Gerar
+                </Button>
+              </div>
             )}
           </div>
         );

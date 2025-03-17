@@ -44,7 +44,6 @@ export async function generateBarcode(id: number, opBoxId: number, quantity: num
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
   try {
-    throw new Error("forçando erro")
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,
       { id, quantidadeApontada: quantity },

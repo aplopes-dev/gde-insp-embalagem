@@ -113,7 +113,8 @@ const BoxPage = ({
                 </div>
               </div>
             </div>
-            <DailyOpBoxTable opId={data.id} onClickView={onCLickView} />
+            <h3 className="font-bold uppercase mt-6 px-1">Caixas</h3>
+            <DailyOpBoxTable opId={opId} onClickView={onCLickView} />
             <BlisterListDialog
               opCode={data.code}
               activeKey={activeKey}

@@ -1,9 +1,12 @@
 "use server";
 
 import db from "@/providers/database";
+import { generateBarcode } from "@/shared/services/jerp";
 import { getOwnFilterClauses } from "@/shared/utils/filter";
 import OpBoxDto from "@/types/dtos/op-box-dto";
+import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import { FilterPaginationParams } from "@/types/filter";
+import { OpBoxStatus } from "@prisma/client";
 
 export async function getPaginatedBoxOp({
   limit,
@@ -47,7 +50,7 @@ export async function getPaginatedBoxOp({
   const _data: OpBoxDto[] = transaction[1].map((item) => {
     console.log("item");
     console.log(item);
-    
+
     return {
       id: item.id,
       code: item.code,
@@ -64,4 +67,46 @@ export async function getPaginatedBoxOp({
   });
   const _count = transaction[0];
   return [_data, _count];
+}
+
+
+export async function generateBarcodeByBoxId(opId: number, boxId: number): Promise<PrintTagJerpDto | null> {
+  const box = await db.opBox.findUnique({
+    where: {
+      id: boxId,
+      opId: opId,
+      status: {
+        not: OpBoxStatus.PENDING,
+      },
+    },
+    include: {
+      op: {
+        select: {
+          id: true,
+          code: true,
+        },
+      },
+      OpBoxBlister: {
+        select: {
+          quantity: true,
+        },
+        where: {
+          quantity: {
+            gt: 0,
+          },
+        },
+      },
+    },
+  });
+  if (!box) return null;
+
+  const quantity = box.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0);
+  const tagDataReq = await generateBarcode(opId, boxId, quantity);
+
+  if (tagDataReq.isRight()) {
+    return tagDataReq.get()
+  } else {
+    const data = tagDataReq.getLeft()
+    return null
+  }
 }

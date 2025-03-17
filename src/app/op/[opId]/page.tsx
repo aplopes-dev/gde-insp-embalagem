@@ -25,7 +25,7 @@ import {
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
-import { Loader2 } from "lucide-react";
+import { DockIcon, FileText, Loader2 } from "lucide-react";
 import {
   InspectionStatus,
   OpBoxBlisterInspection,
@@ -99,6 +99,11 @@ export default function PackagingInspection({
         if (opData.finishedAt) {
           sendValidationMessage({
             message: "OP FINALIZADA!",
+            color: "blue",
+          });
+        } else if (!opData.nextBox) {
+          sendValidationMessage({
+            message: "NÃO EXISTEM CAIXAS PENDENTES. VERIFIQUE DETALHES DA OP!",
             color: "blue",
           });
         } else {
@@ -647,7 +652,7 @@ export default function PackagingInspection({
                   startDate={data?.createdAt || new Date()}
                   endDate={data?.finishedAt}
                 />
-                {!data.finishedAt && (
+                {!data.finishedAt && data.nextBox ? (
                   <>
                     <div>
                       <div className="flex justify-end gap-6 mt-8">
@@ -697,6 +702,16 @@ export default function PackagingInspection({
                       />
                     </div>
                   </>
+                ) : (
+                  <div className="flex justify-center gap-6 mt-8">
+                    <Button
+                      size={"lg"}
+                      onClick={() => redirectAction(`/op/${data.opId}/detail`)}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Detalhes da OP
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

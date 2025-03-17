@@ -1,11 +1,15 @@
 "use client";
 
+import { opCompletionNowHandler } from "@/app/op/[opId]/actions";
 import { ServerDataTable } from "@/components/server-data-table";
+import { useToast } from "@/components/ui/use-toast";
 import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { getPaginatedBoxOp } from "../actions";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { generateBarcodeByBoxId, getPaginatedBoxOp } from "../actions";
 import { useBoxOpColumns } from "./columns";
 import { BoxOpDataTableToolbar } from "./toolbar";
 
@@ -16,10 +20,50 @@ export default function DailyOpBoxTable({
   opId: number;
   onClickView: (v: any) => void;
 }) {
-  const { columns } = useBoxOpColumns({ onCLickView: onClickView });
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);
   const { sorting, onSortingChange, field, order } = useSorting();
+  const [externalLoading, setExternalLoading] = useState(false);
   const { columnFilters, onColumnFiltersChange } = useFiltering();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const onCLickGenBarcode = async (boxId: number) => {
+    setExternalLoading(true);
+    try {
+      const response = await generateBarcodeByBoxId(Number(opId), boxId);
+      if (!response) throw new Error("Falha ao gerar etiqueta!");
+      await opCompletionNowHandler(response.id);
+      toast({
+        title: "Sucesso",
+        description: "Etiqueta gerada com sucesso!",
+      });
+      setExternalLoading(false);
+      forceRefresh();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+      setExternalLoading(false);
+    }
+  };
+
+  function forceRefresh() {
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  }
+
+  const onCLickPrint = () => {
+    console.log("print");
+  };
+
+  const { columns } = useBoxOpColumns({
+    onCLickView: onClickView,
+    onCLickGenBarcode: onCLickGenBarcode,
+    onCLickPrint: onCLickPrint,
+  });
 
   const [data, count, loading] = useActionPageApi({
     pagination: { skip, limit },
@@ -31,7 +75,7 @@ export default function DailyOpBoxTable({
         id: "opId",
         value: {
           operator: "equals",
-          value: opId,
+          value: Number(opId),
         },
       },
     ],
@@ -45,7 +89,7 @@ export default function DailyOpBoxTable({
         columns={columns}
         className="m-2 lg:m-4 xl:m-6 exl:m-10"
         data={data as any[]}
-        loading={loading}
+        loading={loading || externalLoading}
         pageCount={pageCount}
         pagination={pagination}
         onPaginationChange={onPaginationChange}

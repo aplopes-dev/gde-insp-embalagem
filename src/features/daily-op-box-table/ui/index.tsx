@@ -7,7 +7,6 @@ import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { generateBarcodeByBoxId, getPaginatedBoxOp } from "../actions";
 import { useBoxOpColumns } from "./columns";
@@ -16,16 +15,17 @@ import { BoxOpDataTableToolbar } from "./toolbar";
 export default function DailyOpBoxTable({
   opId,
   onClickView,
+  onCLickPrint,
 }: {
   opId: number;
   onClickView: (v: any) => void;
+  onCLickPrint: (v: any) => void;
 }) {
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);
   const { sorting, onSortingChange, field, order } = useSorting();
   const [externalLoading, setExternalLoading] = useState(false);
   const { columnFilters, onColumnFiltersChange } = useFiltering();
   const { toast } = useToast();
-  const router = useRouter();
 
   const onCLickGenBarcode = async (boxId: number) => {
     setExternalLoading(true);
@@ -54,10 +54,6 @@ export default function DailyOpBoxTable({
       window.location.reload();
     }, 100);
   }
-
-  const onCLickPrint = () => {
-    console.log("print");
-  };
 
   const { columns } = useBoxOpColumns({
     onCLickView: onClickView,

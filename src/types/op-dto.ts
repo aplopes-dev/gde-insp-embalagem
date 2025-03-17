@@ -16,6 +16,7 @@ export type OpDto = {
 type OpProductDto = {
   code: string;
   name: string;
+  description?: string;
 };
 
 type OpBoxDto = {

@@ -357,6 +357,7 @@ export async function getOpById(id: number) {
           id: op.product.id,
           code: op.product.code,
           name: op.product.name,
+          description: op.product.description,
         },
         box: {
           id: op.box.id,

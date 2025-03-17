@@ -4,10 +4,16 @@ import Header from "@/components/header";
 import { Badge } from "@/components/ui/badge";
 import BlisterListDialog from "@/features/blister-list-dialog";
 import DailyOpBoxTable from "@/features/daily-op-box-table";
+import PrintTagDialog from "@/features/print-tag-dialog/ui";
 import { OpDto } from "@/types/op-dto";
 import { OpStatus } from "@prisma/client";
 import { useEffect, useState } from "react";
 import { getOpById } from "../actions";
+
+type PrintConfig = {
+  barcode: string;
+  quantity: number;
+}
 
 const BoxPage = ({
   params: { opId },
@@ -20,6 +26,11 @@ const BoxPage = ({
 
   const [activeKey, setActiveKey] = useState<any>(null);
   const [openBlisterDialog, setOpenBlisterDialog] = useState<boolean>(false);
+  const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
+  const [printConfig, setPrintConfig] = useState<PrintConfig>({
+    barcode: "",
+    quantity: 0,
+  });
 
   const onCLickView = (value: any) => {
     setActiveKey(value);
@@ -51,6 +62,11 @@ const BoxPage = ({
       case OpStatus.PENDING:
         return "Pendente";
     }
+  }
+
+  function onCLickPrint(value: PrintConfig) {
+    setPrintConfig(value);
+    setOpenPrintTagDialog(true);
   }
 
   return (
@@ -114,12 +130,20 @@ const BoxPage = ({
               </div>
             </div>
             <h3 className="font-bold uppercase mt-6 px-1">Caixas</h3>
-            <DailyOpBoxTable opId={opId} onClickView={onCLickView} />
+            <DailyOpBoxTable opId={opId} onClickView={onCLickView} onCLickPrint={onCLickPrint} />
             <BlisterListDialog
               opCode={data.code}
               activeKey={activeKey}
               isOpen={openBlisterDialog}
               onOpenChange={setOpenBlisterDialog}
+            />
+            <PrintTagDialog
+              itemName={data.product.code}
+              itemDescription={data.product.description || ""}
+              printConfig={printConfig}
+              batchCode={data.code}
+              isOpen={openPrintTagDialog}
+              onOpenChange={setOpenPrintTagDialog}
             />
           </div>
         </div>

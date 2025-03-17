@@ -7,7 +7,6 @@ import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
 import { FilterPaginationParams } from "@/types/filter";
 import { OpDto } from "@/types/op-dto";
-import { getPaginatedOp } from "../actions";
 import { useBoxOpColumns } from "./columns";
 import { OpListToolbar } from "./toolbar";
 

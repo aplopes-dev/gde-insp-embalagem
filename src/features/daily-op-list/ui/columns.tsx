@@ -133,12 +133,11 @@ export function useBoxOpColumns(): { columns: any[] } {
       },
       cell: ({ row }) => {
         const rowId = row.original.id;
-        const code = Number(row.getValue("code"));
         return (
           <DataTableCommonActions
             className="flex justify-end items-center"
             resourceId={`${rowId}`}
-            onClickView={() => redirectAction(`op/${code}/detail`)}
+            onClickView={() => redirectAction(`op/${rowId}/detail`)}
             disableEdit
             disableDelete
           />

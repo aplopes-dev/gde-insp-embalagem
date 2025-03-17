@@ -343,9 +343,9 @@ export async function recalculateBoxesFromOpAndItemQuantity(
   });
 }
 
-export async function getOpByCode(code: string) {
-  const op = await db.op.findFirst({
-    where: { code },
+export async function getOpById(id: number) {
+  const op = await db.op.findUnique({
+    where: { id },
     include: { product: true, box: true, blister: true },
   });
   return op

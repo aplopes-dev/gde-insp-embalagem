@@ -7,13 +7,13 @@ import DailyOpBoxTable from "@/features/daily-op-box-table";
 import { OpDto } from "@/types/op-dto";
 import { OpStatus } from "@prisma/client";
 import { useEffect, useState } from "react";
-import { getOpByCode } from "../actions";
+import { getOpById } from "../actions";
 
 const BoxPage = ({
-  params: { code },
+  params: { opId },
 }: {
   params: {
-    code: string;
+    opId: number;
   };
 }) => {
   const [data, setData] = useState<OpDto>();
@@ -27,7 +27,7 @@ const BoxPage = ({
   };
 
   const loadData = async () => {
-    const opData = await getOpByCode(code);
+    const opData = await getOpById(Number(opId));
     opData && setData(opData);
   };
 
@@ -41,7 +41,6 @@ const BoxPage = ({
         return "success";
       case OpStatus.PENDING:
         return "default";
-
     }
   }
 
@@ -116,7 +115,7 @@ const BoxPage = ({
             </div>
             <DailyOpBoxTable opId={data.id} onClickView={onCLickView} />
             <BlisterListDialog
-              opCode={code}
+              opCode={data.code}
               activeKey={activeKey}
               isOpen={openBlisterDialog}
               onOpenChange={setOpenBlisterDialog}

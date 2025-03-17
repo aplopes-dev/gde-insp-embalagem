@@ -1,12 +1,12 @@
-import { getOpFromCode } from "@/shared/services/jerp";
+import { getOpFromId } from "@/shared/services/jerp";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: { id: string } }
 ) {
 
-  const opDataReq = await getOpFromCode(params.code)
+  const opDataReq = await getOpFromId(params.id)
   if (opDataReq.isRight()) {
     return NextResponse.json(opDataReq.get());
   } else {

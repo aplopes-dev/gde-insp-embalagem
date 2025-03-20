@@ -18,7 +18,7 @@ export type OpInspectionDto = {
 };
 
 export type OpBoxInspectionDto = {
-  id: number;
+  id: string;
   code: string;
   status: InspectionStatus;
   createdAt: Date;
@@ -27,13 +27,13 @@ export type OpBoxInspectionDto = {
 };
 
 export type OpBoxBlisterInspection = {
-  id?: number;
+  id: string;
   code: string;
   quantity: number;
-  status?: number;
   packedAt?: Date;
   isValidItem?: boolean;
   isValidQuantity?: boolean;
+  status?: number;
 };
 
 export type ProductTypeDto = {

@@ -167,7 +167,7 @@ async function fetchOpDetails(internalOp: Op) {
 }
 
 export async function persistBoxStatusWithBlisters(
-  opBoxId: number,
+  opBoxId: string,
   blisters: OpBoxBlisterInspection[]
 ) {
   const queryCollection: any[] = blisters.map((bl) =>
@@ -207,7 +207,7 @@ export async function persistWithOpBreak(
   const { id, status } = boxDto;
   const blistersToRemove = blisters
     .filter((bl) => !bl.packedAt)
-    .map((bl) => bl.id) as number[];
+    .map((bl) => bl.id) as string[];
   const queryCollection: any[] = blisters
     .filter((bl) => bl.packedAt)
     .map((bl) =>
@@ -234,6 +234,7 @@ export async function persistWithOpBreak(
       })
     );
   }
+
   queryCollection.push(
     db.opBox.update({
       data: {
@@ -375,7 +376,7 @@ export async function getOpById(id: number) {
     : null;
 }
 
-export async function saveTagId(opBoxId: number, barCode: string) {
+export async function saveTagId(opBoxId: string, barCode: string) {
   try {
     await db.opBox.update({
       data: {

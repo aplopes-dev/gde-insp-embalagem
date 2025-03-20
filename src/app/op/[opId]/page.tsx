@@ -513,6 +513,10 @@ export default function PackagingInspection({
             variant: "destructive",
           });
         } else {
+          sendValidationMessage({
+            message: "ETIQUETA GERADA COM SUCESSO!",
+            color: "green",
+          });
           const tagData = await response.json();
           setQuantityToPrint(tagData!.quantidadeApontada);
           setBarcodeToPrint(tagData!.idBarras);
@@ -520,10 +524,9 @@ export default function PackagingInspection({
           handleCheckOpCompletion();
         }
       } catch (error) {
-        toast({
-          title: "Erro",
-          description: "Falha ao gerar etiqueta!",
-          variant: "destructive",
+        sendValidationMessage({
+          message: "FALHA AO GERAR ETIQUETA!",
+          color: "red",
         });
       }
     }, 2000);

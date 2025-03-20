@@ -104,30 +104,6 @@ async function main() {
         name: "TL-23489AA-LE",
         description: "Tail Lamp VW270-3 LAPA T2 Lado Esquerdo"
       },
-      // {
-      //   id: 4,
-      //   code: "BL-03833070LE",
-      //   name: "BL-03833070LE",
-      //   description: "Descrição BL-03833070LE"
-      // },
-      // {
-      //   id: 5,
-      //   code: "BL-03832070LD",
-      //   name: "BL-03832070LD",
-      //   description: "Descrição BL-03832070LD"
-      // },
-      // {
-      //   id: 6,
-      //   code: "TL-23489AA-LE",
-      //   name: "TL-23489AA-LE",
-      //   description: "Descrição TL-23489AA-LE"
-      // },
-      // {
-      //   id: 7,
-      //   code: "TL-23490AA-LD",
-      //   name: "TL-23490AA-LD",
-      //   description: "Descrição TL-23490AA-LD"
-      // },
     ]
   })
 

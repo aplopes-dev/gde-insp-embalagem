@@ -69,7 +69,7 @@ model Op {
 }
 
 model OpBox {
-  id                 Int         @id @default(autoincrement())
+  id                 String      @id @default(cuid())
   opId               Int
   code               String
   barCode            String?
@@ -86,9 +86,9 @@ model OpBox {
 }
 
 model OpBoxBlister {
-  id       Int       @id @default(autoincrement())
+  id       String    @id @default(cuid())
   code     String
-  opBoxId  Int
+  opBoxId  String
   quantity Int       @default(0)
   packedAt DateTime?
 

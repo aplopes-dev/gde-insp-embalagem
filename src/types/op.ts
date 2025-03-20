@@ -9,13 +9,13 @@ export type Op = {
 }
 
 export type OpBox = {
-  id?: number
+  id?: string
   code: string
   blisters?: OpBlister[]
 }
 
 export type OpBlister = {
-  id?: number
+  id?: string
   code: string
   quantity: number
 }

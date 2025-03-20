@@ -400,78 +400,79 @@ export async function getOpByCode(code: string) {
   });
   return op
     ? ({
-        id: op.id,
-        code: op.code,
-        status: op.status,
-        product: {
-          id: op.product.id,
-          code: op.product.code,
-          name: op.product.name,
-          description: op.product.description
-        },
-        box: {
-          id: op.box.id,
-          name: op.box.name,
-          code: op.box.code
-        },
-        blister: {
-          id: op.blister.id,
-          name: op.blister.name,
-        },
-        productTypeId: op.productTypeId,
-        createdAt: op.createdAt,
-        quantityToProduce: op.quantityToProduce,
-        finishedAt: op.finishedAt,
-      } as OpDto)
+      id: op.id,
+      code: op.code,
+      status: op.status,
+      product: {
+        id: op.product.id,
+        code: op.product.code,
+        name: op.product.name,
+        description: op.product.description
+      },
+      box: {
+        id: op.box.id,
+        name: op.box.name,
+        code: op.box.code
+      },
+      blister: {
+        id: op.blister.id,
+        name: op.blister.name,
+      },
+      productTypeId: op.productTypeId,
+      createdAt: op.createdAt,
+      quantityToProduce: op.quantityToProduce,
+      finishedAt: op.finishedAt,
+    } as OpDto)
     : null;
 }
 
 export async function getBarcodeFromOpId(id: number, quantity: number) {
   // Requet from jerp:
 
-  // const dynamicData = await fetch(
-  //   `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
-  //   {
-  //     method: "POST",
-  //     headers: {
-  //       authorization: `Bearer ${process.env.JERP_TOKEN}`,
-  //       "Content-Type": "application/json",
-  //     },
-  //     body: JSON.stringify({
-  //       id,
-  //       quantidadeApontada: quantity,
-  //     }),
-  //   }
-  // );
+  const dynamicData = await fetch(
+    `https://jerpapiprod.azurewebsites.net/api/ordemproducao`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${process.env.JERP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        quantidadeApontada: quantity,
+      }),
+    }
+  );
 
-  // console.log("ID / QTD OP ---------");
-  // console.log(id);
-  // console.log(quantity);
+  console.log("ID / QTD OP ---------");
+  console.log(id);
+  console.log(quantity);
 
-  // try {
-  //   const data = await dynamicData.json();
-  //   console.log("POST JERP ETIQUETA ---------");
-  //   console.log(data);
-  //   return data;
-  // } catch (error) {
-  //   console.log(error);
-  // }
+  try {
+    const data = await dynamicData.json();
+    console.log("POST JERP ETIQUETA ---------");
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.log(error);
+  }
 
   // return data as OpJerpDto;
 
-  return {
-    message: "Apontamento com sucesso",
-    id: id,
-    quantidadeApontada: quantity,
-    idBarras: 1161792,
-  };
+  // return {
+  //   message: "Apontamento com sucesso",
+  //   id: id,
+  //   quantidadeApontada: quantity,
+  //   idBarras: 1161792,
+  // };
 }
 
 export async function saveTagId(opBoxId: number, barCode: string) {
   try {
+    const box = await prisma.opBox.findUnique({ where: { id: opBoxId } })
     await prisma.opBox.update({
       data: {
-        code: barCode,
+        code: `${box?.code}_${barCode}`,
       },
       where: {
         id: opBoxId,

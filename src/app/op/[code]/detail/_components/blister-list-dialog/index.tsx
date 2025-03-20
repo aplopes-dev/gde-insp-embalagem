@@ -85,6 +85,16 @@ const BlisterListDialog = ({
     return formattedDate;
   };
 
+  function getImageBoxIndex(boxCode: string) {
+    const imageBoxIndex = (boxCode as string).split("_")[0]
+    return imageBoxIndex
+  }
+
+  function getPrintBoxCode(boxCode: string) {
+    const imageBoxIndex = (boxCode as string)?.split("_")[1]
+    return imageBoxIndex
+  }
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -92,7 +102,7 @@ const BlisterListDialog = ({
           <DialogHeader>
             <DialogTitle>Caixa</DialogTitle>
             <DialogDescription>
-              Código: <strong>{data?.code}</strong>
+              Código: <strong>{data?.packedAt ? getPrintBoxCode(data?.code) : data?.code}</strong>
               {data?.packedAt && <Button className="ml-2" onClick={() => setReprintOpen(true)}>Reimprimir</Button>}
             </DialogDescription>
           </DialogHeader>
@@ -107,21 +117,20 @@ const BlisterListDialog = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.OpBoxBlister.map((item: any, index: number) => (
-                    <TableRow key={item.id}>
+                  {data.OpBoxBlister.map((item: any, index: number) => {
+
+                    return <TableRow key={item.id}>
                       <TableCell>
                         {data.packedAt && <Image
                           width={100}
                           height={50}
-                          src={`/api/images/OP_${opCode}_BOX_${data.code}_BL_${
-                            item.code
-                          }.jpg?path=${formatDateISO(data.packedAt!)}`}
+                          src={`/api/images/OP_${opCode}_BOX_${getImageBoxIndex(data.code)}_BL_${item.code
+                            }.jpg?path=${formatDateISO(data.packedAt!)}`}
                           alt="GDE"
                           className="cursor-pointer"
                           onClick={() =>
                             handleImageClick(
-                              `/api/images/OP_${opCode}_BOX_${data.code}_BL_${
-                                item.code
+                              `/api/images/OP_${opCode}_BOX_${getImageBoxIndex(data.code)}_BL_${item.code
                               }.jpg?path=${formatDateISO(data.packedAt!)}`
                             )
                           }
@@ -130,7 +139,7 @@ const BlisterListDialog = ({
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
                     </TableRow>
-                  ))}
+                  })}
                 </TableBody>
               </Table>
               <RePrintTagDialog
@@ -141,7 +150,7 @@ const BlisterListDialog = ({
                 itemName={data.op.product.code}
                 printConfig={{
                   quantity: boxQuantity,
-                  barcode: data.code,
+                  barcode: getPrintBoxCode(data.code),
                 }}
               />
             </>

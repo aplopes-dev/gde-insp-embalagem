@@ -39,7 +39,7 @@ export default function DailyOpBoxTable({
       });
       setExternalLoading(false);
       forceRefresh();
-    } catch (error: any) {
+    } catch (error: any) {      
       toast({
         title: "Erro",
         description: error.message,

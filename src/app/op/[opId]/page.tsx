@@ -238,6 +238,7 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "CAIXA VÁLIDA";
         color = "green";
+        itemId = data?.blisterType.name;
         nextObjectValidation(inspection, ObjectTypes.blister);
         break;
     }
@@ -274,12 +275,13 @@ export default function PackagingInspection({
         } else {
           message = "BLISTER VÁLIDO";
           color = "green";
+          itemId = data?.productType.name;
           quantity = blisters[targetBlister!].quantity;
           fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
-          // setTimeout(
-          //   () => nextObjectValidation(inspection, ObjectTypes.product),
-          //   2000
-          // );
+          setTimeout(
+            () => nextObjectValidation(inspection, ObjectTypes.product),
+            2000
+          );
         }
         break;
     }
@@ -312,7 +314,7 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
         color = "green";
-        fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}_ITEMS`;
+        // fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}_ITEMS`;
         verifyNextBlisterOrFinalize(inspection);
         break;
     }
@@ -370,9 +372,9 @@ export default function PackagingInspection({
     switch (objectType) {
       case ObjectTypes.blister:
         setActiveObjectType("blister");
-        // message = "INSIRA UM BLISTER";
-        // quantity = 1;
-        // itemId = data.blisterType.name;
+        message = "INSIRA UM BLISTER";
+        quantity = 1;
+        itemId = data.blisterType.name;
         setTargetBlister(0);
         setStep(1);
         box &&
@@ -392,14 +394,14 @@ export default function PackagingInspection({
           )
         );
         setActiveObjectType("product");
-        // message = "VERIFICANDO QUANTIDADE DE ITENS...";
-        // quantity = blisters[targetBlister!].quantity;
-        // itemId = data.productType.name;
+        message = "VERIFICANDO QUANTIDADE DE ITENS...";
+        quantity = blisters[targetBlister!].quantity;
+        itemId = data.productType.name;
         setBlisterCodes([...blisterCodes, inspection.code]);
         setStep(2);
         break;
     }
-    // sendValidationMessage({ message, color, quantity, itemId });
+    sendValidationMessage({ message, color, quantity, itemId });
   }
 
   function verifyNextBlisterOrFinalize(inspection: ObjectValidation) {
@@ -414,7 +416,7 @@ export default function PackagingInspection({
       sendWithDelay({
         itemId: `${data!.blisterType.name}`,
         quantity: 1,
-      });
+      }, 5000);
       setStep(1);
       setCheckedQuantity(checkedQuantity + inspection.count);
       setBlisters(
@@ -511,11 +513,9 @@ export default function PackagingInspection({
 
         if (!response.ok) {
           const { error, errorData } = await response.json();
-          toast({
-            title: error,
-            description: errorData,
-            variant: "destructive",
-          });
+          console.error(error);
+          console.error(errorData);
+          throw new Error(error)
         } else {
           sendValidationMessage({
             message: "ETIQUETA GERADA COM SUCESSO!",

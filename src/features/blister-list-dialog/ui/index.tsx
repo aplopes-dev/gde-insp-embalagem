@@ -38,14 +38,14 @@ const ImageModal = ({
 type BlisterListDialogProps = {
   activeKey: number;
   isOpen: boolean;
-  opCode: string;
+  opId: number;
   onOpenChange: (open: boolean) => void;
 };
 
 const BlisterListDialog = ({
   activeKey,
   isOpen,
-  opCode,
+  opId,
   onOpenChange,
 }: BlisterListDialogProps) => {
   const [data, setData] = useState<any>();
@@ -105,8 +105,8 @@ const BlisterListDialog = ({
                           <Image
                             width={100}
                             height={50}
-                            src={`/api/images/OP_${opCode}_BOX_${
-                              data.code
+                            src={`/api/images/OP_${opId}_BOX_${
+                              data.id
                             }_BL_${item.code}.jpg?path=${formatDateISO(
                               data.packedAt!
                             )}`}
@@ -114,7 +114,7 @@ const BlisterListDialog = ({
                             className="cursor-pointer"
                             onClick={() =>
                               handleImageClick(
-                                `/api/images/OP_${opCode}_BOX_${data.code}_BL_${
+                                `/api/images/OP_${opId}_BOX_${data.id}_BL_${
                                   item.code
                                 }.jpg?path=${formatDateISO(data.packedAt!)}`
                               )

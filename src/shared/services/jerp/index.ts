@@ -39,7 +39,7 @@ export async function getOpFromId(id: string): Promise<Either<ApiResponseError, 
   }
 }
 
-export async function generateBarcode(id: number, opBoxId: number, quantity: number): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
+export async function generateBarcode(id: number, opBoxId: string, quantity: number): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 

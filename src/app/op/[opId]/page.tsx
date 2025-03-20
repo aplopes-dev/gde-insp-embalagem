@@ -224,6 +224,7 @@ export default function PackagingInspection({
     let color: DisplayColors = "red";
     let itemId: string | undefined = data?.boxType.name;
     let quantity: number = 1;
+    let forceDelay = 2000;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA UMA CAIXA.";
@@ -237,13 +238,10 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "CAIXA VÁLIDA";
         color = "green";
-        setTimeout(
-          () => nextObjectValidation(inspection, ObjectTypes.blister),
-          2000
-        );
+        nextObjectValidation(inspection, ObjectTypes.blister);
         break;
     }
-    sendValidationMessage({ message, color, itemId, quantity });
+    sendValidationMessage({ message, color, itemId, quantity }, forceDelay);
   }
 
   function blisterInspection(inspection: ObjectValidation) {
@@ -278,10 +276,10 @@ export default function PackagingInspection({
           color = "green";
           quantity = blisters[targetBlister!].quantity;
           fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
-          setTimeout(
-            () => nextObjectValidation(inspection, ObjectTypes.product),
-            2000
-          );
+          // setTimeout(
+          //   () => nextObjectValidation(inspection, ObjectTypes.product),
+          //   2000
+          // );
         }
         break;
     }
@@ -321,14 +319,17 @@ export default function PackagingInspection({
     sendValidationMessage({ message, color, quantity, itemId, fileName });
   }
 
-  function sendValidationMessage(validation: {
-    message: string;
-    color: DisplayColors;
-    quantity?: number;
-    itemId?: string;
-    fileName?: string;
-    model?: string;
-  }) {
+  function sendValidationMessage(
+    validation: {
+      message: string;
+      color: DisplayColors;
+      quantity?: number;
+      itemId?: string;
+      fileName?: string;
+      model?: string;
+    },
+    forceDelay?: number
+  ) {
     setDisplayColor(validation.color);
     setDisplayMessage(validation.message);
     sendMessageToRabbitMqMobile({
@@ -349,9 +350,12 @@ export default function PackagingInspection({
     sendSocketEvent("iaHandler", {
       ...filteredValidation,
     });
-    sendWithDelay({
-      ...filteredValidation,
-    });
+    sendWithDelay(
+      {
+        ...filteredValidation,
+      },
+      forceDelay || 2000
+    );
   }
 
   function nextObjectValidation(
@@ -366,9 +370,9 @@ export default function PackagingInspection({
     switch (objectType) {
       case ObjectTypes.blister:
         setActiveObjectType("blister");
-        message = "INSIRA UM BLISTER";
-        quantity = 1;
-        itemId = data.blisterType.name;
+        // message = "INSIRA UM BLISTER";
+        // quantity = 1;
+        // itemId = data.blisterType.name;
         setTargetBlister(0);
         setStep(1);
         box &&
@@ -388,14 +392,14 @@ export default function PackagingInspection({
           )
         );
         setActiveObjectType("product");
-        message = "VERIFICANDO QUANTIDADE DE ITENS...";
-        quantity = blisters[targetBlister!].quantity;
-        itemId = data.productType.name;
+        // message = "VERIFICANDO QUANTIDADE DE ITENS...";
+        // quantity = blisters[targetBlister!].quantity;
+        // itemId = data.productType.name;
         setBlisterCodes([...blisterCodes, inspection.code]);
         setStep(2);
         break;
     }
-    sendValidationMessage({ message, color, quantity, itemId });
+    // sendValidationMessage({ message, color, quantity, itemId });
   }
 
   function verifyNextBlisterOrFinalize(inspection: ObjectValidation) {

@@ -94,6 +94,7 @@ export function useBoxOpColumns({
       cell: ({ row }) => {
         const barCodeGeneratedAt = row.getValue("barCodeGeneratedAt");
         const barCode = row?.original?.barCode || undefined;
+        const quantity = Number(row.getValue("quantity"));
 
         const formatted = barCodeGeneratedAt
           ? new Date(`${barCodeGeneratedAt}`).toLocaleDateString("pt-BR", {
@@ -112,7 +113,10 @@ export function useBoxOpColumns({
                   variant={"default"}
                   title="Imprimir novamente"
                   onClick={() => {
-                    onCLickPrint(row.original);
+                    onCLickPrint({
+                      barcode: barCode,
+                      quantity,
+                    });
                   }}
                 >
                   <Barcode className="w-4 h-4" />

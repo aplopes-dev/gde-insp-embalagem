@@ -223,23 +223,24 @@ export default function PackagingInspection({
     let message: string = "";
     let color: DisplayColors = "red";
     let itemId: string | undefined = data?.boxType.name;
-    let quantity: number | undefined = undefined;
+    let quantity: number = 1;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA UMA CAIXA.";
-        quantity = 1;
         break;
       case InspectionEnum.TYPE_INVALID:
         message = "MODELO DE CAIXA INVÁLIDO.";
         break;
       case InspectionEnum.QUANTITY_INVALID:
         message = "DEVE HAVER UMA CAIXA!";
-        quantity = 1;
         break;
       case InspectionEnum.VALID:
         message = "CAIXA VÁLIDA";
         color = "green";
-        nextObjectValidation(inspection, ObjectTypes.blister);
+        setTimeout(
+          () => nextObjectValidation(inspection, ObjectTypes.blister),
+          2000
+        );
         break;
     }
     sendValidationMessage({ message, color, itemId, quantity });
@@ -255,33 +256,32 @@ export default function PackagingInspection({
     let message: string = "";
     let color: DisplayColors = "red";
     let itemId: string | undefined = data?.blisterType.name;
-    let quantity: number | undefined = undefined;
     let fileName: string | undefined = undefined;
+    let quantity: number = 1;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.";
-        quantity = 1;
         break;
       case InspectionEnum.TYPE_INVALID:
         message = "MODELO DE BLISTER INVÁLIDO.";
         break;
       case InspectionEnum.QUANTITY_INVALID:
         message = "DEVE HAVER UM BLISTER!";
-        quantity = 1;
         break;
       case InspectionEnum.VALID:
         if (!inspection.code) {
           message = "ENVIE O CÓDIGO DO BLISTER.";
-          quantity = 1;
         } else if (blisterCodes.includes(inspection.code)) {
           message = "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code;
-          quantity = 1;
         } else {
           message = "BLISTER VÁLIDO";
           color = "green";
           quantity = blisters[targetBlister!].quantity;
           fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
-          nextObjectValidation(inspection, ObjectTypes.product);
+          setTimeout(
+            () => nextObjectValidation(inspection, ObjectTypes.product),
+            2000
+          );
         }
         break;
     }
@@ -299,19 +299,17 @@ export default function PackagingInspection({
     let message: string = "";
     let color: DisplayColors = "red";
     let itemId: string | undefined = data?.productType.name;
-    let quantity: number | undefined = undefined;
+    let quantity: number = expectedQuantity;
     let fileName: string | undefined = undefined;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.";
-        quantity = expectedQuantity;
         break;
       case InspectionEnum.TYPE_INVALID:
         message = "MODELO DE PRODUTO INVÁLIDO.";
         break;
       case InspectionEnum.QUANTITY_INVALID:
         message = "QUANTIDADE DE ITENS INCORRETA!";
-        quantity = expectedQuantity;
         break;
       case InspectionEnum.VALID:
         message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
@@ -361,17 +359,16 @@ export default function PackagingInspection({
     objectType: ObjectTypes
   ) {
     if (!data) throw Error("Falha ao carregar informações da OP");
+    let message: string = "";
+    let color: DisplayColors = "blue";
+    let itemId: string | undefined = undefined;
+    let quantity: number | undefined = undefined;
     switch (objectType) {
       case ObjectTypes.blister:
         setActiveObjectType("blister");
-        sendSocketEvent("iaHandler", {
-          itemId: data.blisterType.name,
-          quantity: 1,
-        });
-        sendWithDelay({
-          itemId: `${data.blisterType.name}`,
-          quantity: 1,
-        });
+        message = "INSIRA UM BLISTER";
+        quantity = 1;
+        itemId = data.blisterType.name;
         setTargetBlister(0);
         setStep(1);
         box &&
@@ -391,10 +388,14 @@ export default function PackagingInspection({
           )
         );
         setActiveObjectType("product");
+        message = "VERIFICANDO QUANTIDADE DE ITENS...";
+        quantity = blisters[targetBlister!].quantity;
+        itemId = data.productType.name;
         setBlisterCodes([...blisterCodes, inspection.code]);
         setStep(2);
         break;
     }
+    sendValidationMessage({ message, color, quantity, itemId });
   }
 
   function verifyNextBlisterOrFinalize(inspection: ObjectValidation) {

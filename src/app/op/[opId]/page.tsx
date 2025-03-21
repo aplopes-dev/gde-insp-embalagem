@@ -257,6 +257,7 @@ export default function PackagingInspection({
     let itemId: string | undefined = data?.blisterType.name;
     let fileName: string | undefined = undefined;
     let quantity: number = 1;
+    let forceDelay = 2000;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.";
@@ -277,11 +278,7 @@ export default function PackagingInspection({
           color = "green";
           itemId = data?.productType.name;
           quantity = blisters[targetBlister!].quantity;
-          fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
-          setTimeout(
-            () => nextObjectValidation(inspection, ObjectTypes.product),
-            2000
-          );
+          nextObjectValidation(inspection, ObjectTypes.product);
         }
         break;
     }
@@ -314,7 +311,9 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
         color = "green";
-        // fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}_ITEMS`;
+        fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${
+          blisterCodes[targetBlister!]
+        }`;
         verifyNextBlisterOrFinalize(inspection);
         break;
     }
@@ -349,15 +348,19 @@ export default function PackagingInspection({
       {} as Record<string, any>
     );
 
-    sendSocketEvent("iaHandler", {
-      ...filteredValidation,
-    });
-    sendWithDelay(
-      {
+    if (filteredValidation.itemId) {
+      filteredValidation.message && delete filteredValidation.message;
+      filteredValidation.color && delete filteredValidation.color;
+      sendSocketEvent("iaHandler", {
         ...filteredValidation,
-      },
-      forceDelay || 2000
-    );
+      });
+      sendWithDelay(
+        {
+          ...filteredValidation,
+        },
+        forceDelay || 2000
+      );
+    }
   }
 
   function nextObjectValidation(
@@ -397,7 +400,9 @@ export default function PackagingInspection({
         message = "VERIFICANDO QUANTIDADE DE ITENS...";
         quantity = blisters[targetBlister!].quantity;
         itemId = data.productType.name;
-        setBlisterCodes([...blisterCodes, inspection.code]);
+        const newCodes = [...blisterCodes];
+        newCodes[targetBlister!] = inspection.code;
+        setBlisterCodes([...newCodes]);
         setStep(2);
         break;
     }
@@ -413,10 +418,13 @@ export default function PackagingInspection({
         itemId: data!.blisterType.name,
         quantity: 1,
       });
-      sendWithDelay({
-        itemId: `${data!.blisterType.name}`,
-        quantity: 1,
-      }, 5000);
+      sendWithDelay(
+        {
+          itemId: `${data!.blisterType.name}`,
+          quantity: 1,
+        },
+        5000
+      );
       setStep(1);
       setCheckedQuantity(checkedQuantity + inspection.count);
       setBlisters(
@@ -515,7 +523,7 @@ export default function PackagingInspection({
           const { error, errorData } = await response.json();
           console.error(error);
           console.error(errorData);
-          throw new Error(error)
+          throw new Error(error);
         } else {
           sendValidationMessage({
             message: "ETIQUETA GERADA COM SUCESSO!",

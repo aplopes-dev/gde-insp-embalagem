@@ -255,9 +255,7 @@ export default function PackagingInspection({
     let message: string = "";
     let color: DisplayColors = "red";
     let itemId: string | undefined = data?.blisterType.name;
-    let fileName: string | undefined = undefined;
     let quantity: number = 1;
-    let forceDelay = 2000;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.";
@@ -266,7 +264,7 @@ export default function PackagingInspection({
         message = "MODELO DE BLISTER INVÁLIDO.";
         break;
       case InspectionEnum.QUANTITY_INVALID:
-        message = "DEVE HAVER UM BLISTER!";
+        message = "POSICIONE UM NOVO BLISTER!";
         break;
       case InspectionEnum.VALID:
         if (!inspection.code) {
@@ -282,7 +280,7 @@ export default function PackagingInspection({
         }
         break;
     }
-    sendValidationMessage({ message, color, quantity, itemId, fileName });
+    sendValidationMessage({ message, color, quantity, itemId });
   }
 
   function quantityInspection(inspection: ObjectValidation) {
@@ -297,7 +295,7 @@ export default function PackagingInspection({
     let color: DisplayColors = "red";
     let itemId: string | undefined = data?.productType.name;
     let quantity: number = expectedQuantity;
-    let fileName: string | undefined = undefined;
+    let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${blisterCodes[targetBlister!]}`;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         message = "TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.";
@@ -311,9 +309,7 @@ export default function PackagingInspection({
       case InspectionEnum.VALID:
         message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
         color = "green";
-        fileName = `OP_${data?.opId}_BOX_${box?.id}_BL_${
-          blisterCodes[targetBlister!]
-        }`;
+        itemId = undefined
         verifyNextBlisterOrFinalize(inspection);
         break;
     }
@@ -331,6 +327,10 @@ export default function PackagingInspection({
     },
     forceDelay?: number
   ) {
+    console.log("-------------validation-------------");
+    
+    console.log(validation);
+    
     setDisplayColor(validation.color);
     setDisplayMessage(validation.message);
     sendMessageToRabbitMqMobile({
@@ -431,11 +431,11 @@ export default function PackagingInspection({
         blisters.map((bl, i) =>
           i == index
             ? {
-                ...bl,
-                isValidQuantity: true,
-                status: 1,
-                packedAt: new Date(),
-              }
+              ...bl,
+              isValidQuantity: true,
+              status: 1,
+              packedAt: new Date(),
+            }
             : bl
         )
       );
@@ -447,11 +447,11 @@ export default function PackagingInspection({
       const updateBlisters = blisters.map((bl, i) =>
         i == index
           ? {
-              ...bl,
-              isValidQuantity: true,
-              status: 1,
-              packedAt: new Date(),
-            }
+            ...bl,
+            isValidQuantity: true,
+            status: 1,
+            packedAt: new Date(),
+          }
           : bl
       );
       setBlisters(updateBlisters);
@@ -523,7 +523,7 @@ export default function PackagingInspection({
           const { error, errorData } = await response.json();
           console.error(error);
           console.error(errorData);
-          throw new Error(error);
+          throw new Error(errorData.message || error);
         } else {
           sendValidationMessage({
             message: "ETIQUETA GERADA COM SUCESSO!",
@@ -535,9 +535,9 @@ export default function PackagingInspection({
           setOpenPrintTagDialog(true);
           handleCheckOpCompletion();
         }
-      } catch (error) {
+      } catch (error: any) {
         sendValidationMessage({
-          message: "FALHA AO GERAR ETIQUETA!",
+          message: error?.message || "FALHA AO GERAR ETIQUETA!",
           color: "red",
         });
       }

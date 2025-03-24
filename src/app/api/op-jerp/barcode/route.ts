@@ -10,7 +10,7 @@ type GenerateBarcodeBody = {
 
 export async function POST(req: NextRequest) {
   const { opId, boxId, quantity } = await req.json() as GenerateBarcodeBody;
-  const tagDataReq = await generateBarcode(opId, boxId, quantity);
+  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity);
 
   if (tagDataReq.isRight()) {
     return NextResponse.json(tagDataReq.get());

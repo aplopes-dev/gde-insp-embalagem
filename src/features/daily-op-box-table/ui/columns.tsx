@@ -52,10 +52,10 @@ export function useBoxOpColumns({
         const value = row.getValue("packedAt");
         const formatted = value
           ? new Date(`${value}`).toLocaleDateString("pt-BR", {
-              day: "numeric",
-              month: "numeric",
-              year: "numeric",
-            })
+            day: "numeric",
+            month: "numeric",
+            year: "numeric",
+          })
           : "";
 
         return <div className="font-medium">{formatted}</div>;
@@ -95,18 +95,19 @@ export function useBoxOpColumns({
         const barCodeGeneratedAt = row.getValue("barCodeGeneratedAt");
         const barCode = row?.original?.barCode || undefined;
         const quantity = Number(row.getValue("quantity"));
+        const status = row.getValue("status") as OpBoxStatus;
 
         const formatted = barCodeGeneratedAt
           ? new Date(`${barCodeGeneratedAt}`).toLocaleDateString("pt-BR", {
-              day: "numeric",
-              month: "numeric",
-              year: "numeric",
-            })
+            day: "numeric",
+            month: "numeric",
+            year: "numeric",
+          })
           : "";
 
         return (
           <div className="font-medium">
-            {barCode ? (
+            {barCode && (
               <div className="flex gap-1 items-center" title={barCode}>
                 <Button
                   size={"sm"}
@@ -130,7 +131,9 @@ export function useBoxOpColumns({
                   </span>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {(!barCode && status !== OpBoxStatus.PENDING) && (
               <div className="flex items-center gap-1">
                 <Badge variant={"default"}>Pendente</Badge>
                 <Button
@@ -142,6 +145,12 @@ export function useBoxOpColumns({
                 >
                   <Barcode className="mr-2 w-4 h-4" /> Gerar
                 </Button>
+              </div>
+            )} 
+            
+            {(!barCode && status == OpBoxStatus.PENDING) && (
+              <div className="flex items-center gap-1">
+                <Badge variant={"default"}>Pendente</Badge>
               </div>
             )}
           </div>

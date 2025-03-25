@@ -178,8 +178,21 @@ export default function PackagingInspection({
     );
     switch (data.action) {
       case "BREAK_OP":
-        setOpenForceFinalizationDialog(true);
+        handleOpBoxBreak();
         break;
+    }
+  }
+
+  function handleOpBoxBreak() {
+    const issetPendingBlister = blisters.find(bl => !bl.packedAt)
+    if(blisters?.length <= 0){
+      setVisorMessage("Não é possível quebrar caixa de uma OP que não possui blisters!", "red")
+    }else if(!issetPendingBlister){
+      setVisorMessage("Não é possível quebrar caixa com todos os itens embalados!", "red")
+    }else if(data?.finishedAt){
+      setVisorMessage("Não é possível quebrar caixa de uma OP finalizada!", "red")
+    }else{
+      setOpenForceFinalizationDialog(true);
     }
   }
 
@@ -233,7 +246,7 @@ export default function PackagingInspection({
         setVisorMessage("CAIXA VÁLIDA", "green");
         setTimeout(
           () => nextObjectValidation(inspection, ObjectTypes.blister),
-          2000
+          4000
         );
         break;
     }
@@ -275,7 +288,7 @@ export default function PackagingInspection({
           setVisorMessage("BLISTER VÁLIDO", "green");
           setTimeout(
             () => nextObjectValidation(inspection, ObjectTypes.product),
-            2000
+            4000
           );
         }
         break;
@@ -310,16 +323,16 @@ export default function PackagingInspection({
         break;
       case InspectionEnum.VALID:
         setVisorMessage("BLISTER E QUANTIDADE DE ITENS VÁLIDOS", "green");
-        setTimeout(() => verifyNextBlisterOrFinalize(inspection), 2000);
+        setTimeout(() => verifyNextBlisterOrFinalize(inspection), 4000);
         break;
     }
   }
 
   function setVisorMessage(message: string, color: DisplayColors) {
     setDisplayColor(color);
-    setDisplayMessage(message);
+    setDisplayMessage(`${message}`.toUpperCase());
     sendMessageToRabbitMqMobile({
-      mensagem: message,
+      mensagem: `${message}`.toUpperCase(),
       cor: mobileColorKeysMap.get(color),
     });
   }
@@ -339,7 +352,7 @@ export default function PackagingInspection({
       {
         ...validation,
       },
-      2000
+      3000
     );
   }
 
@@ -614,7 +627,7 @@ export default function PackagingInspection({
                         <Button
                           className="bg-red-700 hover:bg-red-600"
                           variant={"destructive"}
-                          onClick={() => setOpenForceFinalizationDialog(true)}
+                          onClick={() => handleOpBoxBreak()}
                         >
                           Finalizar com quebra
                         </Button>
@@ -685,7 +698,7 @@ export default function PackagingInspection({
         }
         isOpen={openForceFinalizationDialog}
         initialQuantity={inspection?.count}
-        onOpenChange={setOpenForceFinalizationDialog}
+        onOpenChange={handleOpBoxBreak}
         onManagerAuth={(quantity, managerId) =>
           configLastBlisterQuantity(quantity, managerId)
         }

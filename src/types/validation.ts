@@ -4,7 +4,6 @@ export type ObjectValidation = {
   type?: ValidableType;
   code?: string;
   itemId: string;
-  // name: string;
   count: number;
 };
 

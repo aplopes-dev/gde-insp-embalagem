@@ -2,7 +2,6 @@
 
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
 import BlisterDisplay from "@/features/blister-display";
 import ManagerAuthFormDialog from "@/features/manager-auth-form-dialog";
 import BoxDisplay from "@/features/op-box-display";
@@ -25,7 +24,7 @@ import {
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
-import { DockIcon, FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import {
   InspectionStatus,
   OpBoxBlisterInspection,
@@ -97,32 +96,24 @@ export default function PackagingInspection({
         setDisplayColor("blue");
         if (!opData) throw new Error("OP não retornada!");
         if (opData.finishedAt) {
-          sendValidationMessage({
-            message: "OP FINALIZADA!",
-            color: "blue",
-          });
+          setVisorMessage("OP FINALIZADA!", "blue");
         } else if (!opData.nextBox) {
-          sendValidationMessage({
-            message: "NÃO EXISTEM CAIXAS PENDENTES. VERIFIQUE DETALHES DA OP!",
-            color: "blue",
-          });
+          setVisorMessage(
+            "NÃO EXISTEM CAIXAS PENDENTES. VERIFIQUE DETALHES DA OP!",
+            "blue"
+          );
         } else {
           mountInspecionState(opData.nextBox!, opData.blisterCodes);
-          const message: string = "AGUARDANDO CAIXA...";
-          const color: DisplayColors = "blue";
           const itemId: string | undefined = opData?.boxType.name;
           const model: string | undefined = opData?.productType.name;
           const quantity: number = 1;
-          sendValidationMessage({ message, color, itemId, quantity, model });
+          setVisorMessage("AGUARDANDO CAIXA...", "blue");
+          sendValidation({ itemId, quantity, model });
         }
         setLoading(false);
       })
       .catch((error) => {
-        toast({
-          title: "Erro ao carregar OP",
-          description: error?.message || "Falha na sincronização da OP",
-          variant: "destructive",
-        });
+        setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
         setLoading(false);
       });
   };
@@ -220,29 +211,29 @@ export default function PackagingInspection({
       inspection,
       1
     );
-    let message: string = "";
-    let color: DisplayColors = "red";
     let itemId: string | undefined = data?.boxType.name;
     let quantity: number = 1;
-    let forceDelay = 2000;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
-        message = "TIPO DE OBJETO INVÁLIDO. INSIRA UMA CAIXA.";
+        setVisorMessage("TIPO DE OBJETO INVÁLIDO. INSIRA UMA CAIXA.", "red");
+        sendValidation({ itemId, quantity });
         break;
       case InspectionEnum.TYPE_INVALID:
-        message = "MODELO DE CAIXA INVÁLIDO.";
+        setVisorMessage("MODELO DE CAIXA INVÁLIDO. INSIRA UMA CAIXA.", "red");
+        sendValidation({ itemId, quantity });
         break;
       case InspectionEnum.QUANTITY_INVALID:
-        message = "DEVE HAVER UMA CAIXA!";
+        setVisorMessage("DEVE HAVER UMA CAIXA!", "red");
+        sendValidation({ itemId, quantity });
         break;
       case InspectionEnum.VALID:
-        message = "CAIXA VÁLIDA";
-        color = "green";
-        itemId = data?.blisterType.name;
-        nextObjectValidation(inspection, ObjectTypes.blister);
+        setVisorMessage("CAIXA VÁLIDA", "green");
+        setTimeout(
+          () => nextObjectValidation(inspection, ObjectTypes.blister),
+          2000
+        );
         break;
     }
-    sendValidationMessage({ message, color, itemId, quantity }, forceDelay);
   }
 
   function blisterInspection(inspection: ObjectValidation) {
@@ -252,35 +243,40 @@ export default function PackagingInspection({
       inspection,
       1
     );
-    let message: string = "";
-    let color: DisplayColors = "red";
     let itemId: string | undefined = data?.blisterType.name;
     let quantity: number = 1;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
-        message = "TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.";
+        setVisorMessage("TIPO DE OBJETO INVÁLIDO. INSIRA UM BLISTER.", "red");
+        sendValidation({ itemId, quantity });
         break;
       case InspectionEnum.TYPE_INVALID:
-        message = "MODELO DE BLISTER INVÁLIDO.";
+        setVisorMessage("MODELO DE BLISTER INVÁLIDO.", "red");
+        sendValidation({ itemId, quantity });
         break;
       case InspectionEnum.QUANTITY_INVALID:
-        message = "POSICIONE UM NOVO BLISTER!";
+        setVisorMessage("POSICIONE UM BLISTER!", "red");
+        sendValidation({ itemId, quantity });
         break;
       case InspectionEnum.VALID:
         if (!inspection.code) {
-          message = "ENVIE O CÓDIGO DO BLISTER.";
+          setVisorMessage("ENVIE O CÓDIGO DO BLISTER.", "red");
+          sendValidation({ itemId, quantity });
         } else if (blisterCodes.includes(inspection.code)) {
-          message = "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code;
+          setVisorMessage(
+            "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code,
+            "red"
+          );
+          sendValidation({ itemId, quantity });
         } else {
-          message = "BLISTER VÁLIDO";
-          color = "green";
-          itemId = data?.productType.name;
-          quantity = blisters[targetBlister!].quantity;
-          nextObjectValidation(inspection, ObjectTypes.product);
+          setVisorMessage("BLISTER VÁLIDO", "green");
+          setTimeout(
+            () => nextObjectValidation(inspection, ObjectTypes.product),
+            2000
+          );
         }
         break;
     }
-    sendValidationMessage({ message, color, quantity, itemId });
   }
 
   function quantityInspection(inspection: ObjectValidation) {
@@ -291,53 +287,46 @@ export default function PackagingInspection({
       inspection,
       expectedQuantity
     );
-    let message: string = "";
-    let color: DisplayColors = "red";
     let itemId: string | undefined = data?.productType.name;
     let quantity: number = expectedQuantity;
-    let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${blisterCodes[targetBlister!]}`;
+    let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${
+      blisterCodes[targetBlister!]
+    }`;
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
-        message = "TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.";
+        setVisorMessage("TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.", "red");
+        sendValidation({ itemId, quantity, fileName });
         break;
       case InspectionEnum.TYPE_INVALID:
-        message = "MODELO DE PRODUTO INVÁLIDO.";
+        setVisorMessage("MODELO DE PRODUTO INVÁLIDO.", "red");
+        sendValidation({ itemId, quantity, fileName });
         break;
       case InspectionEnum.QUANTITY_INVALID:
-        message = "QUANTIDADE DE ITENS INCORRETA!";
+        setVisorMessage("QUANTIDADE DE ITENS INCORRETA!", "red");
+        sendValidation({ itemId, quantity, fileName });
         break;
       case InspectionEnum.VALID:
-        message = "BLISTER E QUANTIDADE DE ITENS VÁLIDOS";
-        color = "green";
-        itemId = undefined
-        verifyNextBlisterOrFinalize(inspection);
+        setVisorMessage("BLISTER E QUANTIDADE DE ITENS VÁLIDOS", "green");
+        setTimeout(() => verifyNextBlisterOrFinalize(inspection), 2000);
         break;
     }
-    sendValidationMessage({ message, color, quantity, itemId, fileName });
   }
 
-  function sendValidationMessage(
-    validation: {
-      message: string;
-      color: DisplayColors;
-      quantity?: number;
-      itemId?: string;
-      fileName?: string;
-      model?: string;
-    },
-    forceDelay?: number
-  ) {
-    console.log("-------------validation-------------");
-    
-    console.log(validation);
-    
-    setDisplayColor(validation.color);
-    setDisplayMessage(validation.message);
+  function setVisorMessage(message: string, color: DisplayColors) {
+    setDisplayColor(color);
+    setDisplayMessage(message);
     sendMessageToRabbitMqMobile({
-      mensagem: validation.message,
-      cor: mobileColorKeysMap.get(validation.color),
+      mensagem: message,
+      cor: mobileColorKeysMap.get(color),
     });
+  }
 
+  function sendValidation(validation: {
+    quantity?: number;
+    itemId?: string;
+    fileName?: string;
+    model?: string;
+  }) {
     const filteredValidation = Object.entries(validation).reduce(
       (acc, [key, value]) => {
         if (value !== undefined) {
@@ -351,6 +340,8 @@ export default function PackagingInspection({
     if (filteredValidation.itemId) {
       filteredValidation.message && delete filteredValidation.message;
       filteredValidation.color && delete filteredValidation.color;
+      console.log("-------------validation-------------");
+      console.log(filteredValidation);
       sendSocketEvent("iaHandler", {
         ...filteredValidation,
       });
@@ -358,7 +349,7 @@ export default function PackagingInspection({
         {
           ...filteredValidation,
         },
-        forceDelay || 2000
+        2000
       );
     }
   }
@@ -368,16 +359,9 @@ export default function PackagingInspection({
     objectType: ObjectTypes
   ) {
     if (!data) throw Error("Falha ao carregar informações da OP");
-    let message: string = "";
-    let color: DisplayColors = "blue";
-    let itemId: string | undefined = undefined;
-    let quantity: number | undefined = undefined;
     switch (objectType) {
       case ObjectTypes.blister:
         setActiveObjectType("blister");
-        message = "INSIRA UM BLISTER";
-        quantity = 1;
-        itemId = data.blisterType.name;
         setTargetBlister(0);
         setStep(1);
         box &&
@@ -385,6 +369,11 @@ export default function PackagingInspection({
             ...box,
             status: InspectionStatus.VALID,
           });
+        setVisorMessage("POSICIONE UM BLISTER...", "blue");
+        sendValidation({
+          quantity: 1,
+          itemId: data?.blisterType.name,
+        });
         break;
       case ObjectTypes.product:
         if (!inspection.code) throw Error("Falha ao obter código da inspeção");
@@ -397,16 +386,19 @@ export default function PackagingInspection({
           )
         );
         setActiveObjectType("product");
-        message = "VERIFICANDO QUANTIDADE DE ITENS...";
-        quantity = blisters[targetBlister!].quantity;
-        itemId = data.productType.name;
         const newCodes = [...blisterCodes];
         newCodes[targetBlister!] = inspection.code;
         setBlisterCodes([...newCodes]);
+        let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
         setStep(2);
+        setVisorMessage("VERIFICANDO QUANTIDADE DE ITENS...", "blue");
+        sendValidation({
+          quantity: blisters[targetBlister!].quantity,
+          itemId: data?.productType.name,
+          fileName,
+        });
         break;
     }
-    sendValidationMessage({ message, color, quantity, itemId });
   }
 
   function verifyNextBlisterOrFinalize(inspection: ObjectValidation) {
@@ -414,31 +406,25 @@ export default function PackagingInspection({
     if (blisters[index + 1]) {
       setTargetBlister(index + 1);
       setActiveObjectType("blister");
-      sendSocketEvent("iaHandler", {
-        itemId: data!.blisterType.name,
-        quantity: 1,
-      });
-      sendWithDelay(
-        {
-          itemId: `${data!.blisterType.name}`,
-          quantity: 1,
-        },
-        5000
-      );
       setStep(1);
       setCheckedQuantity(checkedQuantity + inspection.count);
       setBlisters(
         blisters.map((bl, i) =>
           i == index
             ? {
-              ...bl,
-              isValidQuantity: true,
-              status: 1,
-              packedAt: new Date(),
-            }
+                ...bl,
+                isValidQuantity: true,
+                status: 1,
+                packedAt: new Date(),
+              }
             : bl
         )
       );
+      setVisorMessage("POSICIONE UM NOVO BLISTER", "blue");
+      sendValidation({
+        quantity: 1,
+        itemId: data?.blisterType.name,
+      });
     } else {
       setTargetBlister(undefined);
       setActiveObjectType(undefined);
@@ -447,11 +433,11 @@ export default function PackagingInspection({
       const updateBlisters = blisters.map((bl, i) =>
         i == index
           ? {
-            ...bl,
-            isValidQuantity: true,
-            status: 1,
-            packedAt: new Date(),
-          }
+              ...bl,
+              isValidQuantity: true,
+              status: 1,
+              packedAt: new Date(),
+            }
           : bl
       );
       setBlisters(updateBlisters);
@@ -467,18 +453,13 @@ export default function PackagingInspection({
     if (box) {
       await persistBoxStatusWithBlisters(box.id, currentBlisters)
         .then((_) => {
-          toast({
-            title: "Sucesso",
-            description: "Inspeção de caixa finalizada com sucesso!",
-          });
-          printTag(currentBlisters);
+          setVisorMessage("Inspeção de caixa finalizada com sucesso!", "green");
+          setTimeout(async () => {
+            printTag(currentBlisters);
+          }, 2000);
         })
         .catch((err) => {
-          toast({
-            title: "Erro",
-            description: err.message,
-            variant: "destructive",
-          });
+          setVisorMessage(err.message, "red");
         });
     }
   }
@@ -486,62 +467,44 @@ export default function PackagingInspection({
   const handleCheckOpCompletion = async () => {
     const opCompletion = await opCompletionNowHandler(data!.opId);
     if (opCompletion) {
-      sendValidationMessage({
-        message: "OP FINALIZADA COM SUCESSO!",
-        color: "green",
-      });
+      setVisorMessage("OP FINALIZADA COM SUCESSO!", "green");
     }
   };
 
-  function printTag(currentBlisters: OpBoxBlisterInspection[]) {
-    setTimeout(async () => {
-      const productQuantity = currentBlisters
-        .filter((bl) => bl.status == 1)
-        .reduce((acc, i) => acc + i.quantity, 0);
-
-      sendValidationMessage({
-        message: "IMPRIMINDO ETIQUETA...",
-        color: "black",
-        quantity: 1,
-        itemId: "TAG",
+  async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
+    const productQuantity = currentBlisters
+      .filter((bl) => bl.status == 1)
+      .reduce((acc, i) => acc + i.quantity, 0);
+    setVisorMessage("IMPRIMINDO ETIQUETA...", "black");
+    try {
+      const response = await fetch("/api/op-jerp/barcode", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          opId: data!.opId,
+          boxId: box!.id,
+          quantity: productQuantity,
+        }),
       });
 
-      try {
-        const response = await fetch("/api/op-jerp/barcode", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            opId: data!.opId,
-            boxId: box!.id,
-            quantity: productQuantity,
-          }),
-        });
-
-        if (!response.ok) {
-          const { error, errorData } = await response.json();
-          console.error(error);
-          console.error(errorData);
-          throw new Error(errorData.message || error);
-        } else {
-          sendValidationMessage({
-            message: "ETIQUETA GERADA COM SUCESSO!",
-            color: "green",
-          });
-          const tagData = await response.json();
-          setQuantityToPrint(tagData!.quantidadeApontada);
-          setBarcodeToPrint(tagData!.idBarras);
-          setOpenPrintTagDialog(true);
-          handleCheckOpCompletion();
-        }
-      } catch (error: any) {
-        sendValidationMessage({
-          message: error?.message || "FALHA AO GERAR ETIQUETA!",
-          color: "red",
-        });
+      if (!response.ok) {
+        const { error, errorData } = await response.json();
+        console.error(error);
+        console.error(errorData);
+        throw new Error(errorData.message || error);
+      } else {
+        setVisorMessage("ETIQUETA GERADA COM SUCESSO!", "green");
+        const tagData = await response.json();
+        setQuantityToPrint(tagData!.quantidadeApontada);
+        setBarcodeToPrint(tagData!.idBarras);
+        setOpenPrintTagDialog(true);
+        handleCheckOpCompletion();
       }
-    }, 2000);
+    } catch (error: any) {
+      setVisorMessage(error?.message || "FALHA AO GERAR ETIQUETA!", "red");
+    }
   }
 
   async function forceOpFinalization(
@@ -551,12 +514,7 @@ export default function PackagingInspection({
     const issetPackedBlister = currentBlisters.find((bl) => bl.packedAt);
 
     if (box?.status != InspectionStatus.VALID || !issetPackedBlister) {
-      toast({
-        title: "Erro",
-        variant: "destructive",
-        description:
-          "Não é possível finalizar a operação, pois não há itens embalados",
-      });
+      setVisorMessage("Não há itens embalados", "red");
     } else {
       await persistWithOpBreak(
         box,
@@ -565,18 +523,13 @@ export default function PackagingInspection({
         Number(managerId)
       )
         .then((_) => {
-          toast({
-            title: "Sucesso",
-            description: "Caixa finalizada com sucesso!",
-          });
-          printTag(currentBlisters);
+          setVisorMessage("Caixa finalizada com sucesso!", "green");
+          setTimeout(async () => {
+            printTag(currentBlisters);
+          }, 2000);
         })
         .catch((err) => {
-          toast({
-            title: "Erro",
-            description: err.message,
-            variant: "destructive",
-          });
+          setVisorMessage(err.message, "red");
         });
     }
   }
@@ -626,10 +579,7 @@ export default function PackagingInspection({
       setBlisters(newBlisters);
       setOpBrakeManagerId(managerId);
     } else {
-      sendValidationMessage({
-        message: "QUANTIDADE DEVE SER MENOR QUE A ATUAL!",
-        color: "red",
-      });
+      setVisorMessage("QUANTIDADE DEVE SER MENOR QUE A ATUAL!", "red");
     }
   }
 

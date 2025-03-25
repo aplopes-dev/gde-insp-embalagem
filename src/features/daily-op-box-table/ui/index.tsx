@@ -31,6 +31,9 @@ export default function DailyOpBoxTable({
     setExternalLoading(true);
     try {
       const response = await generateBarcodeByBoxId(Number(opId), boxId);
+      console.log("response");
+      console.log(response);
+      
       if (!response) throw new Error("Falha ao gerar etiqueta!");
       await opCompletionNowHandler(response.id);
       toast({

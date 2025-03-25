@@ -2,6 +2,7 @@
 
 import db from "@/providers/database";
 import { generateBarcode } from "@/shared/services/jerp";
+import { ApiResponseError } from "@/shared/utils/errorHandler";
 import { getOwnFilterClauses } from "@/shared/utils/filter";
 import OpBoxDto from "@/types/dtos/op-box-dto";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
@@ -70,10 +71,10 @@ export async function getPaginatedBoxOp({
 }
 
 
-export async function generateBarcodeByBoxId(opId: number, boxId: number): Promise<PrintTagJerpDto | null> {
+export async function generateBarcodeByBoxId(opId: number, boxId: number): Promise<PrintTagJerpDto | ApiResponseError> {
   const box = await db.opBox.findUnique({
     where: {
-      id: boxId,
+      id: `${boxId}`,
       opId: opId,
       status: {
         not: OpBoxStatus.PENDING,
@@ -98,15 +99,21 @@ export async function generateBarcodeByBoxId(opId: number, boxId: number): Promi
       },
     },
   });
-  if (!box) return null;
+  
+  if (!box) return {
+    status: 400,
+    error: "Falha ao gerar etiqueta",
+    errorData: {
+      message: "Caixa não pode ser finalizada! Verifique se há pendências.",
+    },
+  } as ApiResponseError;
 
   const quantity = box.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0);
-  const tagDataReq = await generateBarcode(opId, boxId, quantity);
+  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity);
 
   if (tagDataReq.isRight()) {
     return tagDataReq.get()
   } else {
-    const data = tagDataReq.getLeft()
-    return null
+    return tagDataReq.getLeft()
   }
 }

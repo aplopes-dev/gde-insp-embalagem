@@ -11,6 +11,7 @@ import { useState } from "react";
 import { generateBarcodeByBoxId, getPaginatedBoxOp } from "../actions";
 import { useBoxOpColumns } from "./columns";
 import { BoxOpDataTableToolbar } from "./toolbar";
+import { error } from "console";
 
 export default function DailyOpBoxTable({
   opId,
@@ -30,11 +31,14 @@ export default function DailyOpBoxTable({
   const onCLickGenBarcode = async (boxId: number) => {
     setExternalLoading(true);
     try {
-      const response = await generateBarcodeByBoxId(Number(opId), boxId);
+      const response: any = await generateBarcodeByBoxId(Number(opId), boxId);
       console.log("response");
       console.log(response);
-      
-      if (!response) throw new Error("Falha ao gerar etiqueta!");
+
+      if (!response.id)
+        throw new Error(
+          response.errorData?.message || "Falha ao gerar etiqueta!"
+        );
       await opCompletionNowHandler(response.id);
       toast({
         title: "Sucesso",
@@ -42,7 +46,7 @@ export default function DailyOpBoxTable({
       });
       setExternalLoading(false);
       forceRefresh();
-    } catch (error: any) {      
+    } catch (error: any) {
       toast({
         title: "Erro",
         description: error.message,

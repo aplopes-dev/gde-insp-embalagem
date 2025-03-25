@@ -113,7 +113,10 @@ export default function PackagingInspection({
         setLoading(false);
       })
       .catch((error) => {
-        setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
+        setVisorMessage(
+          error?.message || "Falha na sincronização da OP",
+          "red"
+        );
         setLoading(false);
       });
   };
@@ -327,31 +330,17 @@ export default function PackagingInspection({
     fileName?: string;
     model?: string;
   }) {
-    const filteredValidation = Object.entries(validation).reduce(
-      (acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = value;
-        }
-        return acc;
+    console.log("-------------validation-------------");
+    console.log(validation);
+    sendSocketEvent("iaHandler", {
+      ...validation,
+    });
+    sendWithDelay(
+      {
+        ...validation,
       },
-      {} as Record<string, any>
+      2000
     );
-
-    if (filteredValidation.itemId) {
-      filteredValidation.message && delete filteredValidation.message;
-      filteredValidation.color && delete filteredValidation.color;
-      console.log("-------------validation-------------");
-      console.log(filteredValidation);
-      sendSocketEvent("iaHandler", {
-        ...filteredValidation,
-      });
-      sendWithDelay(
-        {
-          ...filteredValidation,
-        },
-        2000
-      );
-    }
   }
 
   function nextObjectValidation(

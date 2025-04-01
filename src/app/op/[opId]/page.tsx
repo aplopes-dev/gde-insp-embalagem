@@ -99,7 +99,7 @@ export default function PackagingInspection({
           setVisorMessage("OP FINALIZADA!", "blue");
         } else if (!opData.nextBox) {
           setVisorMessage(
-            "NÃO EXISTEM CAIXAS PENDENTES. VERIFIQUE DETALHES DA OP!",
+            "NÃO EXISTEM CAIXAS PENDENTES!",
             "blue"
           );
         } else {
@@ -186,11 +186,11 @@ export default function PackagingInspection({
   function handleOpBoxBreak() {
     const issetPendingBlister = blisters.find(bl => !bl.packedAt)
     if(blisters?.length <= 0){
-      setVisorMessage("Não é possível quebrar caixa de uma OP que não possui blisters!", "red")
+      setVisorMessage("Não é possuem blisters disponíveis!", "red")
     }else if(!issetPendingBlister){
-      setVisorMessage("Não é possível quebrar caixa com todos os itens embalados!", "red")
+      setVisorMessage("Todos os itens já foram embalados!", "red")
     }else if(data?.finishedAt){
-      setVisorMessage("Não é possível quebrar caixa de uma OP finalizada!", "red")
+      setVisorMessage("OP já foi finalizada!", "red")
     }else{
       setOpenForceFinalizationDialog(true);
     }

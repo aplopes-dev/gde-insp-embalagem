@@ -185,8 +185,10 @@ export default function PackagingInspection({
 
   function handleOpBoxBreak() {
     const issetPendingBlister = blisters.find(bl => !bl.packedAt)
-    if(blisters?.length <= 0){
-      setVisorMessage("Não é possuem blisters disponíveis!", "red")
+    if(step != 2){
+      setVisorMessage("Deve estar na validação de quantidade!", "red")
+    }else if(blisters?.length <= 0){
+      setVisorMessage("Não existem blisters disponíveis!", "red")
     }else if(!issetPendingBlister){
       setVisorMessage("Todos os itens já foram embalados!", "red")
     }else if(data?.finishedAt){
@@ -564,6 +566,10 @@ export default function PackagingInspection({
     const index = targetBlister || 0;
 
     if (quantity < blisters[index].quantity) {
+      const itemId = data?.productType.name;
+      let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${
+        blisterCodes[targetBlister!]
+      }`;
       const newBlisters = [...blisters.slice(0, index + 1)];
       newBlisters[index].quantity = quantity;
 
@@ -580,6 +586,7 @@ export default function PackagingInspection({
       setCheckedQuantity(checkQuantity);
       setBlisters(newBlisters);
       setOpBrakeManagerId(managerId);
+      sendValidation({ itemId, quantity, fileName });
     } else {
       setVisorMessage("QUANTIDADE DEVE SER MENOR QUE A ATUAL!", "red");
     }
@@ -698,7 +705,7 @@ export default function PackagingInspection({
         }
         isOpen={openForceFinalizationDialog}
         initialQuantity={inspection?.count}
-        onOpenChange={handleOpBoxBreak}
+        onOpenChange={setOpenForceFinalizationDialog}
         onManagerAuth={(quantity, managerId) =>
           configLastBlisterQuantity(quantity, managerId)
         }

@@ -75,11 +75,13 @@
   height: 5cm;
   background-color: white;
   color: #000;
-  font-size: 18px;
-  gap: 3px;
+  font-size: 16px;
+  gap: 5px;
+  box-sizing: border-box;
   font-family: Arial, Helvetica, sans-serif;
   display: flex;
   flex-direction: column;
+  overflow-y: hidden;
 }
 
 .title {
@@ -88,7 +90,7 @@
 }
 
 .description {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .batch {
@@ -97,7 +99,9 @@
 }
 
 .barcode-row {
+  width: 100%;
   display: flex;
+  justify-content: space-between;
 }
 
 .barcode {
@@ -108,8 +112,9 @@
 
 .quantity {
   width: 50%;
-  margin-top: 15px;
+  margin-top: 25px;
   text-transform: uppercase;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: bold;
 }

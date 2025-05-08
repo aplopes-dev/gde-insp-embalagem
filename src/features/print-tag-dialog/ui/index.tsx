@@ -44,9 +44,6 @@ const PrintTagDialog = ({
     const conteudoDiv = divData;
     const parsedJSON = JSON.stringify({ conteudo: conteudoDiv })
 
-    console.log(conteudoDiv);
-    
-
     const resposta = await fetch("/api/imprimir", {
       method: "POST",
       headers: {
@@ -82,11 +79,11 @@ const PrintTagDialog = ({
             <div className="tag-area">
               <div className="title no-warp-line">{itemName}</div>
               <div className="description no-warp-line">{itemDescription}</div>
-              <div className="batch">Lote: {batchCode}</div>
+              <div className="batch">Lote: ({printConfig.barcode}) OP{batchCode} - {printConfig.barcode}</div>
               <div className="barcode-row">
                 <ReactBarcode
                   value={`${printConfig.barcode}`}
-                  options={{ format: "CODE39", height: 50 }}
+                  options={{ format: "CODE39", height: 45, displayValue: false }}                  
                 />
                 <div className="quantity">
                   Quantidade: {printConfig.quantity}

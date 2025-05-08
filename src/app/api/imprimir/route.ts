@@ -22,26 +22,27 @@ body{
 }
 
 .tag-area {
-  padding: 5mm 10mm;
-  width: 100mm;
-  height: 50mm;
+  padding: 10px;
+  width: 10cm;
+  height: 5cm;
   background-color: white;
   color: #000;
-  font-size: 32px;
-  gap: 3px;
+  font-size: 16px;
+  gap: 5px;
+  box-sizing: border-box;
   font-family: Arial, Helvetica, sans-serif;
   display: flex;
   flex-direction: column;
+  overflow-y: hidden;
 }
 
 .title {
-  font-size: 20px;
   text-transform: uppercase;
   font-weight: bold;
 }
 
 .description {
-  font-size: 16px;
+  font-size: 11px;
 }
 
 .batch {
@@ -50,22 +51,23 @@ body{
 }
 
 .barcode-row {
+  width: 100%;
   display: flex;
-  margin-top: 10px;
+  justify-content: space-between;
 }
 
 .barcode {
-  font-size: 48px;
+  font-size: 44px;
   flex: auto;
   text-align: center;
-  font-family: 'Libre Barcode 39';
 }
 
 .quantity {
   width: 50%;
-  margin-top: 5px;
+  margin-top: 25px;
   text-transform: uppercase;
-  font-size: 18px;
+  white-space: nowrap;
+  font-size: 12px;
   font-weight: bold;
 }
 
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
         }
         console.log('Job de impressão enviado com sucesso:', stdout);
         setTimeout(() => {
-          fs.unlinkSync(pdfPath);
+          // fs.unlinkSync(pdfPath);
         }, 5000)
       });
     } catch (error) {

@@ -22,13 +22,13 @@ body{
 }
 
 .tag-area {
-  padding: 10px;
+  padding: 10px 20px;
   width: 10cm;
   height: 5cm;
   background-color: white;
   color: #000;
   font-size: 16px;
-  gap: 5px;
+  gap: 8px;
   box-sizing: border-box;
   font-family: Arial, Helvetica, sans-serif;
   display: flex;
@@ -63,7 +63,6 @@ body{
 }
 
 .quantity {
-  width: 50%;
   margin-top: 25px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -77,6 +76,7 @@ body{
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 </style>`
 
 export async function POST(request: Request) {
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         }
         console.log('Job de impressão enviado com sucesso:', stdout);
         setTimeout(() => {
-          // fs.unlinkSync(pdfPath);
+          fs.unlinkSync(pdfPath);
         }, 5000)
       });
     } catch (error) {

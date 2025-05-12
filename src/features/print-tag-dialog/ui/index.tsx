@@ -83,7 +83,7 @@ const PrintTagDialog = ({
               <div className="barcode-row">
                 <ReactBarcode
                   value={`${printConfig.barcode}`}
-                  options={{ format: "CODE39", height: 45, displayValue: false }}                  
+                  options={{ format: "CODE39", height: 45, width:1.5, displayValue: false }}                  
                 />
                 <div className="quantity">
                   Quantidade: {printConfig.quantity}

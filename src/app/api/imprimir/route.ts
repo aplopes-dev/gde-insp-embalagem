@@ -5,68 +5,162 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 
 const styleClasses = `<style>
-
 @font-face {
-      font-family: 'LibreBarcode39-Regular';
-      src: url("./fonts/LibreBarcode39-Regular.ttf");
-      font-style: normal;
-    }
+  font-family: 'LibreBarcode39-Regular';
+  src: url("./fonts/LibreBarcode39-Regular.ttf");
+  font-style: normal;
+}
 
-body{
+body {
   font-family: Arial, Helvetica, sans-serif;
   width: 100mm;
-  height: 50mm;
+  height: 80mm;
   box-sizing: border-box;
-  margin:0;
-  padding:0;
+  margin: 0;
+  padding: 0;
 }
 
 .tag-area {
-  padding: 10px 20px;
-  width: 10cm;
-  height: 5cm;
+  padding: 8px;
+  width: 100mm;
+  height: 80mm;
   background-color: white;
   color: #000;
-  font-size: 16px;
-  gap: 8px;
+  font-size: 9px;
   box-sizing: border-box;
   font-family: Arial, Helvetica, sans-serif;
   display: flex;
   flex-direction: column;
-  overflow-y: hidden;
+  overflow: hidden;
+  border: 1px solid #000;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 3px;
+}
+
+.logo-area {
+  width: 30mm;
+  height: 10mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gde-name {
+  width: 55mm;
+  height: 10mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 9px;
+  border-right: 1px solid #000;
+  border-left: 1px solid #000;
+}
+
+.pgqf {
+  font-weight: bold;
+  font-size: 9px;
+  padding-right: 5px;
+
+}
+
+.process-title {
+  font-size: 9px;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid black;
+  padding-bottom: 2px;
+  margin-bottom: 3px;
+}
+
+.info-section {
+  margin-bottom: 5px;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #000;
+}
+
+.info-label {
+  font-weight: bold;
+  font-size: 9px;
+ 
+}
+
+.info-value {
+  flex: 1;
+  padding-left: 1.5em;
+  font-size: 9px;
+}
+
+.info-col {
+  display: flex;
+  flex: 1;
+  border-right: 1px solid #ddd;
+}
+
+.info-col:last-child {
+  border-right: none;
 }
 
 .title {
   text-transform: uppercase;
   font-weight: bold;
+  font-size: 12px;
+  margin-top: 3px;
+  padding: 2px;
 }
 
 .description {
-  font-size: 11px;
-}
-
-.batch {
-  text-transform: uppercase;
-  font-weight: bold;
+  font-size: 9px;
+  margin-bottom: 3px;
+  padding: 2px;
 }
 
 .barcode-row {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
 }
 
-.barcode {
-  font-size: 44px;
-  flex: auto;
-  text-align: center;
+.barcode-container {
+  flex: 2;
+}
+
+.lot-quantity-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 5px;
+  border-left: 1px solid #ddd;
+  padding-left: 5px;
+  flex: 1;
+}
+
+.batch {
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 9px;
+  white-space: nowrap;
 }
 
 .quantity {
-  margin-top: 25px;
+  margin-top: 3px;
   text-transform: uppercase;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 9px;
   font-weight: bold;
 }
 
@@ -76,7 +170,6 @@ body{
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 </style>`
 
 export async function POST(request: Request) {
@@ -93,8 +186,8 @@ export async function POST(request: Request) {
     const pdfPath = path.join(process.cwd(), 'printing_file.pdf');
     await page.pdf({
       path: pdfPath,
-      width: '100mm', // 101,6 mm em pontos
-      height: '50mm', // 152,4 mm em pontos
+      width: '100mm',
+      height: '80mm',
       printBackground: false,
       pageRanges: "1"
     });

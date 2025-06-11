@@ -70,7 +70,7 @@
 
 
 .tag-area {
-  padding: 8px;
+  padding: 8px 8px 0;
   width: 100mm;
   height: 80mm;
   background-color: white;
@@ -88,17 +88,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3px;
   border-bottom: 1px solid #000;
-  padding-bottom: 3px;
 }
 
 .logo-area {
   width: 30mm;
   height: 10mm;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+}
+
+.company-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .gde-name {
@@ -108,28 +112,25 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 9px;
   border-right: 1px solid #000;
   border-left: 1px solid #000;
 }
 
 .logo {
   font-weight: bold;
-  font-size: 9px;
 }
 
 .pgqf {
   font-weight: bold;
-  font-size: 9px;
   padding-right: 5px;
 }
 
 .process-title {
-  font-size: 9px;
   font-weight: bold;
   text-align: center;
   border-bottom: 1px solid black;
-  padding-bottom: 2px;
+  padding-bottom: 5px;
+  padding-top: 5px;
   margin-bottom: 3px;
 }
 
@@ -139,20 +140,17 @@
 
 .info-row {
   display: flex;
-  margin-bottom: 3px;
+  margin-bottom: 5px;
   padding-bottom: 3px;
   border-bottom: 1px solid #000;
 }
 
 .info-label {
   font-weight: bold;
-  font-size: 9px;
 }
 
 .info-value {
-  flex: 1;
-  padding-left: 1.5em;
-  font-size: 9px;
+  padding-left: 0.5em;
 }
 
 .info-col {
@@ -180,11 +178,8 @@
 }
 
 .barcode-row {
-  width: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: auto;
 }
 
 .barcode-container {
@@ -194,8 +189,6 @@
 .lot-quantity-info {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  margin-left: 5px;
   border-left: 1px solid #ddd;
   padding-left: 5px;
   flex: 1;
@@ -236,13 +229,25 @@
 }
 
 .qrcode-area {
-  width: 35%;
-  height: 20mm;
+  width: 10mm;
+  height: 10mm;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #ddd;
   margin-left: auto;
+}
+
+.product-qrcode-section {
+  display: flex;
+  justify-content: space-between;
+}
+
+.qrcode-container {
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Estilos para scrollbar */

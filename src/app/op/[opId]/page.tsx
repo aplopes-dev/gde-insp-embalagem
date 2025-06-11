@@ -61,8 +61,8 @@ export default function PackagingInspection({
   const [step, setStep] = useState(0); // 0 - box, 1 - blister, 2 - quantity, 3 - print
   const [openPrintTagDialog, setOpenPrintTagDialog] = useState<boolean>(false);
   const [opBrakeManagerId, setOpBrakeManagerId] = useState<string>();
-  const [openForceFinalizationDialog, setOpenForceFinalizationDialog] =
-    useState<boolean>(false);
+  const [openForceFinalizationDialog, setOpenForceFinalizationDialog] = useState<boolean>(false);
+  const [printTagData, setPrintTagData] = useState<any>({});
 
   const [targetBlister, setTargetBlister] = useState<number>();
 
@@ -503,6 +503,7 @@ export default function PackagingInspection({
         const tagData = await response.json();
         setQuantityToPrint(tagData!.quantidadeApontada);
         setBarcodeToPrint(tagData!.idBarras);
+        setPrintTagData(tagData);
         setOpenPrintTagDialog(true);
         handleCheckOpCompletion();
       }
@@ -716,8 +717,14 @@ export default function PackagingInspection({
           itemName={data.productType.code}
           itemDescription={data.productType.description}
           printConfig={{
-            barcode: `${barcodeToPrint}`,
-            quantity: quantityToPrint,
+            barcode: `${barcodeToPrint}`,             // Código de barras
+            quantity: quantityToPrint,                // Quantidade embalada
+            batchQuantity: data.quantityToProduce, // Quantidade total do lote
+            reportNumber: printTagData?.reportNumber,   // Número do relatório PGQF
+            date: printTagData?.date,                   // Data formatada
+            pepsApproved: printTagData?.pepsApproved,   // Status de aprovação PEPS
+            logoUrl: printTagData?.logoUrl,             // URL do logo
+            qrCodeData: printTagData?.qrCodeData,       // Dados para o QR Code
           }}
           batchCode={data.opCode}
           isOpen={openPrintTagDialog}

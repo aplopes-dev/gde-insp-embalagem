@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useRef } from "react";
 import { ReactBarcode } from "react-jsbarcode";
+import QRCode from "react-qr-code";
 
 type PrintTagProps = {
   isOpen: boolean;
@@ -14,8 +15,14 @@ type PrintTagProps = {
   itemDescription: string;
   batchCode: string;
   printConfig: {
-    barcode: string;
-    quantity: number;
+    barcode: string;          // Código de barras
+    quantity: number;          // QTDE EMBAL.
+    batchQuantity?: number;     // QTDE LOTE
+    reportNumber?: string;      // RELATÓRIO PGQF Nº
+    date?: string;              // DATA
+    pepsApproved?: boolean;     // PEPS | APROVADO
+    logoUrl?: string;           // URL do logo
+    qrCodeData?: string;        // Dados para o QR Code
   };
   onOpenChange: (open: boolean) => void;
   onPrintSuccess?: (barcode: string) => void;
@@ -55,7 +62,7 @@ const PrintTagDialog = ({
     if (resposta.ok) {
       console.log("Conteúdo enviado para impressão");
       onPrintSuccess && onPrintSuccess(`${printConfig.barcode}`);
-      onOpenChange(false);
+     // onOpenChange(false);
     } else {
       console.error("Erro ao enviar para impressão");
     }
@@ -80,7 +87,11 @@ const PrintTagDialog = ({
               {/* Cabeçalho com logo e título */}
               <div className="header-row">
                 <div className="logo-area">
-                  {/* Espaço para logo */}
+                  {printConfig.logoUrl ? (
+                    <img src={printConfig.logoUrl} alt="Logo" className="company-logo" />
+                  ) : (
+                    <div></div>
+                  )}
                 </div>
                 <div className="gde-name">GDE - Genesis Devices & Equipaments</div>
                 <div className="pgqf">PGQF</div>
@@ -99,7 +110,7 @@ const PrintTagDialog = ({
                 <div className="info-row border-bottom">
                   <div className="info-col">
                     <span className="info-label">QTDE LOTE:</span>
-                    <span className="info-value"></span>
+                    <span className="info-value">{printConfig.batchQuantity || ""}</span>
                   </div>
                   
                   <div className="info-col">
@@ -110,25 +121,39 @@ const PrintTagDialog = ({
                 
                 <div className="info-row border-bottom">
                   <span className="info-label">RELATÓRIO PGQF Nº:</span>
-                  <span className="info-value"></span>
+                  <span className="info-value">{printConfig.reportNumber || ""}</span>
                 </div>
                 
                 <div className="info-row border-bottom">
                   <span className="info-label">DATA:</span>
-                  <span className="info-value"></span>
+                  <span className="info-value">{printConfig.date || ""}</span>
                 </div>
                 
                 <div className="info-row border-bottom">
                   <span className="info-label">PEPS | APROVADO</span>
-                  <span className="info-value"></span>
+                  <span className="info-value">{printConfig.pepsApproved ? "SIM" : ""}</span>
                 </div>
               </div>
               
               {/* Código do produto em destaque e QRCode */}
-              <section>
-              <div className="title no-warp-line">{itemName}</div>
-              <div className="description no-warp-line">{itemDescription}</div>
-              <div>{/* {qrcode} */}</div> 
+              <section className="product-qrcode-section">
+                <div className="product-info">
+                  <div className="title no-warp-line">{itemName}</div>
+                  <div className="description no-warp-line">{itemDescription}</div>
+                </div>
+                
+                {printConfig.qrCodeData && (
+                  <div className="qrcode-container">
+                    {/* @ts-expect-error: react-qr-code types may not match JSX.Element */}
+                    <QRCode
+                      value={printConfig.qrCodeData || ""}
+                      size={40}
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
+                      level="L"
+                    />
+                  </div>
+                )}
               </section>
               
               {/* Área do código de barras e informações de lote */}
@@ -136,7 +161,7 @@ const PrintTagDialog = ({
                 <div className="barcode-container">
                   <ReactBarcode
                     value={`${printConfig.barcode}`}
-                    options={{ format: "CODE39", height: 45, width:1.5, displayValue: false }}                  
+                    options={{ format: "CODE39", height: 40, width:1.0, displayValue: false }}                  
                   />
                 </div>
                 <div className="lot-quantity-info">

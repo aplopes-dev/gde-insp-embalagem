@@ -105,19 +105,25 @@ export function useBoxOpColumns({
           })
           : "";
 
+        // Bloqueia reimpressão se o código já foi gerado (significa que já foi impressa)
+        const isAlreadyPrinted = !!barCodeGeneratedAt;
+
         return (
           <div className="font-medium">
             {barCode && (
               <div className="flex gap-1 items-center" title={barCode}>
                 <Button
                   size={"sm"}
-                  variant={"default"}
-                  title="Imprimir novamente"
+                  variant={isAlreadyPrinted ? "secondary" : "default"}
+                  title={isAlreadyPrinted ? "Etiqueta já foi impressa - reimpressão bloqueada" : "Imprimir novamente"}
+                  disabled={isAlreadyPrinted}
                   onClick={() => {
-                    onCLickPrint({
-                      barcode: barCode,
-                      quantity,
-                    });
+                    if (!isAlreadyPrinted) {
+                      onCLickPrint({
+                        barcode: barCode,
+                        quantity,
+                      });
+                    }
                   }}
                 >
                   <Barcode className="w-4 h-4" />
@@ -129,6 +135,11 @@ export function useBoxOpColumns({
                   <span>
                     <strong>Gerado em:</strong> {formatted}
                   </span>
+                  {isAlreadyPrinted && (
+                    <span className="text-red-600 text-sm">
+                      ⚠️ Etiqueta já impressa
+                    </span>
+                  )}
                 </div>
               </div>
             )}

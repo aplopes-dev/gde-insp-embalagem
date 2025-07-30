@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useEffect, useRef } from "react";
-import { ReactBarcode } from "react-jsbarcode";
 
 type PrintTagProps = {
   isOpen: boolean;
@@ -53,27 +52,30 @@ const PrintTagDialog = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && printConfig.pdfBase64) {
       printTag();
     }
-  }, [isOpen]);
+  }, [isOpen, printConfig.pdfBase64]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Etiqueta</DialogTitle>
           <DialogDescription>Etiqueta para impressão</DialogDescription>
         </DialogHeader>
-        <div ref={printRef}>
-          {printConfig.pdfBase64 && (
-            <div className="flex justify-center">
-              <embed
-                src={`data:application/pdf;base64,${printConfig.pdfBase64}`}
-                width="400"
-                height="300"
-                type="application/pdf"
-              />
+        <div ref={printRef} className="flex justify-center">
+          {printConfig.pdfBase64 ? (
+            <embed
+              src={`data:application/pdf;base64,${printConfig.pdfBase64}`}
+              width="500"
+              height="400"
+              type="application/pdf"
+              className="border rounded"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-40 text-gray-500">
+              Carregando preview da etiqueta...
             </div>
           )}
         </div>

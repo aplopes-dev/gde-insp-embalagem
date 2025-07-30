@@ -10,11 +10,8 @@ import { ReactBarcode } from "react-jsbarcode";
 
 type PrintTagProps = {
   isOpen: boolean;
-  itemName: string;
-  itemDescription: string;
-  batchCode: string;
   printConfig: {
-    barcode: string;
+    pdfBase64: string | null;
     quantity: number;
   };
   onOpenChange: (open: boolean) => void;
@@ -25,39 +22,33 @@ const PrintTagDialog = ({
   isOpen,
   onOpenChange,
   onPrintSuccess,
-  itemName,
-  itemDescription,
-  batchCode,
   printConfig,
 }: PrintTagProps) => {
   const printRef = useRef<HTMLDivElement>(null);
 
   const printTag = () => {
     setTimeout(() => {
-      const printContent = printRef.current!.innerHTML;
-      enviarParaImpressao(printContent);
-    }, 2000);
+      if (printConfig.pdfBase64) {
+        enviarPdfParaImpressao(printConfig.pdfBase64);
+      }
+    }, 1000);
   };
 
-  const enviarParaImpressao = async (divData: any) => {
-    if (!printConfig) throw new Error("Falha ao carregar codigo de barras");
-    const conteudoDiv = divData;
-    const parsedJSON = JSON.stringify({ conteudo: conteudoDiv })
-
-    const resposta = await fetch("/api/imprimir", {
+  const enviarPdfParaImpressao = async (pdfBase64: string) => {
+    const resposta = await fetch("/api/imprimir-pdf", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: parsedJSON,
+      body: JSON.stringify({ pdfBase64 }),
     });
 
     if (resposta.ok) {
-      console.log("Conteúdo enviado para impressão");
-      onPrintSuccess && onPrintSuccess(`${printConfig.barcode}`);
+      console.log("PDF enviado para impressão");
+      onPrintSuccess && onPrintSuccess(`${printConfig.quantity}`);
       onOpenChange(false);
     } else {
-      console.error("Erro ao enviar para impressão");
+      console.error("Erro ao enviar PDF para impressão");
     }
   };
 
@@ -74,21 +65,15 @@ const PrintTagDialog = ({
           <DialogTitle>Etiqueta</DialogTitle>
           <DialogDescription>Etiqueta para impressão</DialogDescription>
         </DialogHeader>
-        <div key="tag-area" ref={printRef}>
-          {printConfig && (
-            <div className="tag-area">
-              <div className="title no-warp-line">{itemName}</div>
-              <div className="description no-warp-line">{itemDescription}</div>
-              <div className="batch">Lote: ({printConfig.barcode}) OP{batchCode} - {printConfig.barcode}</div>
-              <div className="barcode-row">
-                <ReactBarcode
-                  value={`${printConfig.barcode}`}
-                  options={{ format: "CODE39", height: 45, width:1.5, displayValue: false }}                  
-                />
-                <div className="quantity">
-                  Quantidade: {printConfig.quantity}
-                </div>
-              </div>
+        <div ref={printRef}>
+          {printConfig.pdfBase64 && (
+            <div className="flex justify-center">
+              <embed
+                src={`data:application/pdf;base64,${printConfig.pdfBase64}`}
+                width="400"
+                height="300"
+                type="application/pdf"
+              />
             </div>
           )}
         </div>

@@ -73,6 +73,7 @@ export default function PackagingInspection({
   const [displayColor, setDisplayColor] = useState<DisplayColors>("blue");
   const [quantityToPrint, setQuantityToPrint] = useState<number>(0);
   const [barcodeToPrint, setBarcodeToPrint] = useState<number>();
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
 
@@ -495,14 +496,13 @@ export default function PackagingInspection({
 
       if (!response.ok) {
         const { error, errorData } = await response.json();
-        console.error(error);
-        console.error(errorData);
         throw new Error(errorData.message || error);
       } else {
         setVisorMessage("ETIQUETA GERADA COM SUCESSO!", "green");
         const tagData = await response.json();
         setQuantityToPrint(tagData!.quantidadeApontada);
         setBarcodeToPrint(tagData!.idBarras);
+        setPdfBase64(tagData!.pdfBase64); // Novo estado
         setOpenPrintTagDialog(true);
         handleCheckOpCompletion();
       }
@@ -716,7 +716,7 @@ export default function PackagingInspection({
           itemName={data.productType.code}
           itemDescription={data.productType.description}
           printConfig={{
-            barcode: `${barcodeToPrint}`,
+            pdfBase64: pdfBase64,
             quantity: quantityToPrint,
           }}
           batchCode={data.opCode}

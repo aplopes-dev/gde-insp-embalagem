@@ -12,7 +12,23 @@ export async function POST(request: Request) {
     
     fs.writeFileSync(pdfPath, pdfBuffer);
 
-    exec(`lp "${pdfPath}"`, (error, stdout, stderr) => {
+    // Opções para evitar scaling e manter tamanho original
+    const printOptions = [
+      '-o fit-to-page=false',           // Não ajustar ao tamanho da página
+      '-o scaling=100',                 // Scaling 100% (sem redimensionamento)
+      '-o print-scaling=none',          // Sem scaling adicional
+      '-o natural-scaling=100'          // Scaling natural 100%
+    ];
+
+    // Comando alternativo mais específico
+    const printCommand = `lp ${printOptions.join(' ')} "${pdfPath}"`;
+
+    // Comando alternativo com lpr (caso lp não funcione)
+    // const printCommand = `lpr -o fit-to-page=false -o scaling=100 "${pdfPath}"`;
+
+    console.log('Comando de impressão:', printCommand);
+
+    exec(printCommand, (error, stdout, stderr) => {
       if (error) {
         console.error('Erro ao enviar o PDF para o CUPS:', error);
         return NextResponse.json({ message: 'Erro ao imprimir o arquivo PDF.' }, { status: 500 });

@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { ThemeModeToggle } from "./theme-mode-toggle";
 import Link from "next/link";
+import { Button } from "./ui/button";
+import { Monitor } from "lucide-react";
 
 const Header = () => {
   return (
@@ -15,7 +17,13 @@ const Header = () => {
           />
         </div>
       </Link>
-      <div>
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard">
+          <Button variant="outline" size="sm">
+            <Monitor className="h-4 w-4 mr-2" />
+            Dashboard
+          </Button>
+        </Link>
         <ThemeModeToggle />
       </div>
     </header>

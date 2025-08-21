@@ -18,7 +18,13 @@ export default function DailyOpList() {
     "finishedAt",
     "DESC"
   );
-  const { columnFilters, onColumnFiltersChange } = useFiltering();
+  const defaultInstance = process.env.NEXT_PUBLIC_INSTANCE_ID || "ALL";
+  const { columnFilters, onColumnFiltersChange } = useFiltering([
+    {
+      id: "oculosInstanceId",
+      value: { operator: "equals", value: defaultInstance },
+    },
+  ] as any);
 
   const fetchPaginatedOp = async (params: FilterPaginationParams) => {
     try {

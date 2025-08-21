@@ -19,6 +19,15 @@ export async function getPaginatedOp({
 }: FilterPaginationParams) {
   let whereClauses = getOwnFilterClauses(filters);
 
+  // Filtro opcional por INSTÂNCIA (óculos) quando informado
+  const instanceFilter = filters.find((f: any) => f.id === 'oculosInstanceId')?.value?.value;
+  if (instanceFilter && instanceFilter !== 'ALL') {
+    whereClauses = {
+      ...whereClauses,
+      oculosInstanceId: { equals: instanceFilter },
+    } as any;
+  }
+
   whereClauses = {
     ...whereClauses,
   };
@@ -67,6 +76,7 @@ export async function getPaginatedOp({
     return {
       id: op.id,
       code: op.code,
+      oculosInstanceId: (op as any).oculosInstanceId || null,
       itemsPacked: quantityMap.get(op.code) || 0,
       quantityToProduce: op.quantityToProduce,
       productTypeId: op.productTypeId,
@@ -74,7 +84,7 @@ export async function getPaginatedOp({
       finishedAt: op.finishedAt || undefined,
       createdAt: op.createdAt,
       status: op.status,
-    };
+    } as any;
   });
 
   const _count = transaction[0];

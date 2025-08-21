@@ -77,6 +77,8 @@ async function createInternalOp(externalOp: OpJerpDto) {
   delete op["boxes"];
   const opCreateData = {
     ...op,
+    // Preenche o óculos (INSTANCE_ID) se enviado no ambiente
+    oculosInstanceId: process.env.NEXT_PUBLIC_INSTANCE_ID || process.env.INSTANCE_ID || null,
     OpBox: {
       create: boxes?.map((box) => {
         const blisters = [...(box.blisters || [])];

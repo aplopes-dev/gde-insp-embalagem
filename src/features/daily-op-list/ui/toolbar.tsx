@@ -24,6 +24,14 @@ export function OpListToolbar<TData>({ table }: OpListToolbarProps<TData>) {
             placeholder="Código da OP"
           />
         )}
+        {table.getColumn("oculosInstanceId") && (
+          <DataTableDebounceTextFilter
+            key={"oculosInstanceId"}
+            column={table.getColumn("oculosInstanceId")}
+            title="Óculos (INSTANCE_ID)"
+            placeholder="rw-... ou ALL"
+          />
+        )}
         {/* {table.getColumn("status") && (
           <DataTableSelectFilter
             column={table.getColumn("status")}

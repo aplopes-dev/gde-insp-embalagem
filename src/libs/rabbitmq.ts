@@ -8,8 +8,8 @@ export async function connectRabbitMQ(): Promise<Channel> {
   try {
     connection = await amqp.connect(`${process.env.RABBITMQ_URL}`); // Ajuste conforme necessário
     channel = await connection.createChannel();
-    // await channel.assertQueue('fila_envio', { durable: true });
-    await channel.assertQueue('fila_recebimento', { durable: true });
+    await channel.assertQueue('fila_action', { durable: true });
+    await channel.assertQueue('fila_oculos', { durable: true });
     return channel;
   } catch (error) {
     console.error('Erro ao conectar ao RabbitMQ:', error);

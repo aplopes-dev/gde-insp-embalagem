@@ -60,6 +60,7 @@ model Op {
   updatedAt         DateTime  @updatedAt
   finishedAt        DateTime?
   quantityToProduce Int
+  oculosInstanceId  String?   // INSTANCE_ID do óculos que inspecionou (ex.: rw-...)
 
   product ProductType @relation(fields: [productTypeId], references: [id])
   box     BoxType     @relation(fields: [boxTypeId], references: [id])
@@ -67,6 +68,7 @@ model Op {
 
   OpBox OpBox[]
 }
+
 
 model OpBox {
   id                 String      @id @default(cuid())

@@ -37,6 +37,12 @@ export function useBoxOpColumns(): { columns: any[] } {
 
   const columns = [
     {
+      id: "oculosInstanceId",
+      header: "Óculos",
+      enableSorting: false,
+      enableColumnFilter: true,
+    },
+    {
       id: "code",
       header: "Código",
       enableSorting: true,

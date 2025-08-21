@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const dataStr = JSON.stringify(data)
   try {
     const channel = await connectRabbitMQ();
-    channel.sendToQueue('fila_envio', Buffer.from(dataStr), { persistent: true });
+    channel.sendToQueue('fila_action', Buffer.from(dataStr), { persistent: true });
     return NextResponse.json({ message: 'Mensagem publicada com sucesso!' })
   } catch (error) {
     console.error(error);

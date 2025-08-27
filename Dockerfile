@@ -2,6 +2,17 @@
 FROM node:20-bookworm-slim AS base
 WORKDIR /app
 
+# Garante ambiente de dev para Next / PostCSS
+ENV NODE_ENV=development
+
+# Dependências de build para bcrypt e OpenSSL para Prisma
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Instala dependências
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
@@ -18,9 +29,9 @@ ENV APPLY_MIGRATIONS=true
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Copia código e builda
+# Copia código (pula build para desenvolvimento)
 COPY . .
-RUN yarn build
+# RUN yarn build
 
 EXPOSE 3000
 ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -1,0 +1,9 @@
+# Excluir dependências e builds locais do contexto de build
+node_modules
+.next
+out
+npm-debug.log
+yarn-error.log
+.git
+.DS_Store
+

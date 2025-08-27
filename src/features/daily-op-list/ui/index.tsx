@@ -7,6 +7,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
 import { FilterPaginationParams } from "@/types/filter";
 import { OpDto } from "@/types/op-dto";
+import { useCallback } from "react";
 import { useBoxOpColumns } from "./columns";
 import { OpListToolbar } from "./toolbar";
 
@@ -26,7 +27,7 @@ export default function DailyOpList() {
     },
   ] as any);
 
-  const fetchPaginatedOp = async (params: FilterPaginationParams) => {
+  const fetchPaginatedOp = useCallback(async (params: FilterPaginationParams) => {
     try {
       const queryParams = new URLSearchParams({
         limit: params.limit.toString(),
@@ -44,7 +45,7 @@ export default function DailyOpList() {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
 
   const [data, count, loading] = useActionPageApi({
     pagination: { skip, limit },

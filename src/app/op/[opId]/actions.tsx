@@ -172,32 +172,38 @@ export async function persistBoxStatusWithBlisters(
   opBoxId: string,
   blisters: OpBoxBlisterInspection[]
 ) {
-  const queryCollection: any[] = blisters.map((bl) =>
-    db.opBoxBlister.update({
-      data: {
-        packedAt: bl.packedAt?.toISOString(),
-        code: bl.code,
-      },
-      where: {
-        id: bl.id,
-        opBoxId,
-      },
-    })
-  );
+  // Guardas mínimos contra concorrência: atualizar OpBox somente se ainda estiver PENDING
+  await db.$transaction(async (tx) => {
+    // Atualiza blisters da caixa
+    for (const bl of blisters) {
+      await tx.opBoxBlister.update({
+        data: {
+          packedAt: bl.packedAt?.toISOString(),
+          code: bl.code,
+        },
+        where: {
+          id: bl.id,
+          opBoxId,
+        },
+      });
+    }
 
-  queryCollection.push(
-    db.opBox.update({
+    // Tenta transicionar a caixa para PACKAGED apenas se ainda estiver PENDING
+    const result = await tx.opBox.updateMany({
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED,
       },
       where: {
         id: opBoxId,
+        status: OpBoxStatus.PENDING,
       },
-    })
-  );
+    });
 
-  await db.$transaction(queryCollection);
+    if (result.count === 0) {
+      throw new Error("Caixa já processada ou não está pendente");
+    }
+  });
 }
 
 export async function persistWithOpBreak(

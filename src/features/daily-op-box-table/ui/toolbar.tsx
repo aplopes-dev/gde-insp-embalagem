@@ -8,10 +8,12 @@ import { XIcon } from "lucide-react";
 
 interface BoxOpDataTableToolbarProps<TData> {
   table: Table<TData>;
+  onPickNextPendingBox?: () => void;
 }
 
 export function BoxOpDataTableToolbar<TData>({
   table,
+  onPickNextPendingBox,
 }: BoxOpDataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -70,6 +72,14 @@ export function BoxOpDataTableToolbar<TData>({
         )}
       </div>
       <div className="flex justify-end gap-2">
+        <Button
+          variant="default"
+          onClick={() => onPickNextPendingBox && onPickNextPendingBox()}
+          className="h-8 px-2 lg:px-3"
+          title="Reservar e abrir a próxima caixa pendente"
+        >
+          Pegar próxima caixa pendente
+        </Button>
         <DataTableViewOptions
           table={table}
           label="Colunas"

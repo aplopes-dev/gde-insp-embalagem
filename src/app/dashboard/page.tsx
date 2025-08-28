@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { RefreshCw, Monitor } from 'lucide-react'
+import { RefreshCw, Monitor, LayoutGrid, PanelLeft } from 'lucide-react'
+import { Toggle } from '@/components/ui/toggle'
 
 interface InstanceInfo {
   instanceId: string
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [instances, setInstances] = useState<InstanceInfo[]>([])
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [loading, setLoading] = useState<boolean>(false)
+  const [videoOnly, setVideoOnly] = useState<boolean>(false)
 
   const updateData = async () => {
     setLoading(true)
@@ -49,6 +51,15 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">Última atualização: {lastUpdate.toLocaleTimeString()}</div>
+          <Toggle
+            pressed={videoOnly}
+            onPressedChange={(v) => setVideoOnly(!!v)}
+            className="mr-2"
+            aria-label="Alternar modo vídeo"
+            title={videoOnly ? 'Modo vídeos (ativo)' : 'Modo completo'}
+          >
+            {videoOnly ? <LayoutGrid className="h-4 w-4 mr-2" /> : <PanelLeft className="h-4 w-4 mr-2" />} {videoOnly ? 'Só vídeos' : 'Completo'}
+          </Toggle>
           <Button onClick={updateData} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
@@ -70,10 +81,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className={videoOnly ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2" : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"}>
           {instances.map((inst) => (
-            <div key={inst.instanceId} className="border rounded overflow-hidden">
-              <div className="p-2 flex justify-between items-center bg-gray-100">
+            <div key={inst.instanceId} className={videoOnly ? "border rounded overflow-hidden" : "border rounded overflow-hidden"}>
+              <div className={videoOnly ? "hidden" : "p-2 flex justify-between items-center bg-gray-100"}>
                 <div className="font-semibold">{inst.instanceId}</div>
                 <div className="flex gap-2 items-center">
                   {inst.statsUrl && (
@@ -84,7 +95,7 @@ export default function DashboardPage() {
                   </a>
                 </div>
               </div>
-              <img src={inst.videoUrl} alt={inst.instanceId} className="w-full h-[360px] object-contain bg-black" />
+              <img src={inst.videoUrl} alt={inst.instanceId} className={videoOnly ? "w-full h-[440px] object-contain bg-black" : "w-full h-[360px] object-contain bg-black"} />
             </div>
           ))}
         </div>

@@ -80,6 +80,9 @@ model OpBox {
   barCodeGeneratedAt DateTime?
   packedAt           DateTime?
   breakAuthorizerId  Int?
+  // Claim opcional para evitar corrida de operadores
+  claimedByInstanceId String?
+  claimedAt           DateTime?
 
   op              Op       @relation(fields: [opId], references: [id], onDelete: Cascade)
   breakAuthorizer Manager? @relation(fields: [breakAuthorizerId], references: [id])

@@ -10,10 +10,12 @@ export function useBoxOpColumns({
   onCLickView,
   onCLickGenBarcode,
   onCLickPrint,
+  generatingBoxId,
 }: {
   onCLickView: (value: any) => void;
-  onCLickGenBarcode: (boxId: number) => void;
+  onCLickGenBarcode: (boxId: any) => void;
   onCLickPrint: (value: any) => void;
+  generatingBoxId?: string | null;
 }): {
   columns: any[];
 } {
@@ -75,9 +77,7 @@ export function useBoxOpColumns({
               size={"sm"}
               variant={"secondary"}
               title="Visualizar blisters"
-              onClick={() => {
-                onCLickView(id);
-              }}
+              onClick={() => onCLickView(id)}
               className="flex gap-2"
             >
               <EyeIcon className="w-4 h-4" />
@@ -96,6 +96,7 @@ export function useBoxOpColumns({
         const barCode = row?.original?.barCode || undefined;
         const quantity = Number(row.getValue("quantity"));
         const status = row.getValue("status") as OpBoxStatus;
+        const boxId = row.original.id;
 
         const formatted = barCodeGeneratedAt
           ? new Date(`${barCodeGeneratedAt}`).toLocaleDateString("pt-BR", {
@@ -107,6 +108,7 @@ export function useBoxOpColumns({
 
         // Bloqueia reimpressão se o código já foi gerado (significa que já foi impressa)
         const isAlreadyPrinted = !!barCodeGeneratedAt;
+        const isGenerating = generatingBoxId === boxId;
 
         return (
           <div className="font-medium">
@@ -119,10 +121,7 @@ export function useBoxOpColumns({
                   disabled={isAlreadyPrinted}
                   onClick={() => {
                     if (!isAlreadyPrinted) {
-                      onCLickPrint({
-                        barcode: barCode,
-                        quantity,
-                      });
+                      onCLickPrint({ barcode: barCode, quantity });
                     }
                   }}
                 >
@@ -136,9 +135,7 @@ export function useBoxOpColumns({
                     <strong>Gerado em:</strong> {formatted}
                   </span>
                   {isAlreadyPrinted && (
-                    <span className="text-red-600 text-sm">
-                      ⚠️ Etiqueta já impressa
-                    </span>
+                    <span className="text-red-600 text-sm">⚠️ Etiqueta já impressa</span>
                   )}
                 </div>
               </div>
@@ -150,15 +147,14 @@ export function useBoxOpColumns({
                 <Button
                   size={"sm"}
                   variant={"secondary"}
-                  onClick={() => {
-                    onCLickGenBarcode(row.original.id);
-                  }}
+                  disabled={isGenerating}
+                  onClick={() => onCLickGenBarcode(boxId)}
                 >
-                  <Barcode className="mr-2 w-4 h-4" /> Gerar
+                  <Barcode className="mr-2 w-4 h-4" /> {isGenerating ? "Gerando..." : "Gerar"}
                 </Button>
               </div>
-            )} 
-            
+            )}
+
             {(!barCode && status == OpBoxStatus.PENDING) && (
               <div className="flex items-center gap-1">
                 <Badge variant={"default"}>Pendente</Badge>

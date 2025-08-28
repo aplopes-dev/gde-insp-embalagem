@@ -406,25 +406,26 @@ export default function PackagingInspection({
     }
   }
 
-  function verifyNextBlisterOrFinalize(inspection: ObjectValidation) {
+function verifyNextBlisterOrFinalize(inspection: ObjectValidation) {
     const index = targetBlister || 0;
+    const updatedBlisters = blisters.map((bl, i) =>
+      i == index
+        ? {
+            ...bl,
+            isValidQuantity: true,
+            status: 1,
+            packedAt: new Date(),
+          }
+        : bl
+    );
+  
+    setCheckedQuantity(checkedQuantity + inspection.count);
+    setBlisters(updatedBlisters);
+  
     if (blisters[index + 1]) {
       setTargetBlister(index + 1);
       setActiveObjectType("blister");
       setStep(1);
-      setCheckedQuantity(checkedQuantity + inspection.count);
-      setBlisters(
-        blisters.map((bl, i) =>
-          i == index
-            ? {
-                ...bl,
-                isValidQuantity: true,
-                status: 1,
-                packedAt: new Date(),
-              }
-            : bl
-        )
-      );
       setVisorMessage("POSICIONE UM NOVO BLISTER", "blue");
       sendValidation({
         quantity: 1,
@@ -434,21 +435,12 @@ export default function PackagingInspection({
       setTargetBlister(undefined);
       setActiveObjectType(undefined);
       setStep(3);
-      setCheckedQuantity(checkedQuantity + inspection.count);
-      const updateBlisters = blisters.map((bl, i) =>
-        i == index
-          ? {
-              ...bl,
-              isValidQuantity: true,
-              status: 1,
-              packedAt: new Date(),
-            }
-          : bl
-      );
-      setBlisters(updateBlisters);
-      opBrakeManagerId
-        ? forceOpFinalization(opBrakeManagerId, updateBlisters)
-        : persistBoxInspection(updateBlisters);
+  
+      if (opBrakeManagerId) {
+        forceOpFinalization(opBrakeManagerId, updatedBlisters);
+      } else {
+        persistBoxInspection(updatedBlisters);
+      }
     }
   }
 
@@ -564,15 +556,15 @@ export default function PackagingInspection({
 
   function configLastBlisterQuantity(quantity: number, managerId: string) {
     const index = targetBlister || 0;
-
-    if (quantity < blisters[index].quantity) {
+  
+    if (quantity <= blisters[index].quantity) {
       const itemId = data?.productType.name;
       let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${
         blisterCodes[targetBlister!]
       }`;
       const newBlisters = [...blisters.slice(0, index + 1)];
       newBlisters[index].quantity = quantity;
-
+  
       const itemQuantity = newBlisters.reduce(
         (total, blister) => total + blister.quantity,
         0
@@ -581,14 +573,17 @@ export default function PackagingInspection({
         newBlisters
           ?.filter((bl) => bl.packedAt)
           .reduce((total, blister) => total + blister.quantity, 0) || 0;
-
+  
       setQuantityInBox(itemQuantity);
       setCheckedQuantity(checkQuantity);
       setBlisters(newBlisters);
+  
+      // Apenas guarda o managerId para usar depois
       setOpBrakeManagerId(managerId);
+  
       sendValidation({ itemId, quantity, fileName });
     } else {
-      setVisorMessage("QUANTIDADE DEVE SER MENOR QUE A ATUAL!", "red");
+      setVisorMessage("QUANTIDADE DEVE SER MENOR OU IGUAL À ATUAL!", "red");
     }
   }
 

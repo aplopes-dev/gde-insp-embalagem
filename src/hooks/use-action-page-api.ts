@@ -20,6 +20,7 @@ export function useActionPageApi({
     () => ([] as any[]).concat(defautlFilters ?? [], filters ?? []),
     [defautlFilters, filters]
   );
+  const filtersKey = useMemo(() => JSON.stringify(combinedFilters), [combinedFilters]);
 
   useEffect(() => {
     let aborted = false;
@@ -57,7 +58,7 @@ export function useActionPageApi({
     return () => {
       aborted = true;
     };
-  }, [limit, skip, field, order, combinedFilters, getAction]);
+  }, [limit, skip, field, order, filtersKey]);
 
   return [data, count, loading] as const;
 }

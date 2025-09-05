@@ -19,13 +19,21 @@ export async function getPaginatedOp({
 }: FilterPaginationParams) {
   let whereClauses = getOwnFilterClauses(filters);
 
-  // Filtro opcional por INSTÂNCIA (óculos) quando informado
-  const instanceFilter = filters.find((f: any) => f.id === 'oculosInstanceId')?.value?.value;
-  if (instanceFilter && instanceFilter !== 'ALL') {
+  // Ajusta filtro de instâncias de óculos (ID numérico) caso venha como string[] do componente
+  const oculosFilter = filters.find((f: any) => f.id === "oculosInstanceId")?.value;
+  if (oculosFilter?.operator === "in" && Array.isArray(oculosFilter.value)) {
     whereClauses = {
       ...whereClauses,
-      oculosInstanceId: { equals: instanceFilter },
+      oculosInstanceId: { in: (oculosFilter.value as any[]).map((v) => Number(v)) },
     } as any;
+  } else if (oculosFilter?.operator === "equals" && oculosFilter.value) {
+    const v = Number(oculosFilter.value);
+    if (!Number.isNaN(v)) {
+      whereClauses = {
+        ...whereClauses,
+        oculosInstanceId: { equals: v },
+      } as any;
+    }
   }
 
   whereClauses = {
@@ -50,6 +58,12 @@ export async function getPaginatedOp({
             name: true,
           },
         },
+        oculosInstance: {
+          select: {
+            id: true,
+            nome: true,
+          }
+        }
       },
       skip,
       take: limit,
@@ -72,11 +86,12 @@ export async function getPaginatedOp({
     quantityArr.map((row) => [row.code, row.produced])
   );
 
-  const _data: OpDto[] = transaction[1].map((op) => {
+  const _data: OpDto[] = transaction[1].map((op: any) => {
     return {
       id: op.id,
       code: op.code,
-      oculosInstanceId: (op as any).oculosInstanceId || null,
+      oculosInstanceId: op.oculosInstanceId || null,
+      oculosInstance: op.oculosInstance ? { id: op.oculosInstance.id, nome: op.oculosInstance.nome } : undefined,
       itemsPacked: quantityMap.get(op.code) || 0,
       quantityToProduce: op.quantityToProduce,
       productTypeId: op.productTypeId,

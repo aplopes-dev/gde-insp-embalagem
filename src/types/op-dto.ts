@@ -3,7 +3,7 @@ import { OpStatus } from "@prisma/client";
 export type OpDto = {
   id: number;
   code: string;
-  oculosInstanceId?: string | null;
+  oculosInstanceId?: number | null;
   status: OpStatus;
   quantityToProduce: number;
   productTypeId: number;
@@ -12,6 +12,8 @@ export type OpDto = {
   blister?: OpBlisterDto;
   createdAt: Date;
   finishedAt?: Date;
+  oculosInstance?: { id: number; nome: string };
+
 };
 
 type OpProductDto = {

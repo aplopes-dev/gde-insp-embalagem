@@ -81,6 +81,8 @@ export function ServerDataTable<TData, TValue>({
     onSortingChange,
     onColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
+    // Evita reset automático que pode disparar onPaginationChange em cascata
+    autoResetPageIndex: false,
   });
 
   return (
@@ -90,7 +92,12 @@ export function ServerDataTable<TData, TValue>({
         <DataTable tableLib={tableLib} columns={columns} />
       </div>
       <div className="w-full flex items-center justify-end space-x-2 py-4">
-        <PaginationControl tableLib={tableLib} sizes={[5, 10, 20]} />
+        <PaginationControl
+          pagination={pagination}
+          pageCount={pageCount ?? 1}
+          onPaginationChange={onPaginationChange}
+          sizes={[5, 10, 20]}
+        />
       </div>
     </LoadingContent>
   );

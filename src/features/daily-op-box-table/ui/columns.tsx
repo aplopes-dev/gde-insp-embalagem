@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { OpBoxStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
 import { Barcode, EyeIcon } from "lucide-react";
+import { useCallback, useMemo } from "react";
 
 export function useBoxOpColumns({
   onCLickView,
@@ -19,7 +20,7 @@ export function useBoxOpColumns({
 }): {
   columns: any[];
 } {
-  function getOpBoxStatusBadge(status: OpBoxStatus) {
+  const getOpBoxStatusBadge = useCallback((status: OpBoxStatus) => {
     let label;
     let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
@@ -38,9 +39,9 @@ export function useBoxOpColumns({
         label = "Indefinido";
     }
     return <Badge variant={variant}>{label}</Badge>;
-  }
+  }, []);
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       id: "code",
       header: "Código",
@@ -178,7 +179,7 @@ export function useBoxOpColumns({
         );
       },
     },
-  ] as ColumnDef<any>[];
+  ] as ColumnDef<any>[], [getOpBoxStatusBadge, onCLickGenBarcode, onCLickPrint, onCLickView, generatingBoxId]);
 
   return { columns };
 }

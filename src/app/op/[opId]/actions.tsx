@@ -48,6 +48,26 @@ async function createInternalOp(externalOp: OpJerpDto) {
   const productId = externalOp.produto.id;
   const packagingIds = externalOp.embalagens.map((emb) => emb.id);
 
+  // Busca o óculos pelo INSTANCE_ID do ambiente, se disponível
+  const instanceId = process.env.NEXT_PUBLIC_INSTANCE_ID || process.env.INSTANCE_ID;
+  let oculosInstanceId: number | undefined = undefined;
+
+  if (instanceId) {
+    const oculosInstance = await db.oculosInstance.findUnique({
+      where: { referencia: instanceId },
+      select: { id: true },
+    });
+    oculosInstanceId = oculosInstance?.id;
+
+    if (oculosInstanceId) {
+      console.log(`[createInternalOp] Óculos mapeado automaticamente: ${instanceId} -> ID ${oculosInstanceId}`);
+    } else {
+      console.log(`[createInternalOp] Óculos não encontrado para referência: ${instanceId}`);
+    }
+  } else {
+    console.log('[createInternalOp] Nenhum INSTANCE_ID configurado no ambiente');
+  }
+
   const transaction = await db.$transaction([
     findProductTypeById({ id: productId }),
     findFirstBlisterTypeInIds({ ids: packagingIds }),
@@ -77,8 +97,8 @@ async function createInternalOp(externalOp: OpJerpDto) {
   delete op["boxes"];
   const opCreateData = {
     ...op,
-    // Preenche o óculos (INSTANCE_ID) se enviado no ambiente
-    oculosInstanceId: process.env.NEXT_PUBLIC_INSTANCE_ID || process.env.INSTANCE_ID || null,
+    // Preenche o óculos (INSTANCE_ID) mapeado do ambiente para FK numérica
+    oculosInstanceId,
     OpBox: {
       create: boxes?.map((box) => {
         const blisters = [...(box.blisters || [])];

@@ -19,21 +19,29 @@ import {
 } from "./ui/select";
 
 type PaginationControlProps = {
-  tableLib: any;
+  pagination: { pageIndex: number; pageSize: number };
+  pageCount: number;
+  onPaginationChange: (updater: any) => void;
   sizes: number[];
 };
 
 export default function PaginationControl({
-  tableLib,
+  pagination,
+  pageCount,
+  onPaginationChange,
   sizes,
 }: PaginationControlProps) {
+  const safePageCount = Math.max(1, pageCount || 1);
+  const canPrev = pagination.pageIndex > 0;
+  const canNext = pagination.pageIndex < safePageCount - 1;
+
   return (
     <Pagination>
       <PaginationContent>
         <PaginationItem>
           <PaginationLink
-            isActive={tableLib.getCanPreviousPage()}
-            onClick={() => tableLib.setPageIndex(0)}
+            isActive={canPrev}
+            onClick={() => onPaginationChange((p: any) => ({ ...p, pageIndex: 0 }))}
             aria-label="Página inicial"
             title="Página inicial"
             size="default"
@@ -46,29 +54,36 @@ export default function PaginationControl({
           <PaginationPrevious
             aria-label="Anterior"
             title="Anterior"
-            isActive={tableLib.getCanPreviousPage()}
-            onClick={() => tableLib.previousPage()}
+            isActive={canPrev}
+            onClick={() =>
+              onPaginationChange((p: any) => ({ ...p, pageIndex: Math.max(0, p.pageIndex - 1) }))
+            }
           />
         </PaginationItem>
         <PaginationItem className="px-2">
           <span title="Página">
-            {` ${tableLib.getState().pagination.pageIndex + 1} / ${
-              tableLib.getPageCount() > 0 ? tableLib.getPageCount() : 1
-            }`}
+            {` ${pagination.pageIndex + 1} / ${safePageCount}`}
           </span>
         </PaginationItem>
         <PaginationItem>
           <PaginationNext
             aria-label="Próxima"
             title="Próxima"
-            isActive={tableLib.getCanNextPage()}
-            onClick={() => tableLib.nextPage()}
+            isActive={canNext}
+            onClick={() =>
+              onPaginationChange((p: any) => ({
+                ...p,
+                pageIndex: Math.min(safePageCount - 1, p.pageIndex + 1),
+              }))
+            }
           />
         </PaginationItem>
         <PaginationItem>
           <PaginationLink
-            isActive={tableLib.getCanNextPage()}
-            onClick={() => tableLib.setPageIndex(tableLib.getPageCount() - 1)}
+            isActive={canNext}
+            onClick={() =>
+              onPaginationChange((p: any) => ({ ...p, pageIndex: safePageCount - 1 }))
+            }
             aria-label="Última página"
             title="Última página"
             size="default"
@@ -79,8 +94,14 @@ export default function PaginationControl({
         </PaginationItem>
         <PaginationItem>
           <Select
-            value={tableLib.getState().pageSize}
-            onValueChange={(value) => tableLib.setPageSize(parseInt(value, 10))}
+            value={`${pagination.pageSize}`}
+            onValueChange={(value) =>
+              onPaginationChange((p: any) => ({
+                ...p,
+                pageSize: parseInt(value, 10),
+                pageIndex: 0,
+              }))
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Por página" />

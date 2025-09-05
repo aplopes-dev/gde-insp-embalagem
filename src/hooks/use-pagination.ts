@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export function usePagination(initialSize = 10) {
   const [pagination, setPagination] = useState({
@@ -7,9 +7,15 @@ export function usePagination(initialSize = 10) {
   });
   const { pageSize, pageIndex } = pagination;
 
+  const onPaginationChange = useCallback((updater: any) => {
+    setPagination((prev) =>
+      typeof updater === "function" ? updater(prev) : updater
+    );
+  }, []);
+
   return {
     // table state
-    onPaginationChange: setPagination,
+    onPaginationChange,
     pagination,
     // API
     limit: pageSize,

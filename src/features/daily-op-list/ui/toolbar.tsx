@@ -1,4 +1,5 @@
 import { DataTableViewOptions } from "@/components/data-table/components/data-table-view-options";
+import { OculosInstanceMultiFilter } from "./widgets/oculos-instance-multi-filter";
 import { DataTableDateFilter } from "@/components/data-table/filters/data-table-date-filter";
 import DataTableDebounceTextFilter from "@/components/data-table/filters/data-table-debounce-text-filter";
 import { DataTableSelectFilter } from "@/components/data-table/filters/data-table-select-filter";
@@ -25,11 +26,8 @@ export function OpListToolbar<TData>({ table }: OpListToolbarProps<TData>) {
           />
         )}
         {table.getColumn("oculosInstanceId") && (
-          <DataTableDebounceTextFilter
-            key={"oculosInstanceId"}
+          <OculosInstanceMultiFilter
             column={table.getColumn("oculosInstanceId")}
-            title="Óculos (INSTANCE_ID)"
-            placeholder="rw-... ou ALL"
           />
         )}
         {/* {table.getColumn("status") && (

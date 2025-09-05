@@ -7,7 +7,7 @@ import { useActionPageApi } from "@/hooks/use-action-page-api";
 import { useFiltering } from "@/hooks/use-filtering";
 import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { generateBarcodeByBoxId, getPaginatedBoxOp, claimNextPendingBox } from "../actions";
 import { useBoxOpColumns } from "./columns";
 import { BoxOpDataTableToolbar } from "./toolbar";
@@ -63,11 +63,12 @@ export default function DailyOpBoxTable({
     }, 100);
   }
 
-  const { columns } = useBoxOpColumns({
+  const { columns: rawColumns } = useBoxOpColumns({
     onCLickView: onClickView,
     onCLickGenBarcode: onCLickGenBarcode,
     onCLickPrint: onCLickPrint,
   });
+  const columns = useMemo(() => rawColumns, [rawColumns]);
 
   const [data, count, loading] = useActionPageApi({
     pagination: { skip, limit },
@@ -85,7 +86,7 @@ export default function DailyOpBoxTable({
     ],
   });
 
-  const pageCount = Math.round((count as number) / limit);
+  const pageCount = Math.max(1, Math.ceil((count as number) / limit));
 
   return (
     <div>

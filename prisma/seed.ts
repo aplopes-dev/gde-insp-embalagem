@@ -216,6 +216,37 @@ async function main() {
     },
   })
 
+  // OculosInstance seeds
+  const oculosSeeds = [
+    { id: 1, referencia: "rw-ad8e5b1ba2735712", nome: "Bancada 1", status: "ATIVO" },
+    { id: 2, referencia: "rw-aaaaaaaaaaaaaaaa", nome: "Bancada 2", status: "ATIVO" },
+    { id: 3, referencia: "rw-bbbbbbbbbbbbbbbb", nome: "Bancada 3", status: "ATIVO" },
+    { id: 4, referencia: "rw-cccccccccccccccc", nome: "Bancada 4", status: "ATIVO" },
+  ] as const;
+
+  for (const inst of oculosSeeds) {
+    await prisma.oculosInstance.upsert({
+      where: { id: inst.id },
+      update: {
+        referencia: inst.referencia,
+        nome: inst.nome,
+        status: inst.status as any,
+      },
+      create: {
+        id: inst.id,
+        referencia: inst.referencia,
+        nome: inst.nome,
+        status: inst.status as any,
+      },
+    });
+  }
+
+  // Atualiza todas as Ops existentes para referenciar o óculos ID 1
+  await prisma.op.updateMany({
+    data: { oculosInstanceId: 1 },
+    where: { },
+  });
+
 }
 main()
   .then(async () => {

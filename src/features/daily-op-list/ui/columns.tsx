@@ -5,23 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { OpStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useMemo } from "react";
 
 export function useBoxOpColumns(): { columns: any[] } {
   const resourcePath = usePathname();
   const router = useRouter();
 
-  function redirectAction(uri: string) {
+  const redirectAction = useCallback((uri: string) => {
     router.push(`${resourcePath}${uri}`);
-  }
+  }, [router, resourcePath]);
 
-  function getOpBoxStatusBadge(status: OpStatus) {
+  const getOpBoxStatusBadge = useCallback((status: OpStatus) => {
     let label;
     let variant: "default" | "success" | "warning" | "destructive" = "default";
     switch (status) {
-      // case OpBoxStatus.PACKAGED_W_BREAK:
-      //   label = "Quebra de Caixa";
-      //   variant = "destructive";
-      //   break;
       case OpStatus.COMPLETED:
         label = "Concluído";
         variant = "success";
@@ -33,14 +30,18 @@ export function useBoxOpColumns(): { columns: any[] } {
         label = "Indefinido";
     }
     return <Badge variant={variant}>{label}</Badge>;
-  }
+  }, []);
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       id: "oculosInstanceId",
       header: "Óculos",
       enableSorting: false,
       enableColumnFilter: true,
+      cell: ({ row }) => {
+        const instance: any = row.getValue("oculosInstance") || row.getValue("oculosInstanceId");
+        return <div>{instance?.nome || ""}</div>;
+      },
     },
     {
       id: "code",
@@ -150,7 +151,7 @@ export function useBoxOpColumns(): { columns: any[] } {
         );
       },
     },
-  ] as ColumnDef<any>[];
+  ] as ColumnDef<any>[], [getOpBoxStatusBadge, redirectAction]);
 
   return { columns };
 }

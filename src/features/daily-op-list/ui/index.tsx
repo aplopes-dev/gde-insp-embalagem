@@ -7,25 +7,21 @@ import { usePagination } from "@/hooks/use-pagination";
 import { useSorting } from "@/hooks/use-sorting";
 import { FilterPaginationParams } from "@/types/filter";
 import { OpDto } from "@/types/op-dto";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useBoxOpColumns } from "./columns";
 import { OpListToolbar } from "./toolbar";
 
 export default function DailyOpList() {
-  const { columns } = useBoxOpColumns();
+  const { columns: rawColumns } = useBoxOpColumns();
+  const columns = useMemo(() => rawColumns, [rawColumns]);
 
   const { limit, onPaginationChange, skip, pagination } = usePagination(5);
   const { sorting, onSortingChange, field, order } = useSorting(
     "finishedAt",
     "DESC"
   );
-  const defaultInstance = process.env.NEXT_PUBLIC_INSTANCE_ID || "ALL";
-  const { columnFilters, onColumnFiltersChange } = useFiltering([
-    {
-      id: "oculosInstanceId",
-      value: { operator: "equals", value: defaultInstance },
-    },
-  ] as any);
+  // Sem filtro default por instância; usuário escolhe via combobox
+  const { columnFilters, onColumnFiltersChange } = useFiltering();
 
   const fetchPaginatedOp = useCallback(async (params: FilterPaginationParams) => {
     try {
@@ -44,6 +40,7 @@ export default function DailyOpList() {
       return [data, count];
     } catch (error) {
       console.error(error);
+      return [[], 0];
     }
   }, []);
 
@@ -54,7 +51,7 @@ export default function DailyOpList() {
     getAction: fetchPaginatedOp,
   });
 
-  const pageCount = Math.round((count as number) / limit);
+  const pageCount = Math.max(1, Math.ceil((count as number) / limit));
 
   return (
     <ServerDataTable

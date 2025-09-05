@@ -49,6 +49,18 @@ model ProductType {
   Op Op[]
 }
 
+model OculosInstance {
+  id         Int            @id @default(autoincrement())
+  referencia String         @unique
+  nome       String
+  status     OculosStatus   @default(ATIVO)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  Op         Op[]
+}
+
+
 model Op {
   id                Int       @id
   code              String
@@ -60,7 +72,9 @@ model Op {
   updatedAt         DateTime  @updatedAt
   finishedAt        DateTime?
   quantityToProduce Int
-  oculosInstanceId  String?   // INSTANCE_ID do óculos que inspecionou (ex.: rw-...)
+  // Referência para a instância do óculos que inspecionou (ex.: rw-...)
+  oculosInstanceId  Int?
+  oculosInstance    OculosInstance? @relation(fields: [oculosInstanceId], references: [id])
 
   product ProductType @relation(fields: [productTypeId], references: [id])
   box     BoxType     @relation(fields: [boxTypeId], references: [id])
@@ -124,3 +138,10 @@ enum OpBoxStatus {
   PACKAGED
   PACKAGED_W_BREAK
 }
+
+// Status para instâncias de óculos
+enum OculosStatus {
+  ATIVO
+  INATIVO
+}
+

@@ -48,28 +48,28 @@ async function createInternalOp(externalOp: OpJerpDto) {
   const productId = externalOp.produto.id;
   const packagingIds = externalOp.embalagens.map((emb) => emb.id);
 
+  // Busca as referências existentes
   const transaction = await db.$transaction([
     findProductTypeById({ id: productId }),
     findFirstBlisterTypeInIds({ ids: packagingIds }),
     findFirstBoxTypeInIds({ ids: packagingIds }),
   ]);
 
-  referencesIsValid(
+  // Cria dinamicamente as referências que não existem
+  const [productType, blisterType, boxType] = await ensureReferencesExist(
     transaction,
-    ["Produto", "Blister", "Caixa"],
-    productId,
-    packagingIds
+    externalOp
   );
 
   const op = createOpData({
     id: externalOp.id,
     code: `${externalOp.numero}`,
-    productTypeId: Number(transaction[0]?.id),
-    blisterTypeId: Number(transaction[1]?.id),
-    boxTypeId: Number(transaction[2]?.id),
+    productTypeId: Number(productType.id),
+    blisterTypeId: Number(blisterType.id),
+    boxTypeId: Number(boxType.id),
     quantityToProduce: externalOp.quantidadeAProduzir,
-    blisterPerBox: transaction[1]!.limitPerBox,
-    blisterSlots: transaction[1]!.slots,
+    blisterPerBox: blisterType.limitPerBox,
+    blisterSlots: blisterType.slots,
     boxGap: 0,
   });
 
@@ -96,26 +96,87 @@ async function createInternalOp(externalOp: OpJerpDto) {
   });
 }
 
-function referencesIsValid(
+async function ensureReferencesExist(
   transactionResults: [
     productType: ProductType | null,
     blisterType: BlisterType | null,
     boxType: BoxType | null
   ],
-  refNames: string[],
-  productId: number,
-  packagingIds: number[]
-) {
-  const indexNullReference = transactionResults.findIndex((rf) => !rf?.id);
-  if (indexNullReference >= 0) {
+  externalOp: OpJerpDto
+): Promise<[ProductType, BlisterType, BoxType]> {
+  const [existingProductType, existingBlisterType, existingBoxType] = transactionResults;
+
+  // Cria ProductType se não existir
+  const productType = existingProductType || await createProductTypeFromJerp(externalOp.produto);
+
+  // Identifica qual embalagem é blister e qual é caixa baseado no nome
+  const blisterPackaging = externalOp.embalagens.find(emb =>
+    emb.nome.toLowerCase().includes('blister') ||
+    emb.nome.toLowerCase().includes('cartela')
+  );
+  const boxPackaging = externalOp.embalagens.find(emb =>
+    emb.nome.toLowerCase().includes('caixa') ||
+    emb.nome.toLowerCase().includes('box')
+  );
+
+  if (!blisterPackaging || !boxPackaging) {
     throw new Error(
-      `Referência de ${refNames[indexNullReference]} não encontrada.
-       Produto: ${productId}
-       Embalagens: [${packagingIds.join(",")}] 
-      `
+      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map(e => e.nome).join(', ')}`
     );
   }
+
+  // Cria BoxType primeiro (necessário para BlisterType)
+  const boxType = existingBoxType || await createBoxTypeFromJerp(boxPackaging);
+
+  // Cria BlisterType se não existir (precisa do boxTypeId)
+  const blisterType = existingBlisterType || await createBlisterTypeFromJerp(blisterPackaging, boxType.id);
+
+  return [productType, blisterType, boxType];
 }
+
+async function createProductTypeFromJerp(produto: { id: number; nome: string }): Promise<ProductType> {
+  console.log(`Criando ProductType dinamicamente: ID ${produto.id}, Nome: ${produto.nome}`);
+
+  return await db.productType.create({
+    data: {
+      id: produto.id,
+      name: produto.nome,
+      code: `PROD_${produto.id}`,
+      description: `Produto criado automaticamente do JERP: ${produto.nome}`,
+    }
+  });
+}
+
+async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number }, boxTypeId: number): Promise<BlisterType> {
+  console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
+
+  return await db.blisterType.create({
+    data: {
+      id: embalagem.id,
+      name: embalagem.nome,
+      code: `BLISTER_${embalagem.id}`,
+      description: `Blister criado automaticamente do JERP: ${embalagem.nome}`,
+      slots: embalagem.quantidadeAlocada || 10, // Valor padrão se não especificado
+      limitPerBox: 1, // Valor padrão - pode ser ajustado conforme necessário
+      boxTypeId: boxTypeId, // Campo obrigatório
+    }
+  });
+}
+
+async function createBoxTypeFromJerp(embalagem: { id: number; nome: string }): Promise<BoxType> {
+  console.log(`Criando BoxType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}`);
+
+  return await db.boxType.create({
+    data: {
+      id: embalagem.id,
+      name: embalagem.nome,
+      code: `BOX_${embalagem.id}`,
+      description: `Caixa criada automaticamente do JERP: ${embalagem.nome}`,
+    }
+  });
+}
+
+
 
 async function fetchOpDetails(internalOp: Op) {
   const transaction = await db.$transaction([

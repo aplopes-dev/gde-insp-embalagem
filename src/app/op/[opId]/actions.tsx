@@ -67,14 +67,6 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
   );
   const { productType, blisterType, boxType, created } = ensured;
 
-  // Busca dados de configuração do JERP (novos campos) ou usa valores do banco local
-  const blisterEmbalagem = externalOp.embalagens.find(emb =>
-    emb.nome.toLowerCase().includes('blister')
-  );
-
-  const blisterSlots = blisterEmbalagem?.slots || blisterType.slots;
-  const blisterPerBox = blisterEmbalagem?.limitePorCaixa || blisterType.limitPerBox;
-
   const op = createOpData({
     id: externalOp.id,
     code: `${externalOp.numero}`,
@@ -82,8 +74,8 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
     blisterTypeId: Number(blisterType.id),
     boxTypeId: Number(boxType.id),
     quantityToProduce: externalOp.quantidadeAProduzir,
-    blisterPerBox: blisterPerBox,
-    blisterSlots: blisterSlots,
+    blisterPerBox: blisterType.limitPerBox,
+    blisterSlots: blisterType.slots,
     boxGap: 0,
   });
 

@@ -11,7 +11,7 @@ describe("validateOpJerpToProduce", () => {
       produto: { id: 1, nome: "Produto Teste" },
       quantidadeAProduzir: 10,
       embalagens: [
-        { id: 1, nome: "Blister", quantidadeAlocada: 1 },
+        { id: 1, nome: "Blister", quantidadeAlocada: 1, slots: 10, limitePorCaixa: 5 },
         { id: 2, nome: "Caixa", quantidadeAlocada: 1 }
       ]
     };
@@ -63,5 +63,17 @@ describe("validateOpJerpToProduce", () => {
   it("deve lançar erro se alguma embalagem tiver quantidade alocada menor que 1", () => {
     validOp.embalagens[0].quantidadeAlocada = 0;
     expect(() => validateOpJerpToProduce(validOp)).toThrow("Deve haver ao menos 1 unidade alocada");
+  });
+
+  it("deve validar corretamente uma OP com novos campos de configuração", () => {
+    validOp.embalagens[0].slots = 20;
+    validOp.embalagens[0].limitePorCaixa = 8;
+    expect(() => validateOpJerpToProduce(validOp)).not.toThrow();
+  });
+
+  it("deve validar corretamente uma OP sem os novos campos (retrocompatibilidade)", () => {
+    delete validOp.embalagens[0].slots;
+    delete validOp.embalagens[0].limitePorCaixa;
+    expect(() => validateOpJerpToProduce(validOp)).not.toThrow();
   });
 });

@@ -19,7 +19,10 @@ describe('getOpFromCode', () => {
       numero: 123456,
       produto: { nome: 'Produto A' },
       quantidadeAProduzir: 100,
-      embalagens: [{ nome: 'Blister' }, { nome: 'Caixa' }]
+      embalagens: [
+        { nome: 'Blister', slots: 10, limitePorCaixa: 5 },
+        { nome: 'Caixa' }
+      ]
     };
 
     mockedAxios.get.mockResolvedValueOnce({ data: mockData });
@@ -90,7 +93,10 @@ describe('getOpFromId', () => {
       numero: mockId,
       produto: { nome: 'Produto A' },
       quantidadeAProduzir: 100,
-      embalagens: [{ nome: 'Blister' }, { nome: 'Caixa' }]
+      embalagens: [
+        { nome: 'Blister', slots: 10, limitePorCaixa: 5 },
+        { nome: 'Caixa' }
+      ]
     };
 
     mockedAxios.get.mockResolvedValueOnce({ data: mockData });

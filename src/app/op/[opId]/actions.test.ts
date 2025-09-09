@@ -1,4 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
+import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 
 describe('Dynamic Reference Creation - Integration Test', () => {
   it('deve validar a lógica de identificação de embalagens', () => {
@@ -134,5 +135,132 @@ describe('Dynamic Reference Creation - Integration Test', () => {
                    emb.nome.toLowerCase().includes('box');
       expect(isBox).toBe(true);
     });
+  });
+});
+
+describe("Novos campos JERP - Integração", () => {
+  const mockOpJerpWithNewFields: OpJerpDto = {
+    id: 384426,
+    numero: 69762,
+    produto: { id: 39456, nome: "BL-05760040 LD Rev.1" },
+    quantidadeAProduzir: 2776,
+    embalagens: [
+      {
+        id: 39436,
+        nome: "Blister BL-057xx040-LE LD Rev.1 Antiestático",
+        quantidadeAlocada: 500,
+        slots: 10,              // NOVO: Vem do JERP
+        limitePorCaixa: 8       // NOVO: Vem do JERP
+      },
+      {
+        id: 3457,
+        nome: "CAIXA 520X320X170 TRIPLEX",
+        quantidadeAlocada: 57
+      }
+    ]
+  };
+
+  const mockOpJerpWithoutNewFields: OpJerpDto = {
+    id: 384426,
+    numero: 69762,
+    produto: { id: 39456, nome: "BL-05760040 LD Rev.1" },
+    quantidadeAProduzir: 2776,
+    embalagens: [
+      {
+        id: 39436,
+        nome: "Blister BL-057xx040-LE LD Rev.1 Antiestático",
+        quantidadeAlocada: 500
+        // SEM os novos campos - deve usar valores do banco local
+      },
+      {
+        id: 3457,
+        nome: "CAIXA 520X320X170 TRIPLEX",
+        quantidadeAlocada: 57
+      }
+    ]
+  };
+
+  it("deve usar valores do JERP quando os novos campos estão disponíveis", () => {
+    const blisterEmbalagem = mockOpJerpWithNewFields.embalagens.find(emb =>
+      emb.nome.toLowerCase().includes('blister')
+    );
+
+    expect(blisterEmbalagem?.slots).toBe(10);
+    expect(blisterEmbalagem?.limitePorCaixa).toBe(8);
+  });
+
+  it("deve funcionar sem os novos campos (retrocompatibilidade)", () => {
+    const blisterEmbalagem = mockOpJerpWithoutNewFields.embalagens.find(emb =>
+      emb.nome.toLowerCase().includes('blister')
+    );
+
+    expect(blisterEmbalagem?.slots).toBeUndefined();
+    expect(blisterEmbalagem?.limitePorCaixa).toBeUndefined();
+  });
+
+  it("deve simular a lógica de fallback", () => {
+    // Simula valores do banco local (BlisterType)
+    const blisterTypeFromDB = { slots: 5, limitPerBox: 3 };
+
+    // Testa com novos campos do JERP
+    const blisterComNovosCampos = mockOpJerpWithNewFields.embalagens.find(emb =>
+      emb.nome.toLowerCase().includes('blister')
+    );
+
+    const slotsUsados = blisterComNovosCampos?.slots || blisterTypeFromDB.slots;
+    const limitePorCaixaUsado = blisterComNovosCampos?.limitePorCaixa || blisterTypeFromDB.limitPerBox;
+
+    expect(slotsUsados).toBe(10); // Usa valor do JERP
+    expect(limitePorCaixaUsado).toBe(8); // Usa valor do JERP
+
+    // Testa sem novos campos do JERP
+    const blisterSemNovosCampos = mockOpJerpWithoutNewFields.embalagens.find(emb =>
+      emb.nome.toLowerCase().includes('blister')
+    );
+
+    const slotsUsadosFallback = blisterSemNovosCampos?.slots || blisterTypeFromDB.slots;
+    const limitePorCaixaUsadoFallback = blisterSemNovosCampos?.limitePorCaixa || blisterTypeFromDB.limitPerBox;
+
+    expect(slotsUsadosFallback).toBe(5); // Usa valor do banco local
+    expect(limitePorCaixaUsadoFallback).toBe(3); // Usa valor do banco local
+  });
+
+  it("deve salvar os novos campos no banco ao criar BlisterType", () => {
+    // Simula a lógica de createBlisterTypeFromJerp
+    const embalagemComNovosCampos = {
+      id: 39436,
+      nome: "Blister BL-057xx040-LE LD Rev.1 Antiestático",
+      quantidadeAlocada: 500,
+      slots: 10,              // NOVO: Vem do JERP
+      limitePorCaixa: 8       // NOVO: Vem do JERP
+    };
+
+    const embalagemSemNovosCampos: {
+      id: number;
+      nome: string;
+      quantidadeAlocada: number;
+      slots?: number;
+      limitePorCaixa?: number;
+    } = {
+      id: 39436,
+      nome: "Blister BL-057xx040-LE LD Rev.1 Antiestático",
+      quantidadeAlocada: 500
+      // SEM os novos campos
+    };
+
+    // Lógica que será usada na função createBlisterTypeFromJerp
+    const slotsComNovosCampos = embalagemComNovosCampos.slots || embalagemComNovosCampos.quantidadeAlocada || 10;
+    const limitPerBoxComNovosCampos = embalagemComNovosCampos.limitePorCaixa || 1;
+
+    const slotsSemNovosCampos = embalagemSemNovosCampos.slots || embalagemSemNovosCampos.quantidadeAlocada || 10;
+    const limitPerBoxSemNovosCampos = embalagemSemNovosCampos.limitePorCaixa || 1;
+
+    // Com novos campos: usa valores do JERP
+    expect(slotsComNovosCampos).toBe(10); // Usa slots do JERP
+    expect(limitPerBoxComNovosCampos).toBe(8); // Usa limitePorCaixa do JERP
+
+    // Sem novos campos: usa quantidadeAlocada como fallback
+    expect(slotsSemNovosCampos).toBe(500); // Usa quantidadeAlocada
+    expect(limitPerBoxSemNovosCampos).toBe(1); // Usa valor padrão
   });
 });

@@ -21,7 +21,8 @@ model BoxType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  Op Op[]
+  BlisterType BlisterType[]
+  Op          Op[]
 }
 
 model BlisterType {
@@ -35,7 +36,8 @@ model BlisterType {
   boxTypeId   Int
   limitPerBox Int
 
-  Op Op[]
+  box BoxType @relation(fields: [boxTypeId], references: [id])
+  Op  Op[]
 }
 
 model ProductType {

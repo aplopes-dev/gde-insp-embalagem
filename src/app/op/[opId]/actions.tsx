@@ -61,6 +61,14 @@ async function createInternalOp(externalOp: OpJerpDto) {
     externalOp
   );
 
+  // Busca dados de configuração do JERP (novos campos) ou usa valores do banco local
+  const blisterEmbalagem = externalOp.embalagens.find(emb =>
+    emb.nome.toLowerCase().includes('blister')
+  );
+
+  const blisterSlots = blisterEmbalagem?.slots || blisterType.slots;
+  const blisterPerBox = blisterEmbalagem?.limitePorCaixa || blisterType.limitPerBox;
+
   const op = createOpData({
     id: externalOp.id,
     code: `${externalOp.numero}`,
@@ -68,8 +76,8 @@ async function createInternalOp(externalOp: OpJerpDto) {
     blisterTypeId: Number(blisterType.id),
     boxTypeId: Number(boxType.id),
     quantityToProduce: externalOp.quantidadeAProduzir,
-    blisterPerBox: blisterType.limitPerBox,
-    blisterSlots: blisterType.slots,
+    blisterPerBox: blisterPerBox,
+    blisterSlots: blisterSlots,
     boxGap: 0,
   });
 
@@ -147,8 +155,14 @@ async function createProductTypeFromJerp(produto: { id: number; nome: string }):
   });
 }
 
-async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number }, boxTypeId: number): Promise<BlisterType> {
+async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number }, boxTypeId: number): Promise<BlisterType> {
   console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
+
+  // Usa os novos campos do JERP se disponíveis, senão usa valores padrão
+  const slots = embalagem.slots || embalagem.quantidadeAlocada || 10;
+  const limitPerBox = embalagem.limitePorCaixa || 1;
+
+  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} ${embalagem.slots ? '(do JERP)' : '(padrão)'}`);
 
   return await db.blisterType.create({
     data: {
@@ -156,8 +170,8 @@ async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; 
       name: embalagem.nome,
       code: `BLISTER_${embalagem.id}`,
       description: `Blister criado automaticamente do JERP: ${embalagem.nome}`,
-      slots: embalagem.quantidadeAlocada || 10, // Valor padrão se não especificado
-      limitPerBox: 1, // Valor padrão - pode ser ajustado conforme necessário
+      slots: slots,
+      limitPerBox: limitPerBox,
       boxTypeId: boxTypeId, // Campo obrigatório
     }
   });

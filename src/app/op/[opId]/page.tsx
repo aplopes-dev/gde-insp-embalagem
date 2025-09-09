@@ -7,6 +7,7 @@ import ManagerAuthFormDialog from "@/features/manager-auth-form-dialog";
 import BoxDisplay from "@/features/op-box-display";
 import OpDisplay from "@/features/op-display";
 import PrintTagDialog from "@/features/print-tag-dialog/ui";
+import SupervisorPieceConfigDialog from "@/features/supervisor-piece-config-dialog/ui";
 import {
   sendMessageToRabbitMq,
   sendMessageToRabbitMqMobile,
@@ -39,7 +40,7 @@ import {
 
 // Types
 
-type DisplayColors = "blue" | "red" | "green" | "black";
+type DisplayColors = "blue" | "red" | "green" | "black" | "yellow";
 
 // Maps
 const mobileColorKeysMap = new Map<string, number>([
@@ -47,6 +48,7 @@ const mobileColorKeysMap = new Map<string, number>([
   ["red", 2],
   ["green", 3],
   ["black", 4],
+  ["yellow", 5],
 ]);
 
 export default function PackagingInspection({
@@ -78,6 +80,10 @@ export default function PackagingInspection({
   const [quantityToPrint, setQuantityToPrint] = useState<number>(0);
   const [barcodeToPrint, setBarcodeToPrint] = useState<number>();
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+
+  const [openSupervisorConfigDialog, setOpenSupervisorConfigDialog] = useState<boolean>(false);
+  const [supervisorConfigured, setSupervisorConfigured] = useState<boolean>(false);
+  const [pendingInspection, setPendingInspection] = useState<ObjectValidation | undefined>(undefined);
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
@@ -282,7 +288,12 @@ export default function PackagingInspection({
           sendValidation({ itemId, quantity });
         } else {
           setVisorMessage("BLISTER VÁLIDO", "green");
-          setTimeout(() => nextObjectValidation(inspection, ObjectTypes.product), 4000);
+          if (data?.requiresSupervisorConfig && !supervisorConfigured) {
+            setPendingInspection(inspection);
+            setOpenSupervisorConfigDialog(true);
+          } else {
+            setTimeout(() => nextObjectValidation(inspection, ObjectTypes.product), 4000);
+          }
         }
         break;
     }
@@ -313,7 +324,7 @@ export default function PackagingInspection({
         sendValidation({ itemId, quantity, fileName });
         break;
       case InspectionEnum.QUANTITY_INVALID:
-        setVisorMessage("ALERTA!!! VERIFIQUE PEÇAS!", "red");
+        setVisorMessage("ALERTA!!! VERIFIQUE PEÇAS!", "yellow");
         sendValidation({ itemId, quantity, fileName });
         break;
       case InspectionEnum.VALID:
@@ -693,13 +704,30 @@ export default function PackagingInspection({
         }
       />
 
+
+      {data && (
+        <SupervisorPieceConfigDialog
+          isOpen={openSupervisorConfigDialog}
+          onOpenChange={setOpenSupervisorConfigDialog}
+          pieceName={data.productType.name}
+          blisterTypeId={data.blisterType.id}
+          initialSlots={data.blisterType.slots}
+          initialLimitPerBox={data.blisterType.limitPerBox}
+          onConfirmed={() => {
+            setSupervisorConfigured(true);
+            setOpenSupervisorConfigDialog(false);
+            if (pendingInspection) {
+              nextObjectValidation(pendingInspection, ObjectTypes.product);
+              setPendingInspection(undefined);
+            }
+          }}
+        />
+      )}
+
       {data && (
         <PrintTagDialog
           onPrintSuccess={handlePrintSuccess}
-          itemName={data.productType.code}
-          itemDescription={data.productType.description}
           printConfig={{ pdfBase64: pdfBase64, quantity: quantityToPrint }}
-          batchCode={data.opCode}
           isOpen={openPrintTagDialog}
           onOpenChange={setOpenPrintTagDialog}
         />

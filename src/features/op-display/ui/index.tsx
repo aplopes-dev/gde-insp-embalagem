@@ -10,7 +10,7 @@ type OpDisplayProps = {
   statusMessage: string;
   statusVariant: "secondary" | "warning" | "destructive" | "success" | "default";
   displayMessage: string;
-  displayColor: "blue" | "red" | "green" | "black";
+  displayColor: "blue" | "red" | "green" | "black" | "yellow";
   startDate: Date;
   endDate?: Date;
 };

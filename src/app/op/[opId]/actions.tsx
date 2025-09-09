@@ -34,17 +34,22 @@ export async function syncAndGetOpToProduceById(id: string) {
       where: { code: `${externalOp!.numero}` },
     });
 
+    let requiresSupervisorConfig = false;
+
     if (!internalOp) {
-      internalOp = await createInternalOp(externalOp!);
+      const created = await createInternalOp(externalOp!);
+      internalOp = created.op;
+      requiresSupervisorConfig = created.created.blister;
     }
 
-    return await fetchOpDetails(internalOp);
+    const details = await fetchOpDetails(internalOp);
+    return { ...details, requiresSupervisorConfig } as OpInspectionDto;
   } else {
     throw Error(externalOpRed.getLeft().error);
   }
 }
 
-async function createInternalOp(externalOp: OpJerpDto) {
+async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
   const productId = externalOp.produto.id;
   const packagingIds = externalOp.embalagens.map((emb) => emb.id);
 
@@ -56,10 +61,11 @@ async function createInternalOp(externalOp: OpJerpDto) {
   ]);
 
   // Cria dinamicamente as referências que não existem
-  const [productType, blisterType, boxType] = await ensureReferencesExist(
+  const ensured = await ensureReferencesExist(
     transaction,
     externalOp
   );
+  const { productType, blisterType, boxType, created } = ensured;
 
   // Busca dados de configuração do JERP (novos campos) ou usa valores do banco local
   const blisterEmbalagem = externalOp.embalagens.find(emb =>
@@ -82,13 +88,13 @@ async function createInternalOp(externalOp: OpJerpDto) {
   });
 
   const boxes = [...(op.boxes || [])];
-  delete op["boxes"];
+  delete (op as any)["boxes"];
   const opCreateData = {
     ...op,
     OpBox: {
       create: boxes?.map((box) => {
-        const blisters = [...(box.blisters || [])];
-        delete box["blisters"];
+        const blisters = [...(box as any).blisters || []];
+        delete (box as any)["blisters"];
         return {
           ...box,
           OpBoxBlister: {
@@ -97,11 +103,13 @@ async function createInternalOp(externalOp: OpJerpDto) {
         };
       }),
     },
-  };
+  } as any;
 
-  return await db.op.create({
+  const createdOp = await db.op.create({
     data: opCreateData,
   });
+
+  return { op: createdOp, created };
 }
 
 async function ensureReferencesExist(
@@ -111,11 +119,16 @@ async function ensureReferencesExist(
     boxType: BoxType | null
   ],
   externalOp: OpJerpDto
-): Promise<[ProductType, BlisterType, BoxType]> {
+): Promise<{ productType: ProductType; blisterType: BlisterType; boxType: BoxType; created: { product: boolean; blister: boolean; box: boolean } }> {
   const [existingProductType, existingBlisterType, existingBoxType] = transactionResults;
 
+  const createdFlags = { product: false, blister: false, box: false };
+
   // Cria ProductType se não existir
-  const productType = existingProductType || await createProductTypeFromJerp(externalOp.produto);
+  const productType = existingProductType || await (async () => {
+    createdFlags.product = true;
+    return createProductTypeFromJerp(externalOp.produto);
+  })();
 
   // Identifica qual embalagem é blister e qual é caixa baseado no nome
   const blisterPackaging = externalOp.embalagens.find(emb =>
@@ -134,12 +147,18 @@ async function ensureReferencesExist(
   }
 
   // Cria BoxType primeiro (necessário para BlisterType)
-  const boxType = existingBoxType || await createBoxTypeFromJerp(boxPackaging);
+  const boxType = existingBoxType || await (async () => {
+    createdFlags.box = true;
+    return createBoxTypeFromJerp(boxPackaging);
+  })();
 
   // Cria BlisterType se não existir (precisa do boxTypeId)
-  const blisterType = existingBlisterType || await createBlisterTypeFromJerp(blisterPackaging, boxType.id);
+  const blisterType = existingBlisterType || await (async () => {
+    createdFlags.blister = true;
+    return createBlisterTypeFromJerp(blisterPackaging, boxType.id);
+  })();
 
-  return [productType, blisterType, boxType];
+  return { productType, blisterType, boxType, created: createdFlags };
 }
 
 async function createProductTypeFromJerp(produto: { id: number; nome: string }): Promise<ProductType> {
@@ -458,6 +477,7 @@ export async function saveTagId(opBoxId: string, barCode: string) {
         barCode,
         barCodeGeneratedAt: new Date(),
       },
+
       where: {
         id: opBoxId,
       },
@@ -467,12 +487,21 @@ export async function saveTagId(opBoxId: string, barCode: string) {
   }
 }
 
+
+export async function updateBlisterTypeParams(blisterTypeId: number, slots: number, limitPerBox: number) {
+  await db.blisterType.update({
+    where: { id: blisterTypeId },
+    data: { slots, limitPerBox },
+  });
+}
+
 export async function opCompletionNowHandler(opId: number) {
   const opWithBoxes = await db.op.findUnique({
     where: { id: opId },
     include: {
       OpBox: true,
     },
+
   });
 
   if (opWithBoxes && !opWithBoxes?.finishedAt) {

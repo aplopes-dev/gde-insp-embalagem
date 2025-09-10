@@ -1,10 +1,11 @@
 "use server";
 
 import { managarAuthorization } from "@/features/manager-auth-form-dialog/actions";
-import { updateBlisterTypeParams } from "@/app/op/[opId]/actions";
+import { updateBlisterTypeParams, createOpAfterSupervisorConfig } from "@/app/op/[opId]/actions";
 
 export type SaveSupervisorPieceConfigInput = {
-  blisterTypeId: number;
+  blisterTypeId?: number;
+  externalOpId?: number;
   slots: number;
   limitPerBox: number;
   managerCode: string;
@@ -12,7 +13,7 @@ export type SaveSupervisorPieceConfigInput = {
 };
 
 export async function saveSupervisorPieceConfig(input: SaveSupervisorPieceConfigInput) {
-  const { blisterTypeId, slots, limitPerBox, managerCode, managerPassword } = input;
+  const { blisterTypeId, externalOpId, slots, limitPerBox, managerCode, managerPassword } = input;
 
   // Authorize manager (mocked like break dialog)
   const managerId = await managarAuthorization(managerCode, managerPassword);
@@ -21,9 +22,18 @@ export async function saveSupervisorPieceConfig(input: SaveSupervisorPieceConfig
     throw new Error("Autorização negada");
   }
 
-  // Persist parameters to BlisterType
-  await updateBlisterTypeParams(Number(blisterTypeId), Number(slots), Number(limitPerBox));
+  if (blisterTypeId) {
+    // Atualização de parâmetros de um BlisterType já existente
+    await updateBlisterTypeParams(Number(blisterTypeId), Number(slots), Number(limitPerBox));
+    return { ok: true, managerId };
+  }
 
-  return { ok: true, managerId };
+  if (externalOpId) {
+    // Criação do BlisterType e da OP após confirmação do supervisor
+    await createOpAfterSupervisorConfig(Number(externalOpId), Number(slots), Number(limitPerBox));
+    return { ok: true, managerId };
+  }
+
+  throw new Error("Parâmetros inválidos: informe blisterTypeId ou externalOpId");
 }
 

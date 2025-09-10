@@ -37,9 +37,63 @@ export async function syncAndGetOpToProduceById(id: string) {
     let requiresSupervisorConfig = false;
 
     if (!internalOp) {
-      const created = await createInternalOp(externalOp!);
-      internalOp = created.op;
-      requiresSupervisorConfig = created.created.blister;
+      // Se a OP interna ainda não existe, verificamos se já existe um BlisterType correspondente.
+      const packagingIds = externalOp.embalagens.map((emb) => emb.id);
+      const existingBlisterType = await findFirstBlisterTypeInIds({ ids: packagingIds });
+
+      if (existingBlisterType) {
+        // Já existe BlisterType configurado: podemos criar a OP normalmente.
+        const created = await createInternalOp(externalOp!);
+        internalOp = created.op;
+        requiresSupervisorConfig = false;
+      } else {
+        // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
+        const blisterPackaging = externalOp.embalagens.find((emb) =>
+          emb.nome.toLowerCase().includes("blister") ||
+          emb.nome.toLowerCase().includes("cartela")
+        );
+        const boxPackaging = externalOp.embalagens.find((emb) =>
+          emb.nome.toLowerCase().includes("caixa") ||
+          emb.nome.toLowerCase().includes("box")
+        );
+
+        requiresSupervisorConfig = true;
+
+        return {
+          opId: externalOp.id,
+          opCode: `${externalOp.numero}`,
+          status: OpStatus.PENDING,
+          quantityToProduce: externalOp.quantidadeAProduzir,
+          productType: {
+            id: externalOp.produto.id,
+            code: `PROD_${externalOp.produto.id}`,
+            name: externalOp.produto.nome,
+            description: `Produto pendente de configuração de blister: ${externalOp.produto.nome}`,
+          },
+          blisterType: {
+            id: 0,
+            code: blisterPackaging ? `BLISTER_${blisterPackaging.id}` : "BLISTER_0",
+            name: blisterPackaging?.nome || "Blister",
+            description: "Configuração de blister pendente (slots/limitPerBox)",
+            slots: 0,
+            limitPerBox: 0,
+          },
+          boxType: {
+            id: boxPackaging?.id || 0,
+            code: boxPackaging ? `BOX_${boxPackaging.id}` : "BOX_0",
+            name: boxPackaging?.nome || "Caixa",
+            description: boxPackaging?.nome || "",
+          },
+          itemsPacked: 0,
+          totalBoxes: 0,
+          pendingBoxes: 0,
+          nextBox: undefined,
+          createdAt: new Date(),
+          finishedAt: undefined,
+          blisterCodes: [],
+          requiresSupervisorConfig,
+        } as OpInspectionDto;
+      }
     }
 
     const details = await fetchOpDetails(internalOp);
@@ -461,6 +515,92 @@ export async function getOpById(id: number) {
       } as OpDto)
     : null;
 }
+
+export async function createOpAfterSupervisorConfig(
+  externalOpId: number,
+  slots: number,
+  limitPerBox: number
+): Promise<OpInspectionDto> {
+  const externalOpRed = await getOpFromId(`${externalOpId}`);
+  if (externalOpRed.isLeft()) {
+    throw Error(externalOpRed.getLeft().error);
+  }
+
+  const externalOp = externalOpRed.get();
+  validateOpJerpToProduce(externalOp);
+
+  // Identifica embalagens
+  const blisterPackaging = externalOp.embalagens.find((emb) =>
+    emb.nome.toLowerCase().includes("blister") ||
+    emb.nome.toLowerCase().includes("cartela")
+  );
+  const boxPackaging = externalOp.embalagens.find((emb) =>
+    emb.nome.toLowerCase().includes("caixa") ||
+    emb.nome.toLowerCase().includes("box")
+  );
+
+  if (!blisterPackaging || !boxPackaging) {
+    throw new Error(
+      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map(e => e.nome).join(', ')}`
+    );
+  }
+
+  // Garante ProductType e BoxType
+  const [existingProductType, existingBoxType] = await db.$transaction([
+    findProductTypeById({ id: externalOp.produto.id }),
+    findFirstBoxTypeInIds({ ids: [boxPackaging.id] }),
+  ]);
+
+  const productType = existingProductType || await createProductTypeFromJerp(externalOp.produto);
+  const boxType = existingBoxType || await createBoxTypeFromJerp(boxPackaging);
+
+  // Cria BlisterType com os parâmetros informados
+  const blisterType = await db.blisterType.create({
+    data: {
+      id: blisterPackaging.id,
+      name: blisterPackaging.nome,
+      code: `BLISTER_${blisterPackaging.id}`,
+      description: `Blister criado automaticamente do JERP: ${blisterPackaging.nome}`,
+      slots: Number(slots),
+      limitPerBox: Number(limitPerBox),
+      boxTypeId: boxType.id,
+    }
+  });
+
+  // Cria OP com base nos parâmetros de blister
+  const opData = createOpData({
+    id: externalOp.id,
+    code: `${externalOp.numero}`,
+    productTypeId: Number(productType.id),
+    blisterTypeId: Number(blisterType.id),
+    boxTypeId: Number(boxType.id),
+    quantityToProduce: externalOp.quantidadeAProduzir,
+    blisterPerBox: blisterType.limitPerBox,
+    blisterSlots: blisterType.slots,
+    boxGap: 0,
+  });
+
+  const boxes = [...(opData.boxes || [])];
+  delete (opData as any)["boxes"];
+  const opCreateData = {
+    ...opData,
+    OpBox: {
+      create: boxes?.map((box) => {
+        const blisters = [...((box as any).blisters || [])];
+        delete (box as any)["blisters"];
+        return {
+          ...box,
+          OpBoxBlister: { create: blisters },
+        };
+      }),
+    },
+  } as any;
+
+  const createdOp = await db.op.create({ data: opCreateData });
+  const details = await fetchOpDetails(createdOp);
+  return details as OpInspectionDto;
+}
+
 
 export async function saveTagId(opBoxId: string, barCode: string) {
   try {

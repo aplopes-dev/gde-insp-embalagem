@@ -105,6 +105,9 @@ export default function PackagingInspection({
         setDisplayColor("blue");
 
         if (!opData) throw new Error("OP não retornada!");
+        if (opData?.requiresSupervisorConfig) {
+          setOpenSupervisorConfigDialog(true);
+        }
 
         if (opData.finishedAt) {
           setVisorMessage("OP FINALIZADA!", "blue");
@@ -710,12 +713,15 @@ export default function PackagingInspection({
           isOpen={openSupervisorConfigDialog}
           onOpenChange={setOpenSupervisorConfigDialog}
           pieceName={data.productType.name}
-          blisterTypeId={data.blisterType.id}
-          initialSlots={data.blisterType.slots}
-          initialLimitPerBox={data.blisterType.limitPerBox}
+          blisterTypeId={data.blisterType?.id}
+          externalOpId={Number(opId)}
+          initialSlots={data.blisterType?.slots}
+          initialLimitPerBox={data.blisterType?.limitPerBox}
           onConfirmed={() => {
             setSupervisorConfigured(true);
             setOpenSupervisorConfigDialog(false);
+            // Recarrega os dados para refletir a OP criada
+            loadData();
             if (pendingInspection) {
               nextObjectValidation(pendingInspection, ObjectTypes.product);
               setPendingInspection(undefined);

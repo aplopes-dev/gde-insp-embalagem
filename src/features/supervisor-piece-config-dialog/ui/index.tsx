@@ -18,7 +18,8 @@ type SupervisorPieceConfigDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   pieceName: string;
-  blisterTypeId: number;
+  blisterTypeId?: number;
+  externalOpId: number;
   initialSlots?: number;
   initialLimitPerBox?: number;
   onConfirmed: () => void;
@@ -29,6 +30,7 @@ export default function SupervisorPieceConfigDialog({
   onOpenChange,
   pieceName,
   blisterTypeId,
+  externalOpId,
   initialSlots,
   initialLimitPerBox,
   onConfirmed,
@@ -56,7 +58,8 @@ export default function SupervisorPieceConfigDialog({
       }
       setSubmitting(true);
       await saveSupervisorPieceConfig({
-        blisterTypeId: Number(blisterTypeId),
+        blisterTypeId: blisterTypeId ? Number(blisterTypeId) : undefined,
+        externalOpId: Number(externalOpId),
         slots: Number(slots),
         limitPerBox: Number(limitPerBox),
         managerCode,
@@ -74,7 +77,11 @@ export default function SupervisorPieceConfigDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} modal>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="max-w-md"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             Cadastramento de peça: {pieceName}
@@ -107,7 +114,7 @@ export default function SupervisorPieceConfigDialog({
           <div className="pt-2 border-t" />
 
           <div className="grid gap-2">
-            <Label>Cadastro do supervisor (mock)</Label>
+            <Label>Autorização do responsável</Label>
             <div className="grid gap-2">
               <Input placeholder="Código" value={managerCode} onChange={(e) => setManagerCode(e.target.value)} />
               <Input placeholder="Senha" type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} />

@@ -35,8 +35,10 @@ export async function syncAndGetOpToProduceById(id: string) {
     });
 
     let requiresSupervisorConfig = false;
+    let isNewOp = false;
 
     if (!internalOp) {
+      isNewOp = true;
       // Se a OP interna ainda não existe, verificamos se já existe um BlisterType correspondente.
       const packagingIds = externalOp.embalagens.map((emb) => emb.id);
       const existingBlisterType = await findFirstBlisterTypeInIds({ ids: packagingIds });
@@ -92,12 +94,13 @@ export async function syncAndGetOpToProduceById(id: string) {
           finishedAt: undefined,
           blisterCodes: [],
           requiresSupervisorConfig,
+          isNewOp,
         } as OpInspectionDto;
       }
     }
 
     const details = await fetchOpDetails(internalOp);
-    return { ...details, requiresSupervisorConfig } as OpInspectionDto;
+    return { ...details, requiresSupervisorConfig, isNewOp } as OpInspectionDto;
   } else {
     throw Error(externalOpRed.getLeft().error);
   }
@@ -598,7 +601,7 @@ export async function createOpAfterSupervisorConfig(
 
   const createdOp = await db.op.create({ data: opCreateData });
   const details = await fetchOpDetails(createdOp);
-  return details as OpInspectionDto;
+  return { ...details, isNewOp: true } as OpInspectionDto;
 }
 
 

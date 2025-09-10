@@ -105,23 +105,22 @@ export default function PackagingInspection({
         setDisplayColor("blue");
 
         if (!opData) throw new Error("OP não retornada!");
-        if (opData?.requiresSupervisorConfig) {
-          setOpenSupervisorConfigDialog(true);
-        }
 
-        if (opData.finishedAt) {
-          setVisorMessage("OP FINALIZADA!", "blue");
-        } else if (!opData.nextBox) {
-          setVisorMessage("NÃO EXISTEM CAIXAS PENDENTES!", "blue");
+        // Exibe alerta para OP nova
+        if (opData?.isNewOp) {
+          if (opData?.requiresSupervisorConfig) {
+            setVisorMessage("CONFIRA O NÚMERO DE SLOTS E QUANTIDADE DE BLISTER POR CAIXA", "yellow");
+            // Abre o dialog imediatamente junto com o alerta
+            setOpenSupervisorConfigDialog(true);
+          } else {
+            setVisorMessage("OP NOVA", "yellow");
+            // Aguarda 3 segundos antes de continuar com o fluxo normal
+            setTimeout(() => {
+              continueLoadingFlow(opData);
+            }, 3000);
+          }
         } else {
-          mountInspecionState(opData.nextBox!, opData.blisterCodes);
-
-          const itemId: string | undefined = opData?.boxType.name;
-          const model: string | undefined = opData?.productType.name;
-          const quantity: number = 1;
-
-          setVisorMessage("AGUARDANDO CAIXA...", "blue");
-          sendValidation({ itemId, quantity, model });
+          continueLoadingFlow(opData);
         }
 
         setLoading(false);
@@ -130,6 +129,29 @@ export default function PackagingInspection({
         setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
         setLoading(false);
       });
+  };
+
+  const continueLoadingFlow = (opData: OpInspectionDto) => {
+    if (opData?.requiresSupervisorConfig) {
+      setOpenSupervisorConfigDialog(true);
+      // Não altera a mensagem do visor se já está mostrando alerta de OP nova
+      return;
+    }
+
+    if (opData.finishedAt) {
+      setVisorMessage("OP FINALIZADA!", "blue");
+    } else if (!opData.nextBox) {
+      setVisorMessage("NÃO EXISTEM CAIXAS PENDENTES!", "blue");
+    } else {
+      mountInspecionState(opData.nextBox!, opData.blisterCodes);
+
+      const itemId: string | undefined = opData?.boxType.name;
+      const model: string | undefined = opData?.productType.name;
+      const quantity: number = 1;
+
+      setVisorMessage("AGUARDANDO CAIXA...", "blue");
+      sendValidation({ itemId, quantity, model });
+    }
   };
 
   useEffect(() => {
@@ -717,15 +739,30 @@ export default function PackagingInspection({
           externalOpId={Number(opId)}
           initialSlots={data.blisterType?.slots}
           initialLimitPerBox={data.blisterType?.limitPerBox}
+          isNewOp={data.isNewOp}
           onConfirmed={() => {
             setSupervisorConfigured(true);
             setOpenSupervisorConfigDialog(false);
-            // Recarrega os dados para refletir a OP criada
-            loadData();
-            if (pendingInspection) {
-              nextObjectValidation(pendingInspection, ObjectTypes.product);
-              setPendingInspection(undefined);
-            }
+            // Exibe alerta de OP nova criada após configuração do supervisor
+            setVisorMessage("OP NOVA CRIADA COM SUCESSO!", "yellow");
+            // Aguarda 3 segundos antes de recarregar
+            setTimeout(() => {
+              // Recarrega os dados para refletir a OP criada (sem isNewOp para evitar loop)
+              syncAndGetOpToProduceById(opId)
+                .then((opData) => {
+                  // Remove a flag isNewOp para não mostrar o alerta novamente
+                  const updatedOpData = { ...opData, isNewOp: false };
+                  setData(updatedOpData);
+                  continueLoadingFlow(updatedOpData);
+                  if (pendingInspection) {
+                    nextObjectValidation(pendingInspection, ObjectTypes.product);
+                    setPendingInspection(undefined);
+                  }
+                })
+                .catch((error) => {
+                  setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
+                });
+            }, 3000);
           }}
         />
       )}

@@ -23,6 +23,7 @@ type SupervisorPieceConfigDialogProps = {
   initialSlots?: number;
   initialLimitPerBox?: number;
   onConfirmed: () => void;
+  isNewOp?: boolean;
 };
 
 export default function SupervisorPieceConfigDialog({
@@ -34,6 +35,7 @@ export default function SupervisorPieceConfigDialog({
   initialSlots,
   initialLimitPerBox,
   onConfirmed,
+  isNewOp,
 }: SupervisorPieceConfigDialogProps) {
   const [slots, setSlots] = useState<number | "">(initialSlots ?? "");
   const [limitPerBox, setLimitPerBox] = useState<number | "">(initialLimitPerBox ?? "");
@@ -90,6 +92,20 @@ export default function SupervisorPieceConfigDialog({
             Informe os parâmetros e autorização do supervisor.
           </DialogDescription>
         </DialogHeader>
+
+        {isNewOp && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4">
+            <div className="flex-col items-center">
+              <div className="font-bold text-sm uppercase">
+                ⚠️ OP NOVA - CONFIRA O NÚMERO DE PEÇAS E QUANTIDADE DE BLISTER POR CAIXA
+              </div>
+              <div className="font-bold text-sm uppercase">
+                *CONSULTE O PADRÃO DE EMBALAGEM!
+                **INFORME APENAS BLISTER COM ITENS!
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="grid gap-2">

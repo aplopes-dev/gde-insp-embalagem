@@ -48,48 +48,28 @@ async function createInternalOp(externalOp: OpJerpDto) {
   const productId = externalOp.produto.id;
   const packagingIds = externalOp.embalagens.map((emb) => emb.id);
 
-  // Busca o óculos pelo INSTANCE_ID do ambiente, se disponível
-  const instanceId = process.env.NEXT_PUBLIC_INSTANCE_ID || process.env.INSTANCE_ID;
-  let oculosInstanceId: number | undefined = undefined;
-
-  if (instanceId) {
-    const oculosInstance = await db.oculosInstance.findUnique({
-      where: { referencia: instanceId },
-      select: { id: true },
-    });
-    oculosInstanceId = oculosInstance?.id;
-
-    if (oculosInstanceId) {
-      console.log(`[createInternalOp] Óculos mapeado automaticamente: ${instanceId} -> ID ${oculosInstanceId}`);
-    } else {
-      console.log(`[createInternalOp] Óculos não encontrado para referência: ${instanceId}`);
-    }
-  } else {
-    console.log('[createInternalOp] Nenhum INSTANCE_ID configurado no ambiente');
-  }
-
+  // Busca as referências existentes
   const transaction = await db.$transaction([
     findProductTypeById({ id: productId }),
     findFirstBlisterTypeInIds({ ids: packagingIds }),
     findFirstBoxTypeInIds({ ids: packagingIds }),
   ]);
 
-  referencesIsValid(
+  // Cria dinamicamente as referências que não existem
+  const [productType, blisterType, boxType] = await ensureReferencesExist(
     transaction,
-    ["Produto", "Blister", "Caixa"],
-    productId,
-    packagingIds
+    externalOp
   );
 
   const op = createOpData({
     id: externalOp.id,
     code: `${externalOp.numero}`,
-    productTypeId: Number(transaction[0]?.id),
-    blisterTypeId: Number(transaction[1]?.id),
-    boxTypeId: Number(transaction[2]?.id),
+    productTypeId: Number(productType.id),
+    blisterTypeId: Number(blisterType.id),
+    boxTypeId: Number(boxType.id),
     quantityToProduce: externalOp.quantidadeAProduzir,
-    blisterPerBox: transaction[1]!.limitPerBox,
-    blisterSlots: transaction[1]!.slots,
+    blisterPerBox: blisterType.limitPerBox,
+    blisterSlots: blisterType.slots,
     boxGap: 0,
   });
 
@@ -97,8 +77,6 @@ async function createInternalOp(externalOp: OpJerpDto) {
   delete op["boxes"];
   const opCreateData = {
     ...op,
-    // Preenche o óculos (INSTANCE_ID) mapeado do ambiente para FK numérica
-    oculosInstanceId,
     OpBox: {
       create: boxes?.map((box) => {
         const blisters = [...(box.blisters || [])];
@@ -118,26 +96,87 @@ async function createInternalOp(externalOp: OpJerpDto) {
   });
 }
 
-function referencesIsValid(
+async function ensureReferencesExist(
   transactionResults: [
     productType: ProductType | null,
     blisterType: BlisterType | null,
     boxType: BoxType | null
   ],
-  refNames: string[],
-  productId: number,
-  packagingIds: number[]
-) {
-  const indexNullReference = transactionResults.findIndex((rf) => !rf?.id);
-  if (indexNullReference >= 0) {
+  externalOp: OpJerpDto
+): Promise<[ProductType, BlisterType, BoxType]> {
+  const [existingProductType, existingBlisterType, existingBoxType] = transactionResults;
+
+  // Cria ProductType se não existir
+  const productType = existingProductType || await createProductTypeFromJerp(externalOp.produto);
+
+  // Identifica qual embalagem é blister e qual é caixa baseado no nome
+  const blisterPackaging = externalOp.embalagens.find(emb =>
+    emb.nome.toLowerCase().includes('blister') ||
+    emb.nome.toLowerCase().includes('cartela')
+  );
+  const boxPackaging = externalOp.embalagens.find(emb =>
+    emb.nome.toLowerCase().includes('caixa') ||
+    emb.nome.toLowerCase().includes('box')
+  );
+
+  if (!blisterPackaging || !boxPackaging) {
     throw new Error(
-      `Referência de ${refNames[indexNullReference]} não encontrada.
-       Produto: ${productId}
-       Embalagens: [${packagingIds.join(",")}] 
-      `
+      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map(e => e.nome).join(', ')}`
     );
   }
+
+  // Cria BoxType primeiro (necessário para BlisterType)
+  const boxType = existingBoxType || await createBoxTypeFromJerp(boxPackaging);
+
+  // Cria BlisterType se não existir (precisa do boxTypeId)
+  const blisterType = existingBlisterType || await createBlisterTypeFromJerp(blisterPackaging, boxType.id);
+
+  return [productType, blisterType, boxType];
 }
+
+async function createProductTypeFromJerp(produto: { id: number; nome: string }): Promise<ProductType> {
+  console.log(`Criando ProductType dinamicamente: ID ${produto.id}, Nome: ${produto.nome}`);
+
+  return await db.productType.create({
+    data: {
+      id: produto.id,
+      name: produto.nome,
+      code: `PROD_${produto.id}`,
+      description: `Produto criado automaticamente do JERP: ${produto.nome}`,
+    }
+  });
+}
+
+async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number }, boxTypeId: number): Promise<BlisterType> {
+  console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
+
+  return await db.blisterType.create({
+    data: {
+      id: embalagem.id,
+      name: embalagem.nome,
+      code: `BLISTER_${embalagem.id}`,
+      description: `Blister criado automaticamente do JERP: ${embalagem.nome}`,
+      slots: embalagem.quantidadeAlocada || 10, // Valor padrão se não especificado
+      limitPerBox: 1, // Valor padrão - pode ser ajustado conforme necessário
+      boxTypeId: boxTypeId, // Campo obrigatório
+    }
+  });
+}
+
+async function createBoxTypeFromJerp(embalagem: { id: number; nome: string }): Promise<BoxType> {
+  console.log(`Criando BoxType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}`);
+
+  return await db.boxType.create({
+    data: {
+      id: embalagem.id,
+      name: embalagem.nome,
+      code: `BOX_${embalagem.id}`,
+      description: `Caixa criada automaticamente do JERP: ${embalagem.nome}`,
+    }
+  });
+}
+
+
 
 async function fetchOpDetails(internalOp: Op) {
   const transaction = await db.$transaction([
@@ -192,38 +231,32 @@ export async function persistBoxStatusWithBlisters(
   opBoxId: string,
   blisters: OpBoxBlisterInspection[]
 ) {
-  // Guardas mínimos contra concorrência: atualizar OpBox somente se ainda estiver PENDING
-  await db.$transaction(async (tx) => {
-    // Atualiza blisters da caixa
-    for (const bl of blisters) {
-      await tx.opBoxBlister.update({
-        data: {
-          packedAt: bl.packedAt?.toISOString(),
-          code: bl.code,
-        },
-        where: {
-          id: bl.id,
-          opBoxId,
-        },
-      });
-    }
+  const queryCollection: any[] = blisters.map((bl) =>
+    db.opBoxBlister.update({
+      data: {
+        packedAt: bl.packedAt?.toISOString(),
+        code: bl.code,
+      },
+      where: {
+        id: bl.id,
+        opBoxId,
+      },
+    })
+  );
 
-    // Tenta transicionar a caixa para PACKAGED apenas se ainda estiver PENDING
-    const result = await tx.opBox.updateMany({
+  queryCollection.push(
+    db.opBox.update({
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED,
       },
       where: {
         id: opBoxId,
-        status: OpBoxStatus.PENDING,
       },
-    });
+    })
+  );
 
-    if (result.count === 0) {
-      throw new Error("Caixa já processada ou não está pendente");
-    }
-  });
+  await db.$transaction(queryCollection);
 }
 
 export async function persistWithOpBreak(

@@ -88,8 +88,8 @@ export default function SupervisorPieceConfigDialog({
           <DialogTitle>
             Cadastramento de peça: {pieceName}
           </DialogTitle>
-          <DialogDescription>
-            Informe os parâmetros e autorização do supervisor.
+          <DialogDescription style={{ color: "red" }} className="text-lg">
+            Contate o supervisor.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,11 +97,10 @@ export default function SupervisorPieceConfigDialog({
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4">
             <div className="flex-col items-center">
               <div className="font-bold text-sm uppercase">
-                ⚠️ OP NOVA - CONFIRA O NÚMERO DE PEÇAS E QUANTIDADE DE BLISTER POR CAIXA
+                ⚠️ OP NOVA - CONFIRA A GUIA.
               </div>
               <div className="font-bold text-sm uppercase">
-                *CONSULTE O PADRÃO DE EMBALAGEM!
-                **INFORME APENAS BLISTER COM ITENS!
+                *CONSULTE O DOCUMENTO COM O PADRÃO DE EMBALAGEM!
               </div>
             </div>
           </div>
@@ -109,7 +108,7 @@ export default function SupervisorPieceConfigDialog({
 
         <div className="space-y-4">
           <div className="grid gap-2">
-            <Label>Peças por blister</Label>
+            <Label>Informe a quantidade de peças por blister:</Label>
             <Input
               type="number"
               value={slots}
@@ -118,7 +117,7 @@ export default function SupervisorPieceConfigDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Blister por caixa</Label>
+            <Label>Informe a quantidade de blister por caixa:</Label>
             <Input
               type="number"
               value={limitPerBox}

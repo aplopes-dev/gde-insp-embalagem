@@ -109,7 +109,7 @@ export default function PackagingInspection({
         // Exibe alerta para OP nova
         if (opData?.isNewOp) {
           if (opData?.requiresSupervisorConfig) {
-            setVisorMessage("CONFIRA O NÚMERO DE SLOTS E QUANTIDADE DE BLISTER POR CAIXA", "yellow");
+            setVisorMessage("VERIFIQUE A QUANTIDADE DE PEÇAS E BLISTER POR CAIXA", "yellow");
             // Abre o dialog imediatamente junto com o alerta
             setOpenSupervisorConfigDialog(true);
           } else {

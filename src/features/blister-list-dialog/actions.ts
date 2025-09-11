@@ -2,7 +2,7 @@
 
 import db from "@/providers/database";
 
-export async function getOpBoxWithBlistersById(id: number) {
+export async function getOpBoxWithBlistersById(id: string) {
   return db.opBox.findUnique({
     where: {
       id,

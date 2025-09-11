@@ -14,7 +14,9 @@ export type OpInspectionDto = {
   nextBox?: OpBoxInspectionDto;
   createdAt: Date;
   finishedAt?: Date;
-  blisterCodes: string[]
+  blisterCodes: string[];
+  requiresSupervisorConfig?: boolean;
+  isNewOp?: boolean;
 };
 
 export type OpBoxInspectionDto = {

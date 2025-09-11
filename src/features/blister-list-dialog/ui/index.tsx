@@ -36,7 +36,7 @@ const ImageModal = ({
 };
 
 type BlisterListDialogProps = {
-  activeKey: number;
+  activeKey: string;
   isOpen: boolean;
   opId: number;
   onOpenChange: (open: boolean) => void;

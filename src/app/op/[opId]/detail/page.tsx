@@ -13,6 +13,7 @@ import { getOpById } from "../actions";
 type PrintConfig = {
   barcode: string;
   quantity: number;
+  pdfBase64: string | null;
 }
 
 const BoxPage = ({
@@ -30,6 +31,7 @@ const BoxPage = ({
   const [printConfig, setPrintConfig] = useState<PrintConfig>({
     barcode: "",
     quantity: 0,
+    pdfBase64: null,
   });
 
   const onCLickView = (value: any) => {
@@ -64,8 +66,8 @@ const BoxPage = ({
     }
   }
 
-  function onCLickPrint(value: PrintConfig) {
-    setPrintConfig(value);
+  function onCLickPrint(value: { barcode: string; quantity: number; pdfBase64?: string | null }) {
+    setPrintConfig({ barcode: value.barcode, quantity: value.quantity, pdfBase64: value.pdfBase64 ?? null });
     setOpenPrintTagDialog(true);
   }
 
@@ -138,10 +140,7 @@ const BoxPage = ({
               onOpenChange={setOpenBlisterDialog}
             />
             <PrintTagDialog
-              itemName={data.product.code}
-              itemDescription={data.product.description || ""}
               printConfig={printConfig}
-              batchCode={data.code}
               isOpen={openPrintTagDialog}
               onOpenChange={setOpenPrintTagDialog}
             />

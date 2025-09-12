@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import SubmitButton from "@/components/form/SubmitButton";
 
 function roleLabel(r: string) {
   const map: Record<string, string> = {
@@ -102,7 +103,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
               <option value="SUPERVISOR">Supervisor</option>
               <option value="ADMIN">Administrador</option>
             </select>
-            <Button type="submit">Criar</Button>
+            <SubmitButton pendingText="Criando...">Criar</SubmitButton>
           </form>
         </CardContent>
       </Card>
@@ -139,12 +140,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
                           <option value="SUPERVISOR">Supervisor</option>
                           <option value="ADMIN">Administrador</option>
                         </select>
-                        <Button type="submit" variant="outline" size="sm">Atualizar</Button>
+                        <SubmitButton variant="outline" size="sm" pendingText="Atualizando...">Atualizar</SubmitButton>
                       </form>
                       <form action={resetUserPasswordAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
                         <Input required name="password" type="password" placeholder="nova senha" className="max-w-xs" />
-                        <Button type="submit" variant="secondary" size="sm">Resetar senha</Button>
+                        <SubmitButton variant="secondary" size="sm" pendingText="Resetando...">Resetar senha</SubmitButton>
                       </form>
                     </div>
                   </TableCell>

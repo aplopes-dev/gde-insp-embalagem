@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader as DHeader, DialogTitle as DTitle, DialogDescription as DDesc } from "@/components/ui/dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -163,19 +164,29 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
                   <TableCell>{humanizeEntity(l.entity)}</TableCell>
                   <TableCell>{l.entityId}</TableCell>
                   <TableCell>
-                    <details>
-                      <summary className="cursor-pointer select-none text-primary">ver detalhes</summary>
-                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
-                        <div>
-                          <div className="text-xs text-muted-foreground">Antes</div>
-                          <pre className="text-xs max-h-60 overflow-auto bg-muted p-2 rounded border">{JSON.stringify(l.before, null, 2)}</pre>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">Ver detalhes</Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-3xl">
+                        <DHeader>
+                          <DTitle>Detalhes do evento</DTitle>
+                          <DDesc>
+                            {humanizeAction(l.action)} • {humanizeEntity(l.entity)} #{l.entityId} • {new Date(l.createdAt).toLocaleString()} • {l.user?.username || l.user?.email || l.userId}
+                          </DDesc>
+                        </DHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-xs text-muted-foreground">Antes</div>
+                            <pre className="text-xs max-h-80 overflow-auto bg-muted p-2 rounded border">{JSON.stringify(l.before, null, 2)}</pre>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Depois</div>
+                            <pre className="text-xs max-h-80 overflow-auto bg-muted p-2 rounded border">{JSON.stringify(l.after, null, 2)}</pre>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Depois</div>
-                          <pre className="text-xs max-h-60 overflow-auto bg-muted p-2 rounded border">{JSON.stringify(l.after, null, 2)}</pre>
-                        </div>
-                      </div>
-                    </details>
+                      </DialogContent>
+                    </Dialog>
                   </TableCell>
                 </TableRow>
               ))}

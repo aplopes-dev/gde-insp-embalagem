@@ -5,6 +5,8 @@
 
 import { toggleRolePermissionAction } from "./actions";
 import { useRef } from "react";
+import { useFormStatus } from "react-dom";
+import { Loader2 } from "lucide-react";
 
 type Props = {
   permissionId: number;
@@ -14,6 +16,7 @@ type Props = {
 
 export default function PermissionToggle({ permissionId, role, checked }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
+  const { pending } = useFormStatus();
   return (
     <form ref={formRef} action={toggleRolePermissionAction} className="inline-flex items-center gap-2">
       <input type="hidden" name="permissionId" value={permissionId} />
@@ -25,7 +28,9 @@ export default function PermissionToggle({ permissionId, role, checked }: Props)
         defaultChecked={checked}
         onChange={() => formRef.current?.requestSubmit()}
         aria-label={`Permissão ${permissionId} para ${role}`}
+        disabled={pending}
       />
+      {pending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
     </form>
   );
 }

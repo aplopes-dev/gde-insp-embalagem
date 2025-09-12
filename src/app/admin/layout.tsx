@@ -5,6 +5,8 @@ import { requireAdmin } from "@/shared/auth/permissions";
 import React from "react";
 import Header from "@/components/header";
 import SidebarNav from "./SidebarNav";
+import Breadcrumbs from "./Breadcrumbs";
+import FlashToaster from "@/components/flash-toaster";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,11 @@ export default async function AdminLayout({ children }: Props) {
         </aside>
 
         {/* Conteúdo */}
-        <main className="p-6">{children}</main>
+        <main className="p-6 space-y-4">
+          <Breadcrumbs />
+          <FlashToaster />
+          {children}
+        </main>
       </div>
     </div>
   );

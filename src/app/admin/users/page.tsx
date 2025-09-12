@@ -9,6 +9,15 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
+function roleLabel(r: string) {
+  const map: Record<string, string> = {
+    OPERATOR: "Operador",
+    SUPERVISOR: "Supervisor",
+    ADMIN: "Administrador",
+  };
+  return map[r] || r;
+}
+
 export const dynamic = "force-dynamic"; // garantir SSR sempre
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
@@ -63,9 +72,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
               <div className="text-xs text-muted-foreground">Perfil</div>
               <select name="role" defaultValue={fRole} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="">Todos</option>
-                <option value="OPERATOR">OPERATOR</option>
-                <option value="SUPERVISOR">SUPERVISOR</option>
-                <option value="ADMIN">ADMIN</option>
+                <option value="OPERATOR">Operador</option>
+                <option value="SUPERVISOR">Supervisor</option>
+                <option value="ADMIN">Administrador</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -89,9 +98,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
             <Input required name="email" type="email" placeholder="email" />
             <Input required name="password" type="password" placeholder="senha (política)" />
             <select name="role" defaultValue="OPERATOR" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              <option value="OPERATOR">OPERATOR</option>
-              <option value="SUPERVISOR">SUPERVISOR</option>
-              <option value="ADMIN">ADMIN</option>
+              <option value="OPERATOR">Operador</option>
+              <option value="SUPERVISOR">Supervisor</option>
+              <option value="ADMIN">Administrador</option>
             </select>
             <Button type="submit">Criar</Button>
           </form>
@@ -118,7 +127,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
                   <TableCell className="font-medium">{u.username}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{u.role}</Badge>
+                    <Badge variant="secondary">{roleLabel(u.role)}</Badge>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{new Date(u.createdAt).toLocaleString()}</TableCell>
                   <TableCell>
@@ -126,9 +135,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
                       <form action={updateUserRoleAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
                         <select name="role" defaultValue={u.role} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                          <option value="OPERATOR">OPERATOR</option>
-                          <option value="SUPERVISOR">SUPERVISOR</option>
-                          <option value="ADMIN">ADMIN</option>
+                          <option value="OPERATOR">Operador</option>
+                          <option value="SUPERVISOR">Supervisor</option>
+                          <option value="ADMIN">Administrador</option>
                         </select>
                         <Button type="submit" variant="outline" size="sm">Atualizar</Button>
                       </form>

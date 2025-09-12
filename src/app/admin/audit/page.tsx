@@ -62,14 +62,18 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
   }
 
   // Opções de filtro (select)
-  const [entityGroups, actionGroups, userGroups] = await Promise.all([
+  const [entityGroups, actionGroups, userIdRows] = await Promise.all([
     db.auditLog.groupBy({ by: ["entity"] }),
     db.auditLog.groupBy({ by: ["action"] }),
-    db.auditLog.groupBy({ by: ["userId"], where: { NOT: { userId: null } } }),
+    db.auditLog.findMany({
+      where: { userId: { not: null } },
+      select: { userId: true },
+      distinct: ["userId"],
+    }),
   ]);
   const entityOptions = entityGroups.map((g: any) => g.entity).filter(Boolean).sort();
   const actionOptions = actionGroups.map((g: any) => g.action).filter(Boolean).sort();
-  const userIds = userGroups.map((g: any) => g.userId as number);
+  const userIds = userIdRows.map((g: any) => g.userId as number);
   const usersForSelect = userIds.length
     ? await db.user.findMany({
         where: { id: { in: userIds } },

@@ -5,20 +5,37 @@ import { createUserAction, resetUserPasswordAction, updateUserRoleAction } from 
 
 export const dynamic = "force-dynamic"; // garantir SSR sempre
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   // Garante acesso apenas para ADMIN (política inicial)
   await requireAdmin();
 
-  // Busca lista simples de usuários (sem paginação por enquanto)
-  const users = await db.user.findMany({
-    select: { id: true, username: true, email: true, role: true, createdAt: true },
-    orderBy: { createdAt: "desc" },
-  });
+  // Paginação simples via querystring (?page=&perPage=)
+  const page = Math.max(1, Number(searchParams.page || 1));
+  const perPage = Math.min(100, Math.max(5, Number(searchParams.perPage || 20)));
+  const skip = (page - 1) * perPage;
+
+  // Busca lista paginada de usuários
+  const [total, users] = await Promise.all([
+    db.user.count(),
+    db.user.findMany({
+      select: { id: true, username: true, email: true, role: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: perPage,
+    }),
+  ]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Usuários</h1>
       <p className="text-sm text-gray-600">Listagem com formulários simples para criar usuário, alterar perfil e resetar senha.</p>
+
+      {/* Feedback simples por querystring (?ok=1&msg=...) */}
+      {searchParams.ok && (
+        <div className="rounded border border-green-600 bg-green-50 text-green-800 px-3 py-2 text-sm inline-block">
+          {typeof searchParams.msg === "string" ? searchParams.msg : "Operação realizada com sucesso."}
+        </div>
+      )}
 
       {/* Criar usuário */}
       <section className="space-y-2">
@@ -78,10 +95,21 @@ export default async function AdminUsersPage() {
         </tbody>
       </table>
 
+      {/* Pager simples */}
+      <div className="flex items-center justify-between pt-4 text-sm">
+        <div>
+          Total: {total} • Página {page} de {Math.max(1, Math.ceil(total / perPage))}
+        </div>
+        <div className="flex gap-2">
+          <a className={`border px-2 py-1 rounded ${page <= 1 ? "opacity-50 pointer-events-none" : ""}`} href={`?page=${page - 1}&perPage=${perPage}`}>Anterior</a>
+          <a className={`border px-2 py-1 rounded ${(skip + users.length) >= total ? "opacity-50 pointer-events-none" : ""}`} href={`?page=${page + 1}&perPage=${perPage}`}>Próxima</a>
+        </div>
+      </div>
+
       {/* Próximos passos nesta página:
-        - Paginação e filtros
+        - Filtros por texto/role
         - Feedback de sucesso/erro (toasts)
-        - Auditoria mostrando autor (quando evoluirmos requireAdmin para informar o userId do autor)
+        - Auditoria mostrando autor (já registrando actorUserId nas actions)
       */}
     </div>
   );

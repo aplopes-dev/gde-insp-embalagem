@@ -5,11 +5,12 @@
 
 import db from "@/providers/database";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/shared/auth/permissions";
+import { requireAdminAndGetActor } from "@/shared/auth/actor";
 import { logAction } from "@/shared/services/audit";
+import { redirect } from "next/navigation";
 
 export async function toggleRolePermissionAction(formData: FormData) {
-  await requireAdmin();
+  const { actorUserId } = await requireAdminAndGetActor();
   const role = String(formData.get("role") || "");
   const permissionId = Number(formData.get("permissionId"));
   const enabled = String(formData.get("enabled") || "false") === "true";
@@ -33,7 +34,7 @@ export async function toggleRolePermissionAction(formData: FormData) {
   }
 
   await logAction({
-    userId: null,
+    userId: actorUserId,
     action: "TOGGLE_ROLE_PERMISSION",
     entity: "RolePermission",
     entityId: `${role}:${permissionId}`,
@@ -42,5 +43,6 @@ export async function toggleRolePermissionAction(formData: FormData) {
   });
 
   revalidatePath("/admin/permissions");
+  redirect("/admin/permissions?ok=1");
 }
 

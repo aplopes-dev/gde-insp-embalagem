@@ -7,13 +7,14 @@ import db from "@/providers/database";
 import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
 import { validatePasswordPolicy } from "@/shared/utils/password-policy";
-import { requireAdmin } from "@/shared/auth/permissions";
+import { requireAdminAndGetActor } from "@/shared/auth/actor";
 import { logAction } from "@/shared/services/audit";
+import { redirect } from "next/navigation";
 
 const ROLES = ["OPERATOR", "SUPERVISOR", "ADMIN"] as const;
 
 export async function createUserAction(formData: FormData) {
-  await requireAdmin();
+  const { actorUserId } = await requireAdminAndGetActor();
   const username = String(formData.get("username") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
@@ -38,7 +39,7 @@ export async function createUserAction(formData: FormData) {
   });
 
   await logAction({
-    userId: user.id, // criador será registrado pelo userId? Aqui registramos o criado como after, e o autor no futuro via session (requireAdmin pode evoluir)
+    userId: actorUserId,
     action: "CREATE_USER",
     entity: "User",
     entityId: String(user.id),
@@ -47,10 +48,11 @@ export async function createUserAction(formData: FormData) {
   });
 
   revalidatePath("/admin/users");
+  redirect("/admin/users?ok=1&msg=usuario_criado");
 }
 
 export async function updateUserRoleAction(formData: FormData) {
-  await requireAdmin();
+  const { actorUserId } = await requireAdminAndGetActor();
   const userId = Number(formData.get("userId"));
   const role = String(formData.get("role") || "");
   if (!userId || !ROLES.includes(role as any)) throw new Error("Dados inválidos.");
@@ -59,7 +61,7 @@ export async function updateUserRoleAction(formData: FormData) {
   const updated = await db.user.update({ where: { id: userId }, data: { role: role as any } });
 
   await logAction({
-    userId: updated.id,
+    userId: actorUserId,
     action: "UPDATE_USER_ROLE",
     entity: "User",
     entityId: String(userId),
@@ -68,10 +70,11 @@ export async function updateUserRoleAction(formData: FormData) {
   });
 
   revalidatePath("/admin/users");
+  redirect("/admin/users?ok=1&msg=perfil_atualizado");
 }
 
 export async function resetUserPasswordAction(formData: FormData) {
-  await requireAdmin();
+  const { actorUserId } = await requireAdminAndGetActor();
   const userId = Number(formData.get("userId"));
   const password = String(formData.get("password") || "");
   if (!userId || !password) throw new Error("Dados inválidos.");
@@ -84,7 +87,7 @@ export async function resetUserPasswordAction(formData: FormData) {
   const updated = await db.user.update({ where: { id: userId }, data: { password: hash } });
 
   await logAction({
-    userId: updated.id,
+    userId: actorUserId,
     action: "RESET_USER_PASSWORD",
     entity: "User",
     entityId: String(userId),
@@ -93,5 +96,6 @@ export async function resetUserPasswordAction(formData: FormData) {
   });
 
   revalidatePath("/admin/users");
+  redirect("/admin/users?ok=1&msg=senha_resetada");
 }
 

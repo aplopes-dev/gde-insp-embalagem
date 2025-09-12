@@ -14,10 +14,23 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
   const perPage = Math.min(100, Math.max(5, Number(searchParams.perPage || 20)));
   const skip = (page - 1) * perPage;
 
-  // Busca lista paginada de usuários
+  // Filtros (?q=texto&role=ROLE)
+  const q = ((searchParams.q as string) || "").trim();
+  const fRole = (searchParams.role as string) || "";
+  const where: any = {};
+  if (q) {
+    where.OR = [
+      { username: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  if (fRole) where.role = fRole as any;
+
+  // Busca lista paginada de usuários com filtros
   const [total, users] = await Promise.all([
-    db.user.count(),
+    db.user.count({ where }),
     db.user.findMany({
+      where,
       select: { id: true, username: true, email: true, role: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       skip,
@@ -36,6 +49,29 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
           {typeof searchParams.msg === "string" ? searchParams.msg : "Operação realizada com sucesso."}
         </div>
       )}
+
+      {/* Filtros */}
+      <form method="GET" className="flex flex-wrap gap-2 items-end">
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-600">Busca</label>
+          <input name="q" placeholder="username ou e-mail" defaultValue={q} className="border px-2 py-1" />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-600">Perfil</label>
+          <select name="role" defaultValue={fRole} className="border px-2 py-1">
+            <option value="">Todos</option>
+            <option value="OPERATOR">OPERATOR</option>
+            <option value="SUPERVISOR">SUPERVISOR</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-600">Por página</label>
+          <input name="perPage" type="number" min={5} max={100} defaultValue={perPage} className="border px-2 py-1 w-24" />
+        </div>
+        <input type="hidden" name="page" value={1} />
+        <button type="submit" className="bg-gray-800 text-white px-3 py-1 rounded">Filtrar</button>
+      </form>
 
       {/* Criar usuário */}
       <section className="space-y-2">
@@ -101,8 +137,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
           Total: {total} • Página {page} de {Math.max(1, Math.ceil(total / perPage))}
         </div>
         <div className="flex gap-2">
-          <a className={`border px-2 py-1 rounded ${page <= 1 ? "opacity-50 pointer-events-none" : ""}`} href={`?page=${page - 1}&perPage=${perPage}`}>Anterior</a>
-          <a className={`border px-2 py-1 rounded ${(skip + users.length) >= total ? "opacity-50 pointer-events-none" : ""}`} href={`?page=${page + 1}&perPage=${perPage}`}>Próxima</a>
+          <a className={`border px-2 py-1 rounded ${page <= 1 ? "opacity-50 pointer-events-none" : ""}`} href={`?q=${encodeURIComponent(q)}&role=${fRole}&page=${page - 1}&perPage=${perPage}`}>Anterior</a>
+          <a className={`border px-2 py-1 rounded ${(skip + users.length) >= total ? "opacity-50 pointer-events-none" : ""}`} href={`?q=${encodeURIComponent(q)}&role=${fRole}&page=${page + 1}&perPage=${perPage}`}>Próxima</a>
         </div>
       </div>
 

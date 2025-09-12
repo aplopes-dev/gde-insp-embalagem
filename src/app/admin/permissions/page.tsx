@@ -2,6 +2,7 @@
 import db from "@/providers/database";
 import { requireAdmin } from "@/shared/auth/permissions";
 import { toggleRolePermissionAction } from "./actions";
+import PermissionToggle from "./PermissionToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -47,14 +48,7 @@ export default async function AdminPermissionsPage() {
                 const checked = (roleMap as any)[r].has(p.id);
                 return (
                   <td key={r} className="py-1 pr-4">
-                    <form action={toggleRolePermissionAction}>
-                      <input type="hidden" name="permissionId" value={p.id} />
-                      <input type="hidden" name="role" value={r} />
-                      <input type="hidden" name="enabled" value={(!checked).toString()} />
-                      <button type="submit" className="border px-2 py-0.5 rounded">
-                        {checked ? "Desativar" : "Ativar"}
-                      </button>
-                    </form>
+                    <PermissionToggle permissionId={p.id} role={r} checked={checked} />
                   </td>
                 );
               })}

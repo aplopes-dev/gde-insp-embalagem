@@ -54,6 +54,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
             <th className="py-2 pr-4">Ação</th>
             <th className="py-2 pr-4">Entidade</th>
             <th className="py-2 pr-4">ID</th>
+            <th className="py-2 pr-4">Detalhes</th>
           </tr>
         </thead>
         <tbody>
@@ -64,6 +65,21 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
               <td className="py-1 pr-4">{l.action}</td>
               <td className="py-1 pr-4">{l.entity}</td>
               <td className="py-1 pr-4">{l.entityId}</td>
+              <td className="py-1 pr-4">
+                <details>
+                  <summary className="cursor-pointer select-none text-blue-700">ver</summary>
+                  <div className="mt-1 grid grid-cols-2 gap-4 max-w-3xl">
+                    <div>
+                      <div className="text-xs text-gray-500">Antes</div>
+                      <pre className="text-xs overflow-auto bg-gray-50 p-2 rounded border">{JSON.stringify(l.before, null, 2)}</pre>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Depois</div>
+                      <pre className="text-xs overflow-auto bg-gray-50 p-2 rounded border">{JSON.stringify(l.after, null, 2)}</pre>
+                    </div>
+                  </div>
+                </details>
+              </td>
             </tr>
           ))}
         </tbody>

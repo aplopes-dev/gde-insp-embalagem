@@ -1,20 +1,23 @@
-// Admin > Usuários: listagem inicial com proteções e comentários em PT-BR
+// Admin > Usuários: listagem com UI padrão
 import db from "@/providers/database";
 import { requireAdmin } from "@/shared/auth/permissions";
 import { createUserAction, resetUserPasswordAction, updateUserRoleAction } from "./actions";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic"; // garantir SSR sempre
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  // Garante acesso apenas para ADMIN (política inicial)
   await requireAdmin();
 
-  // Paginação simples via querystring (?page=&perPage=)
   const page = Math.max(1, Number(searchParams.page || 1));
   const perPage = Math.min(100, Math.max(5, Number(searchParams.perPage || 20)));
   const skip = (page - 1) * perPage;
 
-  // Filtros (?q=texto&role=ROLE)
   const q = ((searchParams.q as string) || "").trim();
   const fRole = (searchParams.role as string) || "";
   const where: any = {};
@@ -26,7 +29,6 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
   }
   if (fRole) where.role = fRole as any;
 
-  // Busca lista paginada de usuários com filtros
   const [total, users] = await Promise.all([
     db.user.count({ where }),
     db.user.findMany({
@@ -40,114 +42,123 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Usuários</h1>
-      <p className="text-sm text-gray-600">Listagem com formulários simples para criar usuário, alterar perfil e resetar senha.</p>
-
-      {/* Feedback simples por querystring (?ok=1&msg=...) */}
       {searchParams.ok && (
-        <div className="rounded border border-green-600 bg-green-50 text-green-800 px-3 py-2 text-sm inline-block">
+        <div className="rounded border border-green-400 bg-green-100 text-green-900 px-3 py-2 text-sm inline-block">
           {typeof searchParams.msg === "string" ? searchParams.msg : "Operação realizada com sucesso."}
         </div>
       )}
 
-      {/* Filtros */}
-      <form method="GET" className="flex flex-wrap gap-2 items-end">
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-600">Busca</label>
-          <input name="q" placeholder="username ou e-mail" defaultValue={q} className="border px-2 py-1" />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-600">Perfil</label>
-          <select name="role" defaultValue={fRole} className="border px-2 py-1">
-            <option value="">Todos</option>
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="SUPERVISOR">SUPERVISOR</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-600">Por página</label>
-          <input name="perPage" type="number" min={5} max={100} defaultValue={perPage} className="border px-2 py-1 w-24" />
-        </div>
-        <input type="hidden" name="page" value={1} />
-        <button type="submit" className="bg-gray-800 text-white px-3 py-1 rounded">Filtrar</button>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>Usuários</CardTitle>
+          <CardDescription>Filtros por texto e perfil, com paginação</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form method="GET" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6 items-end">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Busca</div>
+              <Input name="q" placeholder="username ou e-mail" defaultValue={q} />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Perfil</div>
+              <select name="role" defaultValue={fRole} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                <option value="OPERATOR">OPERATOR</option>
+                <option value="SUPERVISOR">SUPERVISOR</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Por página</div>
+              <Input name="perPage" type="number" min={5} max={100} defaultValue={perPage} />
+            </div>
+            <input type="hidden" name="page" value={1} />
+            <Button type="submit">Filtrar</Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      {/* Criar usuário */}
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium">Criar usuário</h2>
-        <form action={createUserAction} className="flex flex-wrap gap-2">
-          <input required name="username" placeholder="username" className="border px-2 py-1" />
-          <input required name="email" type="email" placeholder="email" className="border px-2 py-1" />
-          <input required name="password" type="password" placeholder="senha (política)" className="border px-2 py-1" />
-          <select name="role" defaultValue="OPERATOR" className="border px-2 py-1">
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="SUPERVISOR">SUPERVISOR</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-          <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded">Criar</button>
-        </form>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Criar usuário</CardTitle>
+          <CardDescription>Senha segue política definida</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={createUserAction} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <Input required name="username" placeholder="username" />
+            <Input required name="email" type="email" placeholder="email" />
+            <Input required name="password" type="password" placeholder="senha (política)" />
+            <select name="role" defaultValue="OPERATOR" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+              <option value="OPERATOR">OPERATOR</option>
+              <option value="SUPERVISOR">SUPERVISOR</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+            <Button type="submit">Criar</Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="text-left border-b">
-            <th className="py-2 pr-4">ID</th>
-            <th className="py-2 pr-4">Username</th>
-            <th className="py-2 pr-4">E-mail</th>
-            <th className="py-2 pr-4">Perfil</th>
-            <th className="py-2 pr-4">Criado em</th>
-            <th className="py-2 pr-4">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id} className="border-b">
-              <td className="py-1 pr-4">{u.id}</td>
-              <td className="py-1 pr-4">{u.username}</td>
-              <td className="py-1 pr-4">{u.email}</td>
-              <td className="py-1 pr-4">{u.role}</td>
-              <td className="py-1 pr-4">{new Date(u.createdAt).toLocaleString()}</td>
-              <td className="py-1 pr-4">
-                {/* Alterar perfil */}
-                <form action={updateUserRoleAction} className="flex items-center gap-2">
-                  <input type="hidden" name="userId" value={u.id} />
-                  <select name="role" defaultValue={u.role} className="border px-2 py-1">
-                    <option value="OPERATOR">OPERATOR</option>
-                    <option value="SUPERVISOR">SUPERVISOR</option>
-                    <option value="ADMIN">ADMIN</option>
-                  </select>
-                  <button type="submit" className="border px-2 py-1 rounded">Atualizar</button>
-                </form>
-                {/* Reset senha */}
-                <form action={resetUserPasswordAction} className="mt-2 flex items-center gap-2">
-                  <input type="hidden" name="userId" value={u.id} />
-                  <input required name="password" type="password" placeholder="nova senha" className="border px-2 py-1" />
-                  <button type="submit" className="border px-2 py-1 rounded">Resetar senha</button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Card>
+        <CardContent className="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Username</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Perfil</TableHead>
+                <TableHead>Criado em</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell>{u.id}</TableCell>
+                  <TableCell className="font-medium">{u.username}</TableCell>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{u.role}</Badge>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{new Date(u.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-2">
+                      <form action={updateUserRoleAction} className="flex items-center gap-2">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <select name="role" defaultValue={u.role} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                          <option value="OPERATOR">OPERATOR</option>
+                          <option value="SUPERVISOR">SUPERVISOR</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </select>
+                        <Button type="submit" variant="outline" size="sm">Atualizar</Button>
+                      </form>
+                      <form action={resetUserPasswordAction} className="flex items-center gap-2">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <Input required name="password" type="password" placeholder="nova senha" className="max-w-xs" />
+                        <Button type="submit" variant="secondary" size="sm">Resetar senha</Button>
+                      </form>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-      {/* Pager simples */}
-      <div className="flex items-center justify-between pt-4 text-sm">
-        <div>
-          Total: {total} • Página {page} de {Math.max(1, Math.ceil(total / perPage))}
-        </div>
-        <div className="flex gap-2">
-          <a className={`border px-2 py-1 rounded ${page <= 1 ? "opacity-50 pointer-events-none" : ""}`} href={`?q=${encodeURIComponent(q)}&role=${fRole}&page=${page - 1}&perPage=${perPage}`}>Anterior</a>
-          <a className={`border px-2 py-1 rounded ${(skip + users.length) >= total ? "opacity-50 pointer-events-none" : ""}`} href={`?q=${encodeURIComponent(q)}&role=${fRole}&page=${page + 1}&perPage=${perPage}`}>Próxima</a>
-        </div>
-      </div>
-
-      {/* Próximos passos nesta página:
-        - Filtros por texto/role
-        - Feedback de sucesso/erro (toasts)
-        - Auditoria mostrando autor (já registrando actorUserId nas actions)
-      */}
+          <div className="flex items-center justify-between pt-4 text-sm">
+            <div>
+              Total: {total} • Página {page} de {Math.max(1, Math.ceil(total / perPage))}
+            </div>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className={page <= 1 ? "pointer-events-none opacity-50" : ""}>
+                <Link href={`?q=${encodeURIComponent(q)}&role=${fRole}&page=${page - 1}&perPage=${perPage}`}>Anterior</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className={(skip + users.length) >= total ? "pointer-events-none opacity-50" : ""}>
+                <Link href={`?q=${encodeURIComponent(q)}&role=${fRole}&page=${page + 1}&perPage=${perPage}`}>Próxima</Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

@@ -1,8 +1,9 @@
-// Admin > Permissões: visão inicial (somente leitura)
+// Admin > Permissões: matriz RBAC com UI padrão
 import db from "@/providers/database";
 import { requireAdmin } from "@/shared/auth/permissions";
-import { toggleRolePermissionAction } from "./actions";
 import PermissionToggle from "./PermissionToggle";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -25,43 +26,39 @@ export default async function AdminPermissionsPage() {
   const roles = ["OPERATOR", "SUPERVISOR", "ADMIN"] as const;
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">Permissões</h1>
-      <p className="text-sm text-gray-600">Altere as permissões por perfil (RBAC). Alterações são aplicadas imediatamente.</p>
-
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="text-left border-b">
-            <th className="py-2 pr-4">Permissão</th>
-            <th className="py-2 pr-4">Descrição</th>
-            {roles.map(r => (
-              <th key={r} className="py-2 pr-4">{r}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {perms.map((p) => (
-            <tr key={p.id} className="border-b">
-              <td className="py-1 pr-4">{p.name}</td>
-              <td className="py-1 pr-4">{p.description}</td>
-              {roles.map((r) => {
-                const checked = (roleMap as any)[r].has(p.id);
-                return (
-                  <td key={r} className="py-1 pr-4">
-                    <PermissionToggle permissionId={p.id} role={r} checked={checked} />
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* Próximos passos nesta página:
-        - Trocar botões por checkboxes com otimização UX
-        - Auditoria das mudanças de permissão (já implementada no servidor)
-      */}
+    <div className="p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Permissões</CardTitle>
+          <CardDescription>Altere as permissões por perfil. Aplicação imediata.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Permissão</TableHead>
+                <TableHead>Descrição</TableHead>
+                {roles.map((r) => (
+                  <TableHead key={r} className="text-center">{r}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {perms.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{p.description}</TableCell>
+                  {roles.map((r) => (
+                    <TableCell key={r} className="text-center">
+                      <PermissionToggle permissionId={p.id} role={r} checked={(roleMap as any)[r].has(p.id)} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

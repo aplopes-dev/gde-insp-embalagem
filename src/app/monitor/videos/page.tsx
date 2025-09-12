@@ -1,6 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
+
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 
 // Dashboard de monitoramento com video_feed de cada óculos
 // Cada instância expõe http://SERVER:DETECTOR_EXTERNAL_PORT/video_feed
@@ -71,8 +74,8 @@ export default function MonitorVideosPage() {
                   Abrir individual
                 </a>
               </div>
-              {/* Para MJPEG, um <img> direto pode funcionar melhor que iframe */}
-              <img src={inst.videoUrl} alt={inst.instanceId} className="w-full h-[360px] object-contain bg-black" />
+              {/* Para MJPEG, usamos next/image sem otimização para manter o stream */}
+              <Image src={inst.videoUrl} alt={inst.instanceId} width={1280} height={360} className="w-full h-[360px] object-contain bg-black" unoptimized />
             </div>
           ))}
         </div>

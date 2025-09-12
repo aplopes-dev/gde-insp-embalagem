@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader as DHeader, DialogTitle as DTitle, DialogDescription as DDesc } from "@/components/ui/dialog";
+import NoResultsToast from "@/components/NoResultsToast";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,27 @@ function humanizeEntity(e?: string | null): string {
   if (!e) return "—";
   return map[e] || e;
 }
+
+function isObject(v: any) {
+  return v && typeof v === "object" && !Array.isArray(v);
+}
+
+function collectChanges(a: any, b: any, prefix = ""): Array<{ path: string; before: any; after: any }> {
+  const changes: Array<{ path: string; before: any; after: any }> = [];
+  const keys = new Set([...(a ? Object.keys(a) : []), ...(b ? Object.keys(b) : [])]);
+  for (const k of Array.from(keys)) {
+    const pa = a ? a[k] : undefined;
+    const pb = b ? b[k] : undefined;
+    const path = prefix ? `${prefix}.${k}` : k;
+    if (isObject(pa) && isObject(pb)) {
+      changes.push(...collectChanges(pa, pb, path));
+    } else if (JSON.stringify(pa) !== JSON.stringify(pb)) {
+      changes.push({ path, before: pa, after: pb });
+    }
+  }
+  return changes;
+}
+
 
 export default async function AdminAuditPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   await requireAdmin();
@@ -90,8 +112,11 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
     }),
   ]);
 
+  const hasFilters = Boolean(qEntity || qAction || (!Number.isNaN(qUserId) && qUserId) || startDate || endDate);
   return (
     <div className="p-6 space-y-6">
+      {/* toast de nenhum resultado quando houver filtros */}
+      <NoResultsToast total={total} hasFilters={hasFilters} />
       <Card>
         <CardHeader>
           <CardTitle>Auditoria</CardTitle>
@@ -147,17 +172,19 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Registro</TableHead>
                 <TableHead>Quando</TableHead>
                 <TableHead>Usuário</TableHead>
                 <TableHead>Ação</TableHead>
                 <TableHead>Entidade</TableHead>
-                <TableHead>ID</TableHead>
+                <TableHead>Entidade ID</TableHead>
                 <TableHead>Detalhes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {logs.map((l) => (
                 <TableRow key={l.id}>
+                  <TableCell>#{l.id}</TableCell>
                   <TableCell className="whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{l.user?.username || l.user?.email || l.userId}</TableCell>
                   <TableCell>{humanizeAction(l.action)}</TableCell>
@@ -175,6 +202,28 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
                             {humanizeAction(l.action)} • {humanizeEntity(l.entity)} #{l.entityId} • {new Date(l.createdAt).toLocaleString()} • {l.user?.username || l.user?.email || l.userId}
                           </DDesc>
                         </DHeader>
+                        {(() => {
+                          const ch = collectChanges(l.before, l.after);
+                          return ch.length ? (
+                            <div className="mb-4">
+                              <div className="text-xs text-muted-foreground mb-1">Alterações</div>
+                              <div className="max-h-40 overflow-auto border rounded">
+                                <table className="w-full text-xs">
+                                  <tbody>
+                                    {ch.map((c) => (
+                                      <tr key={c.path} className="align-top">
+                                        <td className="px-2 py-1 font-medium whitespace-nowrap">{c.path}</td>
+                                        <td className="px-2 py-1 text-muted-foreground break-all">{JSON.stringify(c.before)}</td>
+                                        <td className="px-2 py-1">→</td>
+                                        <td className="px-2 py-1 break-all">{JSON.stringify(c.after)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <div className="text-xs text-muted-foreground">Antes</div>

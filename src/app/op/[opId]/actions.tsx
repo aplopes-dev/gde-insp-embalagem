@@ -28,6 +28,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { logAction } from "@/shared/services/audit";
 
+import { assertUserHasPermission, requirePermissionDb } from "@/shared/auth/permissions-db";
+
 export async function syncAndGetOpToProduceById(id: string) {
   const externalOpRed = await getOpFromId(id);
   if (externalOpRed.isRight()) {
@@ -43,12 +45,17 @@ export async function syncAndGetOpToProduceById(id: string) {
 
     if (!internalOp) {
       isNewOp = true;
-      // Se a OP interna ainda não existe, verificamos se já existe um BlisterType correspondente.
+      // Se a OP interna ainda não existe, verificamos se já existem referências correspondentes.
       const packagingIds = externalOp.embalagens.map((emb) => emb.id);
-      const existingBlisterType = await findFirstBlisterTypeInIds({ ids: packagingIds });
+      const [existingProductType, existingBlisterType, existingBoxType] = await Promise.all([
+        findProductTypeById({ id: externalOp.produto.id }),
+        findFirstBlisterTypeInIds({ ids: packagingIds }),
+        findFirstBoxTypeInIds({ ids: packagingIds }),
+      ]);
 
-      if (existingBlisterType) {
-        // Já existe BlisterType configurado: podemos criar a OP normalmente.
+      // Se QUALQUER referência estiver faltando, exigimos configuração/autorização do supervisor
+      if (existingProductType && existingBlisterType && existingBoxType) {
+        // Todas referências já existem: podemos criar a OP normalmente.
         const created = await createInternalOp(externalOp!);
         internalOp = created.op;
         requiresSupervisorConfig = false;
@@ -151,12 +158,16 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
     createdById: currentUserId ?? undefined,
     OpBox: {
       create: boxes?.map((box) => {
-        const blisters = [...(box as any).blisters || []];
+        const blisters = [...((box as any).blisters || [])];
         delete (box as any)["blisters"];
         return {
           ...box,
+          createdById: currentUserId ?? undefined,
           OpBoxBlister: {
-            create: blisters,
+            create: blisters.map((bl: any) => ({
+              ...bl,
+              createdById: currentUserId ?? undefined,
+            })),
           },
         };
       }),
@@ -354,11 +365,15 @@ export async function persistBoxStatusWithBlisters(
     })
   );
 
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
+
   queryCollection.push(
     db.opBox.update({
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED,
+        finalizedById: currentUserId ?? undefined,
       },
       where: {
         id: opBoxId,
@@ -411,7 +426,7 @@ export async function persistWithOpBreak(
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED_W_BREAK,
-        breakAuthorizerId: managerId,
+        finalizedById: Number(managerId),
       },
       where: {
         id,
@@ -429,7 +444,7 @@ export async function persistWithOpBreak(
           entity: "OpBox",
           entityId: String(id),
           before: {},
-          after: { managerId, opId, status },
+          after: { operatorUserId: managerId, opId, status },
         });
       }
 
@@ -564,12 +579,17 @@ export async function getOpById(id: number) {
 export async function createOpAfterSupervisorConfig(
   externalOpId: number,
   slots: number,
-  limitPerBox: number
+  limitPerBox: number,
+  supervisorUserId: number
 ): Promise<OpInspectionDto> {
   const externalOpRed = await getOpFromId(`${externalOpId}`);
   if (externalOpRed.isLeft()) {
     throw Error(externalOpRed.getLeft().error);
   }
+
+
+  // RBAC: exige permissão CAN_EDIT_CATALOG para o supervisor/autor
+  await assertUserHasPermission(Number(supervisorUserId), "CAN_EDIT_CATALOG");
 
   const externalOp = externalOpRed.get();
   validateOpJerpToProduce(externalOp);
@@ -596,8 +616,24 @@ export async function createOpAfterSupervisorConfig(
     findFirstBoxTypeInIds({ ids: [boxPackaging.id] }),
   ]);
 
-  const productType = existingProductType || await createProductTypeFromJerp(externalOp.produto);
-  const boxType = existingBoxType || await createBoxTypeFromJerp(boxPackaging);
+  const productType = existingProductType || await db.productType.create({
+    data: {
+      id: externalOp.produto.id,
+      name: externalOp.produto.nome,
+      code: `PROD_${externalOp.produto.id}`,
+      description: `Produto criado automaticamente do JERP: ${externalOp.produto.nome}`,
+      createdById: supervisorUserId,
+    }
+  });
+  const boxType = existingBoxType || await db.boxType.create({
+    data: {
+      id: boxPackaging.id,
+      name: boxPackaging.nome,
+      code: `BOX_${boxPackaging.id}`,
+      description: `Caixa criada automaticamente do JERP: ${boxPackaging.nome}`,
+      createdById: supervisorUserId,
+    }
+  });
 
   // Cria BlisterType com os parâmetros informados
   const blisterType = await db.blisterType.create({
@@ -609,6 +645,7 @@ export async function createOpAfterSupervisorConfig(
       slots: Number(slots),
       limitPerBox: Number(limitPerBox),
       boxTypeId: boxType.id,
+      createdById: supervisorUserId,
     }
   });
 
@@ -629,13 +666,20 @@ export async function createOpAfterSupervisorConfig(
   delete (opData as any)["boxes"];
   const opCreateData = {
     ...opData,
+    createdById: supervisorUserId,
     OpBox: {
       create: boxes?.map((box) => {
         const blisters = [...((box as any).blisters || [])];
         delete (box as any)["blisters"];
         return {
           ...box,
-          OpBoxBlister: { create: blisters },
+          createdById: supervisorUserId,
+          OpBoxBlister: {
+            create: blisters.map((bl: any) => ({
+              ...bl,
+              createdById: supervisorUserId,
+            })),
+          },
         };
       }),
     },
@@ -660,12 +704,16 @@ export async function saveTagId(opBoxId: string, barCode: string) {
       },
     });
   } catch (error) {
+
     console.log(error);
   }
 }
 
 
 export async function updateBlisterTypeParams(blisterTypeId: number, slots: number, limitPerBox: number) {
+  // RBAC: somente quem tem CAN_EDIT_CATALOG pode alterar BlisterType
+  await requirePermissionDb("CAN_EDIT_CATALOG");
+
   const before = await db.blisterType.findUnique({
     where: { id: blisterTypeId },
     select: { slots: true, limitPerBox: true },

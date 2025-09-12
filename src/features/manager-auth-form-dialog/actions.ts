@@ -1,18 +1,23 @@
-"use server"
+"use server";
 
 import { isSamePass } from "@/libs/bcrypt";
 import db from "@/providers/database";
+import { Role } from "@prisma/client";
 
-export async function managarAuthorization(code: string, password: string) {
-  const manager = await db.manager.findUnique({
-    where: {
-      id: Number(code),
-    },
-  });
-  const managerPassword = manager?.password || "";
-  const confirmPass = await isSamePass(password, managerPassword);
-  if (!confirmPass) {
-    throw new Error("Código / Senha inválidos!");
+// Autorização genérica por usuário (username + senha), com checagem opcional de role
+export async function authorizeUser(username: string, password: string, requiredRole?: Role) {
+  const user = await db.user.findUnique({ where: { username } });
+  if (!user) throw new Error("Usuário/Senha inválidos!");
+  // Se exigido SUPERVISOR, aceitar também ADMIN
+  if (requiredRole && !(user.role === requiredRole || user.role === Role.ADMIN)) {
+    throw new Error("Perfil não autorizado");
   }
-  return manager && manager.id;
+  const ok = await isSamePass(password, user.password || "");
+  if (!ok) throw new Error("Usuário/Senha inválidos!");
+  return user.id;
+}
+
+// Legacy: manter assinatura anterior, agora interpretando 'code' como username
+export async function managarAuthorization(code: string, password: string, requiredRole: Role = Role.SUPERVISOR) {
+  return authorizeUser(code, password, requiredRole);
 }

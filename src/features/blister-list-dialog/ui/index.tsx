@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getOpBoxWithBlistersById } from "../actions";
 
 const ImageModal = ({
@@ -52,17 +52,17 @@ const BlisterListDialog = ({
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const opData = await getOpBoxWithBlistersById(activeKey);
     opData && setData(opData);
-  };
+  }, [activeKey]);
 
   useEffect(() => {
     if (isOpen) {
       setData(undefined);
       loadData();
     }
-  }, [isOpen]);
+  }, [isOpen, loadData]);
 
   const handleImageClick = (imageSrc: string) => {
     setSelectedImage(imageSrc);

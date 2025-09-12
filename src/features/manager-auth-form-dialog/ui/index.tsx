@@ -25,7 +25,7 @@ import { managarAuthorization } from "../actions";
 
 export const opBreakAuthorizationSchema = z.object({
   quantity: z.number().min(1),
-  code: z.string().min(1),
+  username: z.string().min(1),
   password: z.string().min(3),
 });
 
@@ -40,6 +40,7 @@ type ManagerAuthFormDialogProps = {
   initialQuantity?: number;
   onOpenChange: (open: boolean) => void;
   onManagerAuth: (quantity: number, managerId: string) => void;
+  requiredRole?: "OPERATOR" | "SUPERVISOR";
 };
 
 const ManagerAuthFormDialog = ({
@@ -49,12 +50,13 @@ const ManagerAuthFormDialog = ({
   initialQuantity,
   onOpenChange,
   onManagerAuth,
+  requiredRole = "OPERATOR",
 }: ManagerAuthFormDialogProps) => {
   const form = useForm<OpBreakAuthorizationType>({
     resolver: zodResolver(opBreakAuthorizationSchema),
     defaultValues: {
       quantity: initialQuantity || 1,
-      code: "",
+      username: "",
       password: "",
     },
     mode: "onChange",
@@ -67,30 +69,23 @@ const ManagerAuthFormDialog = ({
   } = form;
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const { quantity, code, password } = data;
-    await managarAuthorization(code, password)
+    const { quantity, username, password } = data as any;
+    await managarAuthorization(username, password, requiredRole as any)
       .then((id) => {
-        toast({
-          title: "Sucesso",
-          description: "Autorizado com sucesso!",
-        });
+        toast({ title: "Sucesso", description: "Autorizado com sucesso!" });
         onManagerAuth(quantity, `${id}`);
         onOpenChange(false);
       })
       .catch((err) => {
-        toast({
-          title: "Erro",
-          description: err.message,
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: err.message, variant: "destructive" });
       });
   });
 
   useEffect(() => {
     if (isOpen) {
-      reset({ quantity: initialQuantity, code: "", password: "" });
+      reset({ quantity: initialQuantity, username: "", password: "" });
     }
-  }, [isOpen]);
+  }, [isOpen, initialQuantity, reset]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -122,14 +117,14 @@ const ManagerAuthFormDialog = ({
               />
               <FormField
                 control={form.control}
-                name="code"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código</FormLabel>
+                    <FormLabel>Usuário</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        placeholder="Insira o codigo do responsável"
+                        type="text"
+                        placeholder="Insira o usuário do responsável"
                         {...field}
                       />
                     </FormControl>

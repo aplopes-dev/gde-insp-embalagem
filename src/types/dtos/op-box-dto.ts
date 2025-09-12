@@ -1,7 +1,7 @@
 import { OpBoxStatus } from "@prisma/client";
 
 type OpBoxDto = {
-  id: number;
+  id: string;
   code: string;
   barCode?: string;
   barCodeGeneratedAt?: Date;

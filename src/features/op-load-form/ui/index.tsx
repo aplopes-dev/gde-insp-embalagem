@@ -5,7 +5,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useNavigatorOnLine } from "@/hooks/use-navigatior-online";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const OpLoadForm = () => {
   const router = useRouter();
@@ -13,15 +13,9 @@ const OpLoadForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const isOnline = useNavigatorOnLine();
 
-  function redirectAction(uri: string) {
-    router.push(`${uri}`);
-  }
 
-  useEffect(() => {
-    opValue && handleInputChange(opValue);
-  }, [opValue]);
 
-  const handleInputChange = async (opCode: string) => {
+  const handleInputChange = useCallback(async (opCode: string) => {
     setIsLoading(true);
     try {
 
@@ -37,7 +31,7 @@ const OpLoadForm = () => {
 
       const reqData = await response.json();
       validateOpJerpToProduce(reqData);
-      redirectAction(`/op/${reqData.id}`);
+      router.push(`/op/${reqData.id}`);
       setIsLoading(false);
     } catch (error: any) {      
       toast({
@@ -47,7 +41,11 @@ const OpLoadForm = () => {
       });
       setIsLoading(false);
     }
-  };
+  }, [isOnline, router]);
+
+  useEffect(() => {
+    opValue && handleInputChange(opValue);
+  }, [opValue, handleInputChange]);
 
   return (
     <div className="flex">

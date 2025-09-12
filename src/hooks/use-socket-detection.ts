@@ -1,5 +1,5 @@
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const SOCKET_URL = `${process.env.NEXT_PUBLIC_SOCKET_URL}`;
@@ -12,16 +12,25 @@ interface UseSocketProps {
 export function useSocketDetection({ onDetectionUpdate, onActionHandler }: UseSocketProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
 
+  // Guardar handlers atuais em refs para evitar reconexões/rebinds
+  const detectionRef = useRef<typeof onDetectionUpdate>();
+  const actionRef = useRef<typeof onActionHandler>();
+  useEffect(() => { detectionRef.current = onDetectionUpdate; }, [onDetectionUpdate]);
+  useEffect(() => { actionRef.current = onActionHandler; }, [onActionHandler]);
+
+  // Conectar apenas uma vez
   useEffect(() => {
     const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
 
-    onDetectionUpdate && newSocket.on("detectionUpdate", onDetectionUpdate);
-    onActionHandler && newSocket.on("actionHandler", onActionHandler);
+    newSocket.on("detectionUpdate", (payload: DetectionDto) => {
+      detectionRef.current && detectionRef.current(payload);
+    });
+    newSocket.on("actionHandler", (payload: ActionDto) => {
+      actionRef.current && actionRef.current(payload);
+    });
 
     return () => {
-      newSocket.off("detectionUpdate", onDetectionUpdate);
-      newSocket.off("actionHandler", onActionHandler);
       newSocket.disconnect();
     };
   }, []);

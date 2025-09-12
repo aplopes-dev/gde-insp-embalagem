@@ -16,7 +16,9 @@ export default function SidebarNav() {
   return (
     <nav className="space-y-1">
       {items.map((i) => {
-        const active = pathname === i.href || pathname?.startsWith(i.href + "/");
+        const active = i.href === "/admin"
+          ? pathname === "/admin"
+          : pathname === i.href || pathname?.startsWith(i.href + "/");
         return (
           <Button
             key={i.href}

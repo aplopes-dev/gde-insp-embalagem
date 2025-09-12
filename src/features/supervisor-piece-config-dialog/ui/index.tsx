@@ -39,16 +39,16 @@ export default function SupervisorPieceConfigDialog({
 }: SupervisorPieceConfigDialogProps) {
   const [slots, setSlots] = useState<number | "">(initialSlots ?? "");
   const [limitPerBox, setLimitPerBox] = useState<number | "">(initialLimitPerBox ?? "");
-  const [managerCode, setManagerCode] = useState("");
-  const [managerPassword, setManagerPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setSlots(initialSlots ?? "");
       setLimitPerBox(initialLimitPerBox ?? "");
-      setManagerCode("");
-      setManagerPassword("");
+      setUsername("");
+      setPassword("");
     }
   }, [isOpen, initialSlots, initialLimitPerBox]);
 
@@ -64,8 +64,8 @@ export default function SupervisorPieceConfigDialog({
         externalOpId: Number(externalOpId),
         slots: Number(slots),
         limitPerBox: Number(limitPerBox),
-        managerCode,
-        managerPassword,
+        username,
+        password,
       });
       toast({ title: "Sucesso", description: "Parâmetros salvos" });
       onOpenChange(false);
@@ -129,8 +129,8 @@ export default function SupervisorPieceConfigDialog({
           <div className="grid gap-2">
             <Label>Autorização do responsável</Label>
             <div className="grid gap-2">
-              <Input placeholder="Código" value={managerCode} onChange={(e) => setManagerCode(e.target.value)} />
-              <Input placeholder="Senha" type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} />
+              <Input placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} />
+              <Input placeholder="Senha" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
           </div>
 

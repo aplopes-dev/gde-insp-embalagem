@@ -1,7 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
+
 'use client'
 
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
@@ -95,7 +98,7 @@ export default function DashboardPage() {
                   </a>
                 </div>
               </div>
-              <img src={inst.videoUrl} alt={inst.instanceId} className={videoOnly ? "w-full h-[440px] object-contain bg-black" : "w-full h-[360px] object-contain bg-black"} />
+              <Image src={inst.videoUrl} alt={inst.instanceId} width={1280} height={videoOnly ? 440 : 360} className={videoOnly ? "w-full h-[440px] object-contain bg-black" : "w-full h-[360px] object-contain bg-black"} unoptimized />
             </div>
           ))}
         </div>

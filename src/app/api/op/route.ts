@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getPaginatedOp } from "@/features/daily-op-list/actions";
 import { NextResponse } from "next/server";
 

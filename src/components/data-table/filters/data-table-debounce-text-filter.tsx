@@ -41,7 +41,7 @@ export default function DataTableDebounceTextFilter<TData, TValue>({
     }, debounce);
 
     return () => clearTimeout(timeout);
-  }, [value]);
+  }, [value, initialValue, column, debounce]);
 
   return (
     <Input

@@ -3,6 +3,9 @@ import { ThemeModeToggle } from "./theme-mode-toggle";
 import Link from "next/link";
 import { Button } from "./ui/button";
 import { Monitor } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const UserMenu = dynamic(() => import("@/components/user-menu"), { ssr: false });
 
 const Header = () => {
   return (
@@ -25,6 +28,7 @@ const Header = () => {
           </Button>
         </Link>
         <ThemeModeToggle />
+        <UserMenu />
       </div>
     </header>
   );

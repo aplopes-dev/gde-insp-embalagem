@@ -9,6 +9,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import SubmitButton from "@/components/form/SubmitButton";
+import PasswordFieldWithHint from "@/components/form/PasswordFieldWithHint";
+import { getCurrentUser } from "@/shared/auth/actor";
 
 function roleLabel(r: string) {
   const map: Record<string, string> = {
@@ -23,6 +25,8 @@ export const dynamic = "force-dynamic"; // garantir SSR sempre
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   await requireAdmin();
+
+  const { id: actorId } = await getCurrentUser();
 
   const page = Math.max(1, Number(searchParams.page || 1));
   const perPage = Math.min(100, Math.max(5, Number(searchParams.perPage || 20)));
@@ -97,7 +101,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
           <form action={createUserAction} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
             <Input required name="username" placeholder="username" />
             <Input required name="email" type="email" placeholder="email" />
-            <Input required name="password" type="password" placeholder="senha (política)" />
+            <PasswordFieldWithHint placeholder="senha (política)" />
             <select name="role" defaultValue="OPERATOR" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
               <option value="OPERATOR">Operador</option>
               <option value="SUPERVISOR">Supervisor</option>
@@ -135,16 +139,34 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
                     <div className="flex flex-col gap-2">
                       <form action={updateUserRoleAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
-                        <select name="role" defaultValue={u.role} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <select
+                          name="role"
+                          defaultValue={u.role}
+                          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          disabled={(u.id === actorId) || u.role === "ADMIN"}
+                          title={(u.id === actorId)
+                            ? "Você não pode alterar sua própria role."
+                            : (u.role === "ADMIN" ? "Não é permitido alterar a role de administradores." : undefined)}
+                        >
                           <option value="OPERATOR">Operador</option>
                           <option value="SUPERVISOR">Supervisor</option>
                           <option value="ADMIN">Administrador</option>
                         </select>
-                        <SubmitButton variant="outline" size="sm" pendingText="Atualizando...">Atualizar</SubmitButton>
+                        <SubmitButton
+                          variant="outline"
+                          size="sm"
+                          pendingText="Atualizando..."
+                          disabled={(u.id === actorId) || u.role === "ADMIN"}
+                          title={(u.id === actorId)
+                            ? "Você não pode alterar sua própria role."
+                            : (u.role === "ADMIN" ? "Não é permitido alterar a role de administradores." : undefined)}
+                        >
+                          Atualizar
+                        </SubmitButton>
                       </form>
                       <form action={resetUserPasswordAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
-                        <Input required name="password" type="password" placeholder="nova senha" className="max-w-xs" />
+                        <PasswordFieldWithHint placeholder="nova senha" className="max-w-xs" />
                         <SubmitButton variant="secondary" size="sm" pendingText="Resetando...">Resetar senha</SubmitButton>
                       </form>
                     </div>

@@ -14,7 +14,7 @@ import {
 } from "@/shared/services/rabbitmq";
 import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
 import {
@@ -98,7 +98,8 @@ export default function PackagingInspection({
     setTimeout(() => sendMessageToRabbitMq(message), delay);
   }
 
-  const loadData = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadData = useCallback(async () => {
     syncAndGetOpToProduceById(opId)
       .then((opData) => {
         setData(opData);
@@ -128,7 +129,7 @@ export default function PackagingInspection({
         setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
         setLoading(false);
       });
-  };
+  }, [opId]);
 
   const continueLoadingFlow = (opData: OpInspectionDto) => {
     if (opData?.requiresSupervisorConfig) {
@@ -155,7 +156,7 @@ export default function PackagingInspection({
 
   useEffect(() => {
     socket && loadData();
-  }, [socket]);
+  }, [socket, loadData]);
 
   function mountInspecionState(
     boxData: OpBoxInspectionDto,
@@ -230,6 +231,7 @@ export default function PackagingInspection({
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!data?.finishedAt && inspection)
       switch (step) {
@@ -722,6 +724,8 @@ export default function PackagingInspection({
         }
         isOpen={openForceFinalizationDialog}
         initialQuantity={inspection?.count}
+        requiredRole="OPERATOR"
+
         onOpenChange={setOpenForceFinalizationDialog}
         onManagerAuth={(quantity, managerId) =>
           configLastBlisterQuantity(quantity, managerId)

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const labels: Record<string, string> = {
-  admin: "Admin",
+  admin: "Início",
   users: "Usuários",
   permissions: "Permissões",
   audit: "Auditoria",

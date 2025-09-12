@@ -7,7 +7,7 @@ import DailyOpBoxTable from "@/features/daily-op-box-table";
 import PrintTagDialog from "@/features/print-tag-dialog/ui";
 import { OpDto } from "@/types/op-dto";
 import { OpStatus } from "@prisma/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getOpById } from "../actions";
 
 type PrintConfig = {
@@ -39,14 +39,14 @@ const BoxPage = ({
     setOpenBlisterDialog(true);
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const opData = await getOpById(Number(opId));
     opData && setData(opData);
-  };
+  }, [opId]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   function getStatusVariant(status?: OpStatus) {
     switch (status) {

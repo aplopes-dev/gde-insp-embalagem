@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useEffect, useRef, Dispatch, SetStateAction } from "react";
+import { useEffect, useRef, Dispatch, SetStateAction, useCallback } from "react";
 
 type PrintTagProps = {
   isOpen: boolean;
@@ -37,7 +37,7 @@ const PrintTagDialog = ({
 
 
   // Alternativa: impressão no navegador (lado do cliente)
-  const imprimirNoNavegador = () => {
+  const imprimirNoNavegador = useCallback(() => {
     if (!printConfig.pdfBase64) return;
     const w = window.open("", "_blank");
     if (!w) return;
@@ -48,7 +48,7 @@ const PrintTagDialog = ({
       <script>setTimeout(()=>{ window.focus(); window.print(); }, 500);</script>
     </body></html>`);
     w.document.close();
-  };
+  }, [printConfig.pdfBase64]);
 
   // Removido o envio para servidor (CUPS). Impressão apenas no navegador.
 
@@ -59,7 +59,7 @@ const PrintTagDialog = ({
     }
     // Fechar o diálogo após abrir o print (opcional):
     // onOpenChange(false);
-  }, [isOpen, printConfig.pdfBase64]);
+  }, [isOpen, printConfig.pdfBase64, imprimirNoNavegador]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

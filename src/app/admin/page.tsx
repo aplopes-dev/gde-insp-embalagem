@@ -50,6 +50,17 @@ export default async function AdminHome() {
             </Button>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Produtos</CardTitle>
+            <CardDescription>Catálogo e configuração de Box/Blister</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/admin/products">Abrir produtos</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

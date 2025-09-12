@@ -10,6 +10,34 @@ import { validatePasswordPolicy } from "@/shared/utils/password-policy";
 import { requireAdminAndGetActor } from "@/shared/auth/actor";
 import { logAction } from "@/shared/services/audit";
 import { redirect } from "next/navigation";
+import { z } from "zod";
+
+
+function redirectWithError(path: string, e: unknown) {
+  const msg = e instanceof Error ? e.message : "Erro inesperado.";
+  // Evitar caracteres perigosos na URL
+  const safe = encodeURIComponent(msg.substring(0, 200));
+  redirect(`${path}?error=${safe}`);
+}
+
+
+const passwordSchema = z
+  .string()
+  .min(8, "A senha deve ter no mínimo 8 caracteres.")
+  .regex(/[A-Z]/, "A senha deve conter ao menos 1 letra maiúscula.")
+  .regex(/[a-z]/, "A senha deve conter ao menos 1 letra minúscula.")
+  .regex(/[0-9]/, "A senha deve conter ao menos 1 número.")
+  .regex(/[!@#$%^&*(),.?":{}|<>_\-\[\]\/+=~`]/, "A senha deve conter ao menos 1 caractere especial.");
+
+const CreateUserSchema = z.object({
+  username: z.string().min(1, "Username é obrigatório."),
+  email: z.string().email("E-mail inválido."),
+  password: passwordSchema,
+  role: z.enum(["OPERATOR", "SUPERVISOR", "ADMIN"] as const, {
+    invalid_type_error: "Role inválida.",
+    required_error: "Role inválida.",
+  }),
+});
 
 const ROLES = ["OPERATOR", "SUPERVISOR", "ADMIN"] as const;
 
@@ -20,13 +48,12 @@ export async function createUserAction(formData: FormData) {
   const password = String(formData.get("password") || "");
   const role = String(formData.get("role") || "OPERATOR");
 
-  if (!username || !email || !password) {
-    throw new Error("Campos obrigatórios ausentes (username, email, senha).");
+  const parsed = CreateUserSchema.safeParse({ username, email, password, role });
+  if (!parsed.success) {
+    const msg = parsed.error.issues?.[0]?.message || "Dados inválidos.";
+    throw new Error(msg);
   }
-  if (!ROLES.includes(role as any)) {
-    throw new Error("Role inválida.");
-  }
-
+  // Validação adicional (compatível com regras anteriores)
   const policy = validatePasswordPolicy(password);
   if (!policy.ok) {
     throw new Error(policy.message || "Senha inválida.");
@@ -53,32 +80,57 @@ export async function createUserAction(formData: FormData) {
 
 export async function updateUserRoleAction(formData: FormData) {
   const { actorUserId } = await requireAdminAndGetActor();
-  const userId = Number(formData.get("userId"));
-  const role = String(formData.get("role") || "");
-  if (!userId || !ROLES.includes(role as any)) throw new Error("Dados inválidos.");
+  try {
+    const userId = Number(formData.get("userId"));
+    const role = String(formData.get("role") || "");
+    if (!userId || !ROLES.includes(role as any)) throw new Error("Dados inválidos.");
 
-  const before = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
-  const updated = await db.user.update({ where: { id: userId }, data: { role: role as any } });
+    // Restrições solicitadas:
+    // - Admin não pode alterar a própria role
+    if (actorUserId && userId === actorUserId) {
+      throw new Error("Você não pode alterar a sua própria role.");
+    }
 
-  await logAction({
-    userId: actorUserId,
-    action: "UPDATE_USER_ROLE",
-    entity: "User",
-    entityId: String(userId),
-    before,
-    after: { role: updated.role },
-  });
+    // - Admin não pode alterar a role de outro administrador
+    const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!target) throw new Error("Usuário não encontrado.");
+    if (String(target.role) === "ADMIN") {
+      throw new Error("Não é permitido alterar a role de um administrador.");
+    }
 
-  revalidatePath("/admin/users");
-  redirect("/admin/users?ok=1&msg=perfil_atualizado");
+    const before = { role: target.role } as any;
+    const updated = await db.user.update({ where: { id: userId }, data: { role: role as any } });
+
+    await logAction({
+      userId: actorUserId,
+      action: "UPDATE_USER_ROLE",
+      entity: "User",
+      entityId: String(userId),
+      before,
+      after: { role: updated.role },
+    });
+
+    revalidatePath("/admin/users");
+    redirect("/admin/users?ok=1&msg=perfil_atualizado");
+  } catch (e) {
+    redirectWithError("/admin/users", e);
+  }
 }
 
 export async function resetUserPasswordAction(formData: FormData) {
   const { actorUserId } = await requireAdminAndGetActor();
   const userId = Number(formData.get("userId"));
   const password = String(formData.get("password") || "");
-  if (!userId || !password) throw new Error("Dados inválidos.");
-
+  const ResetSchema = z.object({
+    userId: z.number().int().positive("ID inválido."),
+    password: passwordSchema,
+  });
+  const parsed = ResetSchema.safeParse({ userId, password });
+  if (!parsed.success) {
+    const msg = parsed.error.issues?.[0]?.message || "Dados inválidos.";
+    throw new Error(msg);
+  }
+  // Validação adicional (compatível com regras anteriores)
   const policy = validatePasswordPolicy(password);
   if (!policy.ok) throw new Error(policy.message || "Senha inválida.");
 

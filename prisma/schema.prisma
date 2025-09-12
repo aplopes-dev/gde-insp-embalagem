@@ -97,7 +97,13 @@ model OpBox {
   code              String
   createdAt         DateTime  @default(now())
   packedAt          DateTime?
-  breakAuthorizerId Int?
+  breakAuthorizerId Int?      // legado (Manager) - manter por compatibilidade
+
+  // Auditoria
+  createdById   Int?
+  createdBy     User?    @relation(name: "OpBoxCreatedBy", fields: [createdById], references: [id])
+  finalizedById Int?
+  finalizedBy   User?    @relation(name: "OpBoxFinalizedBy", fields: [finalizedById], references: [id])
 
   // Claim de caixa por estação (usada para evitar concorrência)
   claimedAt           DateTime?
@@ -117,6 +123,11 @@ model OpBoxBlister {
   quantity Int       @default(0)
   packedAt DateTime?
   code     String
+
+  // Auditoria
+  createdById Int?
+  createdBy   User?  @relation(name: "OpBoxBlisterCreatedBy", fields: [createdById], references: [id])
+
   opBox    OpBox     @relation(fields: [opBoxId], references: [id], onDelete: Cascade)
 
   @@unique([opBoxId, code])
@@ -173,12 +184,15 @@ model User {
   accounts  Account[]
   sessions  Session[]
   // Back-relations para autorias e auditoria
-  boxTypesCreated      BoxType[]      @relation("BoxTypeCreatedBy")
-  blisterTypesCreated  BlisterType[]  @relation("BlisterTypeCreatedBy")
-  productTypesCreated  ProductType[]  @relation("ProductTypeCreatedBy")
-  opsCreated           Op[]           @relation("OpCreatedBy")
-  auditLogs            AuditLog[]     @relation("AuditUser")
-  workSessions         WorkSession[]  @relation("WorkSessionUser")
+  boxTypesCreated      BoxType[]        @relation("BoxTypeCreatedBy")
+  blisterTypesCreated  BlisterType[]    @relation("BlisterTypeCreatedBy")
+  productTypesCreated  ProductType[]    @relation("ProductTypeCreatedBy")
+  opsCreated           Op[]             @relation("OpCreatedBy")
+  opBoxesCreated       OpBox[]          @relation("OpBoxCreatedBy")
+  opBoxesFinalized     OpBox[]          @relation("OpBoxFinalizedBy")
+  opBlistersCreated    OpBoxBlister[]   @relation("OpBoxBlisterCreatedBy")
+  auditLogs            AuditLog[]       @relation("AuditUser")
+  workSessions         WorkSession[]    @relation("WorkSessionUser")
 }
 
 // Modelos necessários para NextAuth (adapter Prisma)

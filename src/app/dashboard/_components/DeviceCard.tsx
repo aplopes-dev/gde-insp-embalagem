@@ -1,16 +1,19 @@
+/* eslint-disable @next/next/no-img-element */
+
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Monitor, 
-  Wifi, 
-  WifiOff, 
-  Users, 
-  Clock, 
+import {
+  Monitor,
+  Wifi,
+  WifiOff,
+  Users,
+  Clock,
   Activity,
   Maximize2,
   Settings,
@@ -54,10 +57,10 @@ interface DeviceCardProps {
 export default function DeviceCard({ deviceId, device, stats, serverIP }: DeviceCardProps) {
   const [imageError, setImageError] = useState(false)
   const [streamKey, setStreamKey] = useState(0) // Para forçar reload da imagem
-  
+
   const isOnline = device.status === 'connected' || device.status === 'streaming'
   const videoUrl = `http://${serverIP}:${device.video_port}/stream?t=${streamKey}`
-  
+
   // Refresh stream a cada 30 segundos para evitar cache
   useEffect(() => {
     if (isOnline) {
@@ -70,8 +73,8 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
 
   // Calcular métricas
   const frameRate = stats ? (stats.frames_processed / (parseUptime(stats.uptime) || 1)) : 0
-  const efficiency = stats && stats.frames_processed > 0 
-    ? (stats.frames_served / stats.frames_processed) * 100 
+  const efficiency = stats && stats.frames_processed > 0
+    ? (stats.frames_served / stats.frames_processed) * 100
     : 0
 
   function parseUptime(uptime: string): number {
@@ -109,7 +112,7 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
     <Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
       {/* Status indicator */}
       <div className={`absolute top-0 left-0 w-full h-1 ${getStatusColor(device.status)}`} />
-      
+
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -124,28 +127,30 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
             )}
           </Badge>
         </div>
-        
+
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{device.ip_address}</span>
           <span>{device.video_device}</span>
         </div>
-        
+
         {device.model && (
           <div className="text-xs text-muted-foreground">
             {device.model} • {device.serial}
           </div>
         )}
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Video Stream */}
         <div className="aspect-video bg-black rounded-lg overflow-hidden relative group">
           {isOnline && !imageError ? (
             <>
-              <img 
+              <Image
                 src={videoUrl}
                 alt={`Stream ${deviceId}`}
-                className="w-full h-full object-cover"
+                fill
+                unoptimized
+                className="object-cover"
                 onError={() => setImageError(true)}
                 onLoad={() => setImageError(false)}
               />
@@ -168,7 +173,7 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
                   </Button>
                 </div>
               </div>
-              
+
               {/* Live indicator */}
               <div className="absolute top-2 left-2">
                 <Badge variant="destructive" className="text-xs">
@@ -176,7 +181,7 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
                   LIVE
                 </Badge>
               </div>
-              
+
               {/* Client count */}
               {stats && stats.clients_connected > 0 && (
                 <div className="absolute top-2 right-2">
@@ -218,7 +223,7 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
                 {stats.uptime || formatUptime(device.uptime)}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <Activity className="h-4 w-4 text-muted-foreground" />
@@ -228,7 +233,7 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
                 {stats.frames_processed.toLocaleString()}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -238,7 +243,7 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
                 {frameRate.toFixed(1)}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <Zap className="h-4 w-4 text-muted-foreground" />
@@ -280,23 +285,23 @@ export default function DeviceCard({ deviceId, device, stats, serverIP }: Device
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex-1"
             onClick={() => window.open(`http://${serverIP}:3000?device=${deviceId}`, '_blank')}
           >
             Abrir App
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => window.open(`http://${serverIP}:${device.video_port}/stats`, '_blank')}
           >
             <Settings className="h-4 w-4" />
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => window.open(`http://${serverIP}:${device.video_port}`, '_blank')}
           >

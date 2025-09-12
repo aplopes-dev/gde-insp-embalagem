@@ -1,16 +1,17 @@
-import amqp, { Channel, Connection } from 'amqplib';
+import { Channel, connect } from 'amqplib';
 
 let channel: Channel | null = null; // Canal de comunicação
-let connection: Connection | null = null; // Conexão com RabbitMQ
+let connection: any = null; // Conexão com RabbitMQ (tipagem relaxada para evitar conflito de defs)
 
 export async function connectRabbitMQ(): Promise<Channel> {
   if (channel) return channel; // Usa o canal existente, se disponível
   try {
-    connection = await amqp.connect(`${process.env.RABBITMQ_URL}`); // Ajuste conforme necessário
-    channel = await connection.createChannel();
-    await channel.assertQueue('fila_action', { durable: true });
-    await channel.assertQueue('fila_oculos', { durable: true });
-    return channel;
+    connection = await connect(`${process.env.RABBITMQ_URL}`); // Ajuste conforme necessário
+    const ch = await connection.createChannel();
+    await ch.assertQueue('fila_action', { durable: true });
+    await ch.assertQueue('fila_oculos', { durable: true });
+    channel = ch;
+    return ch;
   } catch (error) {
     console.error('Erro ao conectar ao RabbitMQ:', error);
     throw error;

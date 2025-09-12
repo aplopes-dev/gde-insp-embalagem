@@ -65,7 +65,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
   const [entityGroups, actionGroups, userGroups] = await Promise.all([
     db.auditLog.groupBy({ by: ["entity"] }),
     db.auditLog.groupBy({ by: ["action"] }),
-    db.auditLog.groupBy({ by: ["userId"], where: { userId: { not: null } } }),
+    db.auditLog.groupBy({ by: ["userId"], where: { NOT: { userId: null } } }),
   ]);
   const entityOptions = entityGroups.map((g: any) => g.entity).filter(Boolean).sort();
   const actionOptions = actionGroups.map((g: any) => g.action).filter(Boolean).sort();

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcrypt'
 const prisma = new PrismaClient()
 async function main() {
 
@@ -244,8 +245,48 @@ async function main() {
   // Atualiza todas as Ops existentes para referenciar o óculos ID 1
   await prisma.op.updateMany({
     data: { oculosInstanceId: 1 },
-    where: { },
+    where: {},
   });
+
+  // Super Admin (criado na seed) - credenciais padrão (pode sobrescrever via env)
+  const SUPER_EMAIL = process.env.SEED_SUPERADMIN_EMAIL || "admin@gde.local";
+  const SUPER_USER = process.env.SEED_SUPERADMIN_USERNAME || "admin";
+  const SUPER_PASS = process.env.SEED_SUPERADMIN_PASSWORD || "Admin@123";
+  const superHash = await bcrypt.hash(SUPER_PASS, 10);
+  await prisma.user.upsert({
+    where: { email: SUPER_EMAIL },
+    update: { password: superHash, username: SUPER_USER, role: 'ADMIN' as any },
+    create: {
+      email: SUPER_EMAIL,
+      username: SUPER_USER,
+      password: superHash,
+      role: 'ADMIN' as any,
+      name: 'Super Admin',
+    },
+  });
+
+  // Permissões padrão e liberação total para ADMIN
+  const permissions = [
+    { name: 'CAN_MANAGE_USERS', description: 'Gerenciar usuários e roles' },
+    { name: 'CAN_EDIT_CATALOG', description: 'Criar/editar Product/Box/Blister' },
+    { name: 'CAN_VIEW_AUDIT', description: 'Visualizar auditoria' },
+    { name: 'CAN_CONFIGURE_PERMISSIONS', description: 'Editar permissões de roles' },
+  ];
+  for (const p of permissions) {
+    await prisma.permission.upsert({
+      where: { name: p.name },
+      update: { description: p.description },
+      create: p,
+    });
+    const perm = await prisma.permission.findUnique({ where: { name: p.name } });
+    if (perm) {
+      await prisma.rolePermission.upsert({
+        where: { id: perm.id * 10 + 1 },
+        update: {},
+        create: { id: perm.id * 10 + 1, role: 'ADMIN' as any, permissionId: perm.id },
+      });
+    }
+  }
 
 }
 main()

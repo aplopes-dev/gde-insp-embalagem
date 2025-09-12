@@ -24,6 +24,10 @@ import {
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { logAction } from "@/shared/services/audit";
+
 export async function syncAndGetOpToProduceById(id: string) {
   const externalOpRed = await getOpFromId(id);
   if (externalOpRed.isRight()) {
@@ -107,6 +111,10 @@ export async function syncAndGetOpToProduceById(id: string) {
 }
 
 async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
+  // Obtém sessão para auditoria e createdById
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
+
   const productId = externalOp.produto.id;
   const packagingIds = externalOp.embalagens.map((emb) => emb.id);
 
@@ -140,6 +148,7 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
   delete (op as any)["boxes"];
   const opCreateData = {
     ...op,
+    createdById: currentUserId ?? undefined,
     OpBox: {
       create: boxes?.map((box) => {
         const blisters = [...(box as any).blisters || []];
@@ -156,6 +165,16 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
 
   const createdOp = await db.op.create({
     data: opCreateData,
+  });
+
+  // Auditoria: criação de OP
+  await logAction({
+    userId: currentUserId ?? undefined,
+    action: "CREATE_OP",
+    entity: "Op",
+    entityId: String(createdOp.id),
+    before: {},
+    after: { code: createdOp.code, productTypeId: createdOp.productTypeId, blisterTypeId: createdOp.blisterTypeId, boxTypeId: createdOp.boxTypeId },
   });
 
   return { op: createdOp, created };
@@ -212,6 +231,8 @@ async function ensureReferencesExist(
 
 async function createProductTypeFromJerp(produto: { id: number; nome: string }): Promise<ProductType> {
   console.log(`Criando ProductType dinamicamente: ID ${produto.id}, Nome: ${produto.nome}`);
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
 
   return await db.productType.create({
     data: {
@@ -219,12 +240,15 @@ async function createProductTypeFromJerp(produto: { id: number; nome: string }):
       name: produto.nome,
       code: `PROD_${produto.id}`,
       description: `Produto criado automaticamente do JERP: ${produto.nome}`,
+      createdById: currentUserId ?? undefined,
     }
   });
 }
 
 async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number }, boxTypeId: number): Promise<BlisterType> {
   console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
 
   // Usa os novos campos do JERP se disponíveis, senão usa valores padrão
   const slots = embalagem.slots || embalagem.quantidadeAlocada || 10;
@@ -241,12 +265,15 @@ async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; 
       slots: slots,
       limitPerBox: limitPerBox,
       boxTypeId: boxTypeId, // Campo obrigatório
+      createdById: currentUserId ?? undefined,
     }
   });
 }
 
 async function createBoxTypeFromJerp(embalagem: { id: number; nome: string }): Promise<BoxType> {
   console.log(`Criando BoxType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}`);
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
 
   return await db.boxType.create({
     data: {
@@ -254,6 +281,7 @@ async function createBoxTypeFromJerp(embalagem: { id: number; nome: string }): P
       name: embalagem.nome,
       code: `BOX_${embalagem.id}`,
       description: `Caixa criada automaticamente do JERP: ${embalagem.nome}`,
+      createdById: currentUserId ?? undefined,
     }
   });
 }
@@ -390,6 +418,20 @@ export async function persistWithOpBreak(
       },
     })
   );
+
+      // Auditoria: finaliza e7 e3o de caixa com quebra
+      {
+        const session = await getServerSession(authOptions);
+        const currentUserId = session?.user ? Number((session.user as any).id) : null;
+        await logAction({
+          userId: currentUserId ?? undefined,
+          action: "FINALIZE_BOX_WITH_BREAK",
+          entity: "OpBox",
+          entityId: String(id),
+          before: {},
+          after: { managerId, opId, status },
+        });
+      }
 
   try {
     // Persist blister and boxes after packeging
@@ -624,9 +666,23 @@ export async function saveTagId(opBoxId: string, barCode: string) {
 
 
 export async function updateBlisterTypeParams(blisterTypeId: number, slots: number, limitPerBox: number) {
-  await db.blisterType.update({
+  const before = await db.blisterType.findUnique({
+    where: { id: blisterTypeId },
+    select: { slots: true, limitPerBox: true },
+  });
+  const updated = await db.blisterType.update({
     where: { id: blisterTypeId },
     data: { slots, limitPerBox },
+  });
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
+  await logAction({
+    userId: currentUserId ?? undefined,
+    action: "UPDATE_BLISTER_TYPE",
+    entity: "BlisterType",
+    entityId: String(blisterTypeId),
+    before,
+    after: { slots: updated.slots, limitPerBox: updated.limitPerBox },
   });
 }
 

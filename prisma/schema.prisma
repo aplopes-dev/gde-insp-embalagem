@@ -15,6 +15,10 @@ model BoxType {
   updatedAt   DateTime @updatedAt
   code        String   @unique
   Op          Op[]
+
+  // Referência do usuário criador (auditoria)
+  createdById Int?
+  createdBy   User?    @relation(name: "BoxTypeCreatedBy", fields: [createdById], references: [id])
 }
 
 model BlisterType {
@@ -28,6 +32,10 @@ model BlisterType {
   limitPerBox Int
   code        String   @unique
   Op          Op[]
+
+  // Referência do usuário criador (auditoria)
+  createdById Int?
+  createdBy   User?    @relation(name: "BlisterTypeCreatedBy", fields: [createdById], references: [id])
 }
 
 model ProductType {
@@ -37,6 +45,10 @@ model ProductType {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Referência do usuário criador (auditoria)
+  createdById Int?
+  createdBy   User?    @relation(name: "ProductTypeCreatedBy", fields: [createdById], references: [id])
 
   Op Op[]
 }
@@ -63,6 +75,10 @@ model Op {
   updatedAt         DateTime  @updatedAt
   finishedAt        DateTime?
   quantityToProduce Int
+
+  // Usuário que iniciou/“bipou” a OP (auditoria)
+  createdById Int?
+  createdBy   User? @relation(name: "OpCreatedBy", fields: [createdById], references: [id])
 
   // Referência para a instância do óculos que inspecionou (ex.: rw-...)
   oculosInstanceId Int?
@@ -132,4 +148,110 @@ enum OpBoxStatus {
 enum OculosStatus {
   ATIVO
   INATIVO
+}
+
+
+// Perfis de usuário do sistema
+enum Role {
+  OPERATOR
+  SUPERVISOR
+  ADMIN
+}
+
+// Usuários de aplicação (login por e-mail ou username)
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      Role     @default(OPERATOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos opcionais (lado inverso não é obrigatório declarar)
+  accounts  Account[]
+  sessions  Session[]
+  // Back-relations para autorias e auditoria
+  boxTypesCreated      BoxType[]      @relation("BoxTypeCreatedBy")
+  blisterTypesCreated  BlisterType[]  @relation("BlisterTypeCreatedBy")
+  productTypesCreated  ProductType[]  @relation("ProductTypeCreatedBy")
+  opsCreated           Op[]           @relation("OpCreatedBy")
+  auditLogs            AuditLog[]     @relation("AuditUser")
+  workSessions         WorkSession[]  @relation("WorkSessionUser")
+}
+
+// Modelos necessários para NextAuth (adapter Prisma)
+model Account {
+  id                 String @id @default(cuid())
+  userId             Int
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+  user               User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  sessionToken  String   @unique
+  userId        Int
+  expires       DateTime
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Auditoria de ações de usuário
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    Int
+  action    String   // ex.: CREATE_OP, UPDATE_PRODUCT_TYPE, FINALIZE_WITH_BREAK
+  entity    String   // ex.: Op, ProductType, BoxType, BlisterType, OpBox
+  entityId  String   // ID da entidade afetada
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(name: "AuditUser", fields: [userId], references: [id])
+}
+
+// RBAC flexível (permissões configuráveis pelo Admin)
+model Permission {
+  id          Int    @id @default(autoincrement())
+  name        String @unique // ex.: CAN_CREATE_PRODUCT_TYPE
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id           Int   @id @default(autoincrement())
+  role         Role
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id])
+}
+
+// Sessão de trabalho do operador (histórico)
+model WorkSession {
+  id        String   @id @default(cuid())
+  userId    Int
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  notes     String?
+
+  user      User     @relation(name: "WorkSessionUser", fields: [userId], references: [id])
 }

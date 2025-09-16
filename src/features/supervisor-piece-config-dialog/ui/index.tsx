@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { PackagingJerpDto } from "@/types/dtos/op-jerp-dto";
 import { useState, useEffect } from "react";
 import { saveSupervisorPieceConfig } from "../actions";
 
@@ -24,6 +26,7 @@ type SupervisorPieceConfigDialogProps = {
   initialLimitPerBox?: number;
   onConfirmed: () => void;
   isNewOp?: boolean;
+  availableBlisters?: PackagingJerpDto[];
 };
 
 export default function SupervisorPieceConfigDialog({
@@ -36,12 +39,16 @@ export default function SupervisorPieceConfigDialog({
   initialLimitPerBox,
   onConfirmed,
   isNewOp,
+  availableBlisters,
 }: SupervisorPieceConfigDialogProps) {
   const [slots, setSlots] = useState<number | "">(initialSlots ?? "");
   const [limitPerBox, setLimitPerBox] = useState<number | "">(initialLimitPerBox ?? "");
   const [managerCode, setManagerCode] = useState("");
   const [managerPassword, setManagerPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedBlisterPackagingId, setSelectedBlisterPackagingId] = useState<number | undefined>(
+    availableBlisters && availableBlisters.length === 1 ? availableBlisters[0].id : undefined
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -49,13 +56,20 @@ export default function SupervisorPieceConfigDialog({
       setLimitPerBox(initialLimitPerBox ?? "");
       setManagerCode("");
       setManagerPassword("");
+      setSelectedBlisterPackagingId(
+        availableBlisters && availableBlisters.length === 1 ? availableBlisters[0].id : undefined
+      );
     }
-  }, [isOpen, initialSlots, initialLimitPerBox]);
+  }, [isOpen, initialSlots, initialLimitPerBox, availableBlisters]);
 
   const handleConfirm = async () => {
     try {
       if (!slots || !limitPerBox) {
         toast({ title: "Campos obrigatórios", description: "Informe os valores.", variant: "destructive" });
+        return;
+      }
+      if (availableBlisters && availableBlisters.length > 1 && !selectedBlisterPackagingId) {
+        toast({ title: "Seleção obrigatória", description: "Selecione o tipo de blister.", variant: "destructive" });
         return;
       }
       setSubmitting(true);
@@ -66,6 +80,7 @@ export default function SupervisorPieceConfigDialog({
         limitPerBox: Number(limitPerBox),
         managerCode,
         managerPassword,
+        selectedBlisterPackagingId,
       });
       toast({ title: "Sucesso", description: "Parâmetros salvos" });
       onOpenChange(false);
@@ -107,6 +122,42 @@ export default function SupervisorPieceConfigDialog({
         )}
 
         <div className="space-y-4">
+          {/* Seleção de Blister */}
+          {availableBlisters && availableBlisters.length > 0 && (
+            <div className="grid gap-2">
+              <Label>Tipo de Blister *</Label>
+              {availableBlisters.length === 1 ? (
+                <Input
+                  value={availableBlisters[0].nome}
+                  disabled
+                  className="cursor-not-allowed"
+                  placeholder="Blister único disponível"
+                />
+              ) : (
+                <Select
+                  value={selectedBlisterPackagingId?.toString()}
+                  onValueChange={(value) => setSelectedBlisterPackagingId(Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo de blister correto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableBlisters.map((blister) => (
+                      <SelectItem key={blister.id} value={blister.id.toString()}>
+                        {blister.nome} (ID: {blister.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-gray-600">
+                {availableBlisters.length === 1
+                  ? "Apenas um tipo de blister disponível"
+                  : "Escolha o blister do produto (não a tampa)"}
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-2">
             <Label>Informe a quantidade de peças por blister:</Label>
             <Input
@@ -115,6 +166,7 @@ export default function SupervisorPieceConfigDialog({
               onChange={(e) => setSlots(e.target.value === "" ? "" : Number(e.target.value))}
               placeholder="Ex.: 10"
             />
+            <p className="text-xs text-gray-600">Quantidade de peças que cabem em um blister</p>
           </div>
           <div className="grid gap-2">
             <Label>Informe a quantidade de blister por caixa:</Label>
@@ -124,6 +176,7 @@ export default function SupervisorPieceConfigDialog({
               onChange={(e) => setLimitPerBox(e.target.value === "" ? "" : Number(e.target.value))}
               placeholder="Ex.: 1"
             />
+            <p className="text-xs text-gray-600">Quantidade de blisters que cabem em uma caixa</p>
           </div>
 
           <div className="pt-2 border-t" />

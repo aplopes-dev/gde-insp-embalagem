@@ -10,10 +10,11 @@ export type SaveSupervisorPieceConfigInput = {
   limitPerBox: number;
   managerCode: string;
   managerPassword: string;
+  selectedBlisterPackagingId?: number;
 };
 
 export async function saveSupervisorPieceConfig(input: SaveSupervisorPieceConfigInput) {
-  const { blisterTypeId, externalOpId, slots, limitPerBox, managerCode, managerPassword } = input;
+  const { blisterTypeId, externalOpId, slots, limitPerBox, managerCode, managerPassword, selectedBlisterPackagingId } = input;
 
   // Authorize manager (mocked like break dialog)
   const managerId = await managarAuthorization(managerCode, managerPassword);
@@ -30,7 +31,7 @@ export async function saveSupervisorPieceConfig(input: SaveSupervisorPieceConfig
 
   if (externalOpId) {
     // Criação do BlisterType e da OP após confirmação do supervisor
-    await createOpAfterSupervisorConfig(Number(externalOpId), Number(slots), Number(limitPerBox));
+    await createOpAfterSupervisorConfig(Number(externalOpId), Number(slots), Number(limitPerBox), selectedBlisterPackagingId);
     return { ok: true, managerId };
   }
 

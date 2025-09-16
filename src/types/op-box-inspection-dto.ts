@@ -1,4 +1,5 @@
 import { OpBoxStatus, OpStatus } from "@prisma/client";
+import { PackagingJerpDto } from "./dtos/op-jerp-dto";
 
 export type OpInspectionDto = {
   opId: number;
@@ -17,6 +18,7 @@ export type OpInspectionDto = {
   blisterCodes: string[];
   requiresSupervisorConfig?: boolean;
   isNewOp?: boolean;
+  availableBlisters?: PackagingJerpDto[];
 };
 
 export type OpBoxInspectionDto = {

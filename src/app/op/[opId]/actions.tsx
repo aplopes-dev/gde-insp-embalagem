@@ -50,7 +50,7 @@ export async function syncAndGetOpToProduceById(id: string) {
         requiresSupervisorConfig = false;
       } else {
         // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
-        const blisterPackaging = externalOp.embalagens.find((emb) =>
+        const blisterPackagings = externalOp.embalagens.filter((emb) =>
           emb.nome.toLowerCase().includes("blister") ||
           emb.nome.toLowerCase().includes("cartela")
         );
@@ -58,6 +58,9 @@ export async function syncAndGetOpToProduceById(id: string) {
           emb.nome.toLowerCase().includes("caixa") ||
           emb.nome.toLowerCase().includes("box")
         );
+
+        // Usa o primeiro blister como padrão (será selecionável no dialog)
+        const defaultBlisterPackaging = blisterPackagings[0];
 
         requiresSupervisorConfig = true;
 
@@ -74,8 +77,8 @@ export async function syncAndGetOpToProduceById(id: string) {
           },
           blisterType: {
             id: 0,
-            code: blisterPackaging ? `BLISTER_${blisterPackaging.id}` : "BLISTER_0",
-            name: blisterPackaging?.nome || "Blister",
+            code: defaultBlisterPackaging ? `BLISTER_${defaultBlisterPackaging.id}` : "BLISTER_0",
+            name: defaultBlisterPackaging?.nome || "Blister",
             description: "Configuração de blister pendente (slots/limitPerBox)",
             slots: 0,
             limitPerBox: 0,
@@ -95,6 +98,7 @@ export async function syncAndGetOpToProduceById(id: string) {
           blisterCodes: [],
           requiresSupervisorConfig,
           isNewOp,
+          availableBlisters: blisterPackagings, // Nova propriedade com todos os blisters
         } as OpInspectionDto;
       }
     }
@@ -522,7 +526,8 @@ export async function getOpById(id: number) {
 export async function createOpAfterSupervisorConfig(
   externalOpId: number,
   slots: number,
-  limitPerBox: number
+  limitPerBox: number,
+  selectedBlisterPackagingId?: number
 ): Promise<OpInspectionDto> {
   const externalOpRed = await getOpFromId(`${externalOpId}`);
   if (externalOpRed.isLeft()) {
@@ -533,10 +538,12 @@ export async function createOpAfterSupervisorConfig(
   validateOpJerpToProduce(externalOp);
 
   // Identifica embalagens
-  const blisterPackaging = externalOp.embalagens.find((emb) =>
-    emb.nome.toLowerCase().includes("blister") ||
-    emb.nome.toLowerCase().includes("cartela")
-  );
+  const blisterPackaging = selectedBlisterPackagingId
+    ? externalOp.embalagens.find((emb) => emb.id === selectedBlisterPackagingId)
+    : externalOp.embalagens.find((emb) =>
+        emb.nome.toLowerCase().includes("blister") ||
+        emb.nome.toLowerCase().includes("cartela")
+      );
   const boxPackaging = externalOp.embalagens.find((emb) =>
     emb.nome.toLowerCase().includes("caixa") ||
     emb.nome.toLowerCase().includes("box")

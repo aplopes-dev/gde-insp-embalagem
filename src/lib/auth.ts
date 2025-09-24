@@ -6,7 +6,8 @@ import type { NextAuthOptions, User as NextAuthUser } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import db from "@/providers/database";
-import { isSamePass } from "@/libs/bcrypt";
+import bcrypt from "bcrypt";
+
 
 // Validação simples do input de login (email OU username) e senha
 function normalizeLogin(login: string) {
@@ -25,29 +26,20 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credenciais",
       credentials: {
-        login: { label: "E-mail ou usuário", type: "text" },
+        inscription: { label: "Inscrição", type: "text" },
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.login || !credentials?.password) return null;
-        const login = normalizeLogin(credentials.login);
-        const user = await db.user.findFirst({
-          where: {
-            OR: [
-              { email: login.toLowerCase() },
-              { username: login.toLowerCase() },
-            ],
-          },
-        });
+        const inscription = (credentials?.inscription || "").trim();
+        const password = (credentials?.password || "").trim();
+        if (!inscription || !password) return null;
+        const user = await db.user.findUnique({ where: { inscription } });
         if (!user) return null;
-        const ok = await isSamePass(credentials.password, user.password);
+        const ok = await bcrypt.compare(password, user.password);
         if (!ok) return null;
-
-        // Retornamos um formato enxuto; campos extras vão via callbacks
         return {
           id: String(user.id),
           name: user.name ?? user.username,
-          email: user.email,
           role: user.role,
           username: user.username,
         } as unknown as NextAuthUser;
@@ -63,11 +55,6 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore
         token.username = (user as any).username;
         token.id = (user as any).id;
-      } else {
-        // Em chamadas subsequentes, se não houver user (já logado), garantimos dados do BD
-        if (!token.id) {
-          // nada
-        }
       }
       return token;
     },

@@ -147,7 +147,7 @@ export default async function AdminProductsPage({
               orderBy: { createdAt: "desc" },
               skip: (logPage - 1) * logPerPage,
               take: logPerPage,
-              include: { user: { select: { id: true, username: true, email: true } } },
+              include: { user: { select: { id: true, username: true } } },
             }),
             db.auditLog.count({ where: whereLogs }),
           ])
@@ -357,7 +357,7 @@ export default async function AdminProductsPage({
                                       {logs.map((l) => (
                                         <TableRow key={l.id}>
                                           <TableCell className="whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</TableCell>
-                                          <TableCell>{l.user?.username || l.user?.email || l.userId}</TableCell>
+                                          <TableCell>{l.user?.username || l.userId}</TableCell>
                                           <TableCell>{humanizeAction(l.action)}</TableCell>
                                           <TableCell>{humanizeEntity(l.entity)} #{l.entityId}</TableCell>
                                           <TableCell>

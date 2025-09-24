@@ -96,7 +96,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
   const usersForSelect = userIds.length
     ? await db.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, username: true, email: true },
+        select: { id: true, username: true },
         orderBy: { username: "asc" },
       })
     : [];
@@ -108,7 +108,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
       orderBy: { createdAt: "desc" },
       skip,
       take: perPage,
-      include: { user: { select: { id: true, username: true, email: true } } },
+      include: { user: { select: { id: true, username: true } } },
     }),
   ]);
 
@@ -147,7 +147,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
               <select name="userId" defaultValue={Number.isNaN(qUserId) ? "" : String(qUserId)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="">Todos</option>
                 {usersForSelect.map((u) => (
-                  <option key={u.id} value={u.id}>{u.username || u.email} ({u.id})</option>
+                  <option key={u.id} value={u.id}>{u.username} ({u.id})</option>
                 ))}
               </select>
             </div>
@@ -186,7 +186,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
                 <TableRow key={l.id}>
                   <TableCell>#{l.id}</TableCell>
                   <TableCell className="whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{l.user?.username || l.user?.email || l.userId}</TableCell>
+                  <TableCell>{l.user?.username || l.userId}</TableCell>
                   <TableCell>{humanizeAction(l.action)}</TableCell>
                   <TableCell>{humanizeEntity(l.entity)}</TableCell>
                   <TableCell>{l.entityId}</TableCell>
@@ -199,7 +199,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: R
                         <DHeader>
                           <DTitle>Detalhes do evento</DTitle>
                           <DDesc>
-                            {humanizeAction(l.action)} • {humanizeEntity(l.entity)} #{l.entityId} • {new Date(l.createdAt).toLocaleString()} • {l.user?.username || l.user?.email || l.userId}
+                            {humanizeAction(l.action)} • {humanizeEntity(l.entity)} #{l.entityId} • {new Date(l.createdAt).toLocaleString()} • {l.user?.username || l.userId}
                           </DDesc>
                         </DHeader>
                         {(() => {

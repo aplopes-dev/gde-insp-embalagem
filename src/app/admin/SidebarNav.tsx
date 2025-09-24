@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 const items = [
   { href: "/admin", label: "Início" },
   { href: "/admin/users", label: "Usuários" },
+  { href: "/admin/products", label: "Produtos" },
   { href: "/admin/permissions", label: "Permissões" },
   { href: "/admin/audit", label: "Auditoria" },
 ];

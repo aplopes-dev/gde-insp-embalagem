@@ -20,7 +20,7 @@ export default async function AdminHome() {
         <Card>
           <CardHeader>
             <CardTitle>Usuários</CardTitle>
-            <CardDescription>CRUD, filtros, perfis e senha</CardDescription>
+            <CardDescription>Administração  de usuários</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>

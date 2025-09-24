@@ -252,16 +252,19 @@ async function main() {
   const SUPER_EMAIL = process.env.SEED_SUPERADMIN_EMAIL || "admin@gde.local";
   const SUPER_USER = process.env.SEED_SUPERADMIN_USERNAME || "admin";
   const SUPER_PASS = process.env.SEED_SUPERADMIN_PASSWORD || "Admin@123";
+  const SUPER_INSCRIPTION = process.env.SEED_SUPERADMIN_INSCRIPTION || process.env.SEED_SUPERADMIN_INSCRICAO || "ADMIN001";
+  const SUPER_CARGO = process.env.SEED_SUPERADMIN_CARGO || "ADMIN";
   const superHash = await bcrypt.hash(SUPER_PASS, 10);
   await prisma.user.upsert({
-    where: { email: SUPER_EMAIL },
-    update: { password: superHash, username: SUPER_USER, role: 'ADMIN' as any },
+    where: { inscription: SUPER_INSCRIPTION },
+    update: { password: superHash, username: SUPER_USER, role: 'ADMIN' as any, inscription: SUPER_INSCRIPTION, cargo: SUPER_CARGO },
     create: {
-      email: SUPER_EMAIL,
       username: SUPER_USER,
       password: superHash,
       role: 'ADMIN' as any,
       name: 'Super Admin',
+      inscription: SUPER_INSCRIPTION,
+      cargo: SUPER_CARGO,
     },
   });
 

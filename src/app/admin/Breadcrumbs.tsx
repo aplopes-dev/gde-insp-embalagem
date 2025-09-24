@@ -8,6 +8,7 @@ const labels: Record<string, string> = {
   users: "Usuários",
   permissions: "Permissões",
   audit: "Auditoria",
+  products: "Produtos",
 };
 
 export default function Breadcrumbs() {

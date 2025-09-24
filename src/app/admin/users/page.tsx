@@ -1,7 +1,7 @@
 // Admin > Usuários: listagem com UI padrão
 import db from "@/providers/database";
 import { requireAdmin } from "@/shared/auth/permissions";
-import { createUserAction, resetUserPasswordAction, updateUserRoleAction } from "./actions";
+import { deleteUserAction } from "./actions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import SubmitButton from "@/components/form/SubmitButton";
-import PasswordFieldWithHint from "@/components/form/PasswordFieldWithHint";
+
 import { getCurrentUser } from "@/shared/auth/actor";
 
 function roleLabel(r: string) {
@@ -38,7 +38,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
   if (q) {
     where.OR = [
       { username: { contains: q, mode: "insensitive" } },
-      { email: { contains: q, mode: "insensitive" } },
+      { inscription: { contains: q, mode: "insensitive" } },
     ];
   }
   if (fRole) where.role = fRole as any;
@@ -47,7 +47,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
     db.user.count({ where }),
     db.user.findMany({
       where,
-      select: { id: true, username: true, email: true, role: true, createdAt: true },
+      select: { id: true, username: true, inscription: true, role: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       skip,
       take: perPage,
@@ -71,7 +71,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
           <form method="GET" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6 items-end">
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Busca</div>
-              <Input name="q" placeholder="username ou e-mail" defaultValue={q} />
+              <Input name="q" placeholder="username ou inscrição" defaultValue={q} />
             </div>
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Perfil</div>
@@ -92,25 +92,6 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Criar usuário</CardTitle>
-          <CardDescription>Senha segue política definida</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={createUserAction} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            <Input required name="username" placeholder="username" />
-            <Input required name="email" type="email" placeholder="email" />
-            <PasswordFieldWithHint placeholder="senha (política)" />
-            <select name="role" defaultValue="OPERATOR" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              <option value="OPERATOR">Operador</option>
-              <option value="SUPERVISOR">Supervisor</option>
-              <option value="ADMIN">Administrador</option>
-            </select>
-            <SubmitButton pendingText="Criando...">Criar</SubmitButton>
-          </form>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="pt-6">
@@ -119,7 +100,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Username</TableHead>
-                <TableHead>E-mail</TableHead>
+                <TableHead>Inscrição</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Criado em</TableHead>
                 <TableHead>Ações</TableHead>
@@ -130,44 +111,24 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
                 <TableRow key={u.id}>
                   <TableCell>{u.id}</TableCell>
                   <TableCell className="font-medium">{u.username}</TableCell>
-                  <TableCell>{u.email}</TableCell>
+                  <TableCell>{u.inscription}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{roleLabel(u.role)}</Badge>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{new Date(u.createdAt).toLocaleString()}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-2">
-                      <form action={updateUserRoleAction} className="flex items-center gap-2">
+                      <form action={deleteUserAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
-                        <select
-                          name="role"
-                          defaultValue={u.role}
-                          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          disabled={(u.id === actorId) || u.role === "ADMIN"}
-                          title={(u.id === actorId)
-                            ? "Você não pode alterar sua própria role."
-                            : (u.role === "ADMIN" ? "Não é permitido alterar a role de administradores." : undefined)}
-                        >
-                          <option value="OPERATOR">Operador</option>
-                          <option value="SUPERVISOR">Supervisor</option>
-                          <option value="ADMIN">Administrador</option>
-                        </select>
                         <SubmitButton
-                          variant="outline"
+                          variant="destructive"
                           size="sm"
-                          pendingText="Atualizando..."
-                          disabled={(u.id === actorId) || u.role === "ADMIN"}
-                          title={(u.id === actorId)
-                            ? "Você não pode alterar sua própria role."
-                            : (u.role === "ADMIN" ? "Não é permitido alterar a role de administradores." : undefined)}
+                          pendingText="Excluindo..."
+                          disabled={u.id === actorId}
+                          title={u.id === actorId ? "Você não pode excluir a si mesmo." : undefined}
                         >
-                          Atualizar
+                          Excluir
                         </SubmitButton>
-                      </form>
-                      <form action={resetUserPasswordAction} className="flex items-center gap-2">
-                        <input type="hidden" name="userId" value={u.id} />
-                        <PasswordFieldWithHint placeholder="nova senha" className="max-w-xs" />
-                        <SubmitButton variant="secondary" size="sm" pendingText="Resetando...">Resetar senha</SubmitButton>
                       </form>
                     </div>
                   </TableCell>

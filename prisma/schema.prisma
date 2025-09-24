@@ -169,16 +169,19 @@ enum Role {
   ADMIN
 }
 
-// Usuários de aplicação (login por e-mail ou username)
+// Usuários de aplicação (login por inscrição)
 model User {
   id        Int      @id @default(autoincrement())
   name      String?
   username  String   @unique
-  email     String   @unique
   password  String
   role      Role     @default(OPERATOR)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Novos campos para integração com JERP
+  inscription String   @unique
+  cargo       String?
 
   // Relacionamentos opcionais (lado inverso não é obrigatório declarar)
   accounts  Account[]
@@ -222,13 +225,6 @@ model Session {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
 
 // Auditoria de ações de usuário
 model AuditLog {

@@ -7,6 +7,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import db from "@/providers/database";
 import bcrypt from "bcrypt";
+import { verifyJerpPassword } from "@/shared/services/jerp";
 
 
 // Validação simples do input de login (email OU username) e senha
@@ -26,23 +27,46 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credenciais",
       credentials: {
-        inscription: { label: "Inscrição", type: "text" },
+        email: { label: "Email", type: "text" },
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        const inscription = (credentials?.inscription || "").trim();
+        const email = (credentials?.email || "").trim();
         const password = (credentials?.password || "").trim();
-        if (!inscription || !password) return null;
-        const user = await db.user.findUnique({ where: { inscription } });
+        if (!email || !password) return null;
+
+        const user = await db.user.findUnique({ where: { email } });
         if (!user) return null;
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return null;
-        return {
-          id: String(user.id),
-          name: user.name ?? user.username,
-          role: user.role,
-          username: user.username,
-        } as unknown as NextAuthUser;
+
+        // Regra principal (IATF): validar senha no JERP a cada login
+        try {
+          const okJerp = await verifyJerpPassword(email, password);
+          if (okJerp) {
+            return {
+              id: String(user.id),
+              name: user.name ?? user.username,
+              role: user.role,
+              username: user.username,
+            } as unknown as NextAuthUser;
+          }
+        } catch (e) {
+          // Em caso de erro no JERP (timeout etc.), não autenticar silenciosamente
+        }
+
+        // Exceção: Super Admin local com senha local (único perfil com senha local)
+        if (user.role === 'ADMIN' && user.password) {
+          const okLocal = await bcrypt.compare(password, user.password);
+          if (okLocal) {
+            return {
+              id: String(user.id),
+              name: user.name ?? user.username,
+              role: user.role,
+              username: user.username,
+            } as unknown as NextAuthUser;
+          }
+        }
+
+        return null;
       },
     }),
   ],

@@ -1,7 +1,7 @@
 "use server";
 
 import db from "@/providers/database";
-import { generateBarcode } from "@/shared/services/jerp";
+import { generateBarcode } from "@/shared/services/jerp/index";
 import { ApiResponseError } from "@/shared/utils/errorHandler";
 import { getOwnFilterClauses } from "@/shared/utils/filter";
 import OpBoxDto from "@/types/dtos/op-box-dto";

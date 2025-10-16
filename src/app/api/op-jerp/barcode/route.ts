@@ -1,4 +1,4 @@
-import { generateBarcode } from "@/shared/services/jerp";
+import { generateBarcode } from "@/shared/services/jerp/index";
 import { NextRequest, NextResponse } from "next/server";
 
 

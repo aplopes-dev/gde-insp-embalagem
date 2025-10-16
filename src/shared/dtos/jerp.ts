@@ -1,6 +1,6 @@
 // DTOs para integração com JERP
 export interface JerpUserDTO {
-  inscription: string; // identificador único do colaborador no JERP
+  email: string; // identificador único do colaborador no JERP
   nome: string;
   cargo: string; // ex.: Operador, Supervisor, Administrador
 }

@@ -27,7 +27,7 @@ export async function deleteUserAction(formData: FormData) {
 
     const target = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, inscription: true, role: true },
+      select: { id: true, username: true, email: true, role: true },
     });
     if (!target) throw new Error("Usuário não encontrado.");
 
@@ -39,7 +39,7 @@ export async function deleteUserAction(formData: FormData) {
       action: "DELETE_USER",
       entity: "User",
       entityId: String(userId),
-      before: { username: target.username, inscription: target.inscription, role: target.role },
+      before: { username: target.username, email: target.email, role: target.role },
       after: {},
     });
 

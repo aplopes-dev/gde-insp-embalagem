@@ -15,7 +15,7 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: gde_emb_postgres
+    container_name: gde_emb_postgres-front-arq
     ports:
       - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}"
     environment:

@@ -3,10 +3,10 @@
 
 import { JerpUserDTO } from "@/shared/dtos/jerp";
 
-export async function fetchJerpUser(inscription: string): Promise<JerpUserDTO | null> {
+export async function fetchJerpUser(email: string): Promise<JerpUserDTO | null> {
   const base = process.env.JERP_API;
   if (!base) throw new Error("JERP_API não configurada");
-  const url = `${base.replace(/\/$/, "")}/users/inscriptions/${encodeURIComponent(inscription)}`;
+  const url = `${base.replace(/\/$/, "")}/users/emails/${encodeURIComponent(email)}`;
   const res = await fetch(url, {
     method: "GET",
     headers: {
@@ -18,18 +18,18 @@ export async function fetchJerpUser(inscription: string): Promise<JerpUserDTO | 
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Falha ao consultar JERP (${res.status})`);
   const data = await res.json();
-  // Esperado: { inscription: string, nome: string, cargo: string }
-  const inscriptionValue = data?.inscription ?? data?.inscricao; // compatibilidade
-  if (!inscriptionValue || !data?.nome) return null;
-  return { inscription: String(inscriptionValue), nome: String(data.nome), cargo: String(data.cargo ?? "") };
+  // Esperado: { email: string, nome: string, cargo: string }
+  const emailValue = data?.email;
+  if (!emailValue || !data?.nome) return null;
+  return { email: String(emailValue), nome: String(data.nome), cargo: String(data.cargo ?? "") };
 }
 
 
 
-export async function verifyJerpPassword(inscription: string, password: string): Promise<boolean> {
+export async function verifyJerpPassword(email: string, password: string): Promise<boolean> {
   const base = process.env.JERP_API;
   if (!base) throw new Error("JERP_API não configurada");
-  const url = `${base.replace(/\/$/, "")}/users/inscriptions/${encodeURIComponent(inscription)}/verify-password`;
+  const url = `${base.replace(/\/$/, "")}/users/emails/${encodeURIComponent(email)}/verify-password`;
   const res = await fetch(url, {
     method: "POST",
     headers: {

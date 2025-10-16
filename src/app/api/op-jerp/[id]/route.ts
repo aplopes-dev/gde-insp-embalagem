@@ -1,4 +1,4 @@
-import { getOpFromId } from "@/shared/services/jerp";
+import { getOpFromId } from "@/shared/services/jerp/index";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(

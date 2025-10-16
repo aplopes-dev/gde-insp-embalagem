@@ -4,9 +4,9 @@ import { findFirstBlisterTypeInIds } from "@/entities/blister-type";
 import { findFirstBoxTypeInIds } from "@/entities/box-type";
 import { findProductTypeById } from "@/entities/product-type";
 import db from "@/providers/database";
-import { getOpFromId } from "@/shared/services/jerp";
+import { getOpFromId } from "@/shared/services/jerp/index";
 import { handleError } from "@/shared/utils/errorHandler";
-import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
+import { OpJerpDto, PackagingJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
@@ -46,7 +46,7 @@ export async function syncAndGetOpToProduceById(id: string) {
     if (!internalOp) {
       isNewOp = true;
       // Se a OP interna ainda não existe, verificamos se já existem referências correspondentes.
-      const packagingIds = externalOp.embalagens.map((emb) => emb.id);
+      const packagingIds = externalOp.embalagens.map((emb: PackagingJerpDto) => emb.id);
       const [existingProductType, existingBlisterType, existingBoxType] = await Promise.all([
         findProductTypeById({ id: externalOp.produto.id }),
         findFirstBlisterTypeInIds({ ids: packagingIds }),
@@ -61,11 +61,11 @@ export async function syncAndGetOpToProduceById(id: string) {
         requiresSupervisorConfig = false;
       } else {
         // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
-        const blisterPackaging = externalOp.embalagens.find((emb) =>
+        const blisterPackaging = externalOp.embalagens.find((emb: PackagingJerpDto) =>
           emb.nome.toLowerCase().includes("blister") ||
           emb.nome.toLowerCase().includes("cartela")
         );
-        const boxPackaging = externalOp.embalagens.find((emb) =>
+        const boxPackaging = externalOp.embalagens.find((emb: PackagingJerpDto) =>
           emb.nome.toLowerCase().includes("caixa") ||
           emb.nome.toLowerCase().includes("box")
         );
@@ -210,18 +210,18 @@ async function ensureReferencesExist(
   })();
 
   // Identifica qual embalagem é blister e qual é caixa baseado no nome
-  const blisterPackaging = externalOp.embalagens.find(emb =>
+  const blisterPackaging = externalOp.embalagens.find((emb: PackagingJerpDto) =>
     emb.nome.toLowerCase().includes('blister') ||
     emb.nome.toLowerCase().includes('cartela')
   );
-  const boxPackaging = externalOp.embalagens.find(emb =>
+  const boxPackaging = externalOp.embalagens.find((emb: PackagingJerpDto) =>
     emb.nome.toLowerCase().includes('caixa') ||
     emb.nome.toLowerCase().includes('box')
   );
 
   if (!blisterPackaging || !boxPackaging) {
     throw new Error(
-      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map(e => e.nome).join(', ')}`
+      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map((e: PackagingJerpDto) => e.nome).join(', ')}`
     );
   }
 
@@ -595,11 +595,11 @@ export async function createOpAfterSupervisorConfig(
   validateOpJerpToProduce(externalOp);
 
   // Identifica embalagens
-  const blisterPackaging = externalOp.embalagens.find((emb) =>
+  const blisterPackaging = externalOp.embalagens.find((emb: PackagingJerpDto) =>
     emb.nome.toLowerCase().includes("blister") ||
     emb.nome.toLowerCase().includes("cartela")
   );
-  const boxPackaging = externalOp.embalagens.find((emb) =>
+  const boxPackaging = externalOp.embalagens.find((emb: PackagingJerpDto) =>
     emb.nome.toLowerCase().includes("caixa") ||
     emb.nome.toLowerCase().includes("box")
   );

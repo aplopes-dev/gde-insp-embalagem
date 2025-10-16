@@ -38,7 +38,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
   if (q) {
     where.OR = [
       { username: { contains: q, mode: "insensitive" } },
-      { inscription: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
     ];
   }
   if (fRole) where.role = fRole as any;
@@ -47,7 +47,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
     db.user.count({ where }),
     db.user.findMany({
       where,
-      select: { id: true, username: true, inscription: true, role: true, createdAt: true },
+      select: { id: true, username: true, email: true, role: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       skip,
       take: perPage,
@@ -71,7 +71,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
           <form method="GET" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6 items-end">
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Busca</div>
-              <Input name="q" placeholder="username ou inscrição" defaultValue={q} />
+              <Input name="q" placeholder="username ou email" defaultValue={q} />
             </div>
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Perfil</div>
@@ -100,7 +100,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Username</TableHead>
-                <TableHead>Inscrição</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Criado em</TableHead>
                 <TableHead>Ações</TableHead>
@@ -111,7 +111,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: R
                 <TableRow key={u.id}>
                   <TableCell>{u.id}</TableCell>
                   <TableCell className="font-medium">{u.username}</TableCell>
-                  <TableCell>{u.inscription}</TableCell>
+                  <TableCell>{u.email}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{roleLabel(u.role)}</Badge>
                   </TableCell>

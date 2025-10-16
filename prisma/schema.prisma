@@ -169,19 +169,19 @@ enum Role {
   ADMIN
 }
 
-// Usuários de aplicação (login por inscrição)
+// Usuários de aplicação (login por email)
 model User {
   id        Int      @id @default(autoincrement())
   name      String?
   username  String   @unique
-  password  String
+  password  String?
   role      Role     @default(OPERATOR)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Novos campos para integração com JERP
-  inscription String   @unique
-  cargo       String?
+  // Campos para integração com JERP
+  email String   @unique
+  cargo String?
 
   // Relacionamentos opcionais (lado inverso não é obrigatório declarar)
   accounts  Account[]

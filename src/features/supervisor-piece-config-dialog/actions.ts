@@ -8,16 +8,16 @@ export type SaveSupervisorPieceConfigInput = {
   externalOpId?: number;
   slots: number;
   limitPerBox: number;
-  managerCode: string;
+  managerEmail: string;
   managerPassword: string;
   selectedBlisterPackagingId?: number;
 };
 
 export async function saveSupervisorPieceConfig(input: SaveSupervisorPieceConfigInput) {
-  const { blisterTypeId, externalOpId, slots, limitPerBox, managerCode, managerPassword, selectedBlisterPackagingId } = input;
+  const { blisterTypeId, externalOpId, slots, limitPerBox, managerEmail, managerPassword, selectedBlisterPackagingId } = input;
 
-  // Authorize manager (mocked like break dialog)
-  const managerId = await managarAuthorization(managerCode, managerPassword);
+  // Authorize manager (admin/supervisor)
+  const managerId = await managarAuthorization(managerEmail, managerPassword);
 
   if (!managerId) {
     throw new Error("Autorização negada");

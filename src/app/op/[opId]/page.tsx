@@ -51,6 +51,8 @@ const mobileColorKeysMap = new Map<string, number>([
   ["yellow", 5],
 ]);
 
+import RequireAuth from "@/components/require-auth";
+
 export default function PackagingInspection({
   params: { opId },
 }: {
@@ -621,161 +623,163 @@ export default function PackagingInspection({
   }
 
   return (
-    <div className="h-screen w-full flex flex-col">
-      <Header />
+    <RequireAuth>
+      <div className="h-screen w-full flex flex-col">
+        <Header />
 
-      {loading ? (
-        <div className="absolute w-full h-full flex justify-center items-center z-10">
-          <Loader2 className="h-24 w-24 animate-spin" />
-        </div>
-      ) : (
-        <>
-          {data ? (
-            <div className="flex-1 flex justify-center overflow-y-auto">
-              <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
-                <OpDisplay
-                  code={data.opCode}
-                  boxesCount={data.totalBoxes}
-                  boxesPacked={data.totalBoxes - data.pendingBoxes}
-                  itemsCount={data.quantityToProduce}
-                  itemsPacked={data.itemsPacked}
-                  displayMessage={displayMessage}
-                  displayColor={displayColor}
-                  statusMessage={getStatusName(data?.status) || ""}
-                  statusVariant={getStatusVariant(data?.status) || "default"}
-                  startDate={data?.createdAt || new Date()}
-                  endDate={data?.finishedAt}
-                />
+        {loading ? (
+          <div className="absolute w-full h-full flex justify-center items-center z-10">
+            <Loader2 className="h-24 w-24 animate-spin" />
+          </div>
+        ) : (
+          <>
+            {data ? (
+              <div className="flex-1 flex justify-center overflow-y-auto">
+                <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
+                  <OpDisplay
+                    code={data.opCode}
+                    boxesCount={data.totalBoxes}
+                    boxesPacked={data.totalBoxes - data.pendingBoxes}
+                    itemsCount={data.quantityToProduce}
+                    itemsPacked={data.itemsPacked}
+                    displayMessage={displayMessage}
+                    displayColor={displayColor}
+                    statusMessage={getStatusName(data?.status) || ""}
+                    statusVariant={getStatusVariant(data?.status) || "default"}
+                    startDate={data?.createdAt || new Date()}
+                    endDate={data?.finishedAt}
+                  />
 
-                {!data.finishedAt && data.nextBox ? (
-                  <>
-                    <div>
-                      <div className="flex justify-end gap-6 mt-8">
-                        <Button
-                          className="bg-red-700 hover:bg-red-600"
-                          variant={"destructive"}
-                          onClick={() => handleOpBoxBreak()}
-                        >
-                          Finalizar com quebra
-                        </Button>
-                      </div>
+                  {!data.finishedAt && data.nextBox ? (
+                    <>
+                      <div>
+                        <div className="flex justify-end gap-6 mt-8">
+                          <Button
+                            className="bg-red-700 hover:bg-red-600"
+                            variant={"destructive"}
+                            onClick={() => handleOpBoxBreak()}
+                          >
+                            Finalizar com quebra
+                          </Button>
+                        </div>
 
-                      <div className="mt-2">
-                        <h3 className="font-bold uppercase">Caixa</h3>
-                        <BoxDisplay
-                          name={data.boxType.name}
-                          isTarget={step == 0}
-                          description={data.boxType.description}
-                          status={box?.status}
-                        />
-                      </div>
+                        <div className="mt-2">
+                          <h3 className="font-bold uppercase">Caixa</h3>
+                          <BoxDisplay
+                            name={data.boxType.name}
+                            isTarget={step == 0}
+                            description={data.boxType.description}
+                            status={box?.status}
+                          />
+                        </div>
 
-                      <div className="mt-8 flex-1 overflow-y-auto">
-                        <div className="flex gap-4">
-                          <div>
-                            <strong>Blister:</strong> {data.blisterType.name}
-                          </div>
-                          <div>
-                            <strong>Item:</strong> {data.productType.name}
-                          </div>
-                          <div>
-                            <strong>Quantidade na Caixa:</strong> {quantityInBox}
-                          </div>
-                          <div>
-                            <strong>Quantidade verificada:</strong> {checkedQuantity}
+                        <div className="mt-8 flex-1 overflow-y-auto">
+                          <div className="flex gap-4">
+                            <div>
+                              <strong>Blister:</strong> {data.blisterType.name}
+                            </div>
+                            <div>
+                              <strong>Item:</strong> {data.productType.name}
+                            </div>
+                            <div>
+                              <strong>Quantidade na Caixa:</strong> {quantityInBox}
+                            </div>
+                            <div>
+                              <strong>Quantidade verificada:</strong> {checkedQuantity}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex-1 overflow-auto">
-                      <BlisterDisplay
-                        blisterName={data.blisterType.code}
-                        itemName={data.productType.code}
-                        blisters={blisters}
-                        targetIndex={targetBlister}
-                      />
+                      <div className="flex-1 overflow-auto">
+                        <BlisterDisplay
+                          blisterName={data.blisterType.code}
+                          itemName={data.productType.code}
+                          blisters={blisters}
+                          targetIndex={targetBlister}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-center gap-6 mt-8">
+                      <Button size={"lg"} onClick={() => redirectAction(`/op/${data.opId}/detail`)}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Detalhes da OP
+                      </Button>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex justify-center gap-6 mt-8">
-                    <Button size={"lg"} onClick={() => redirectAction(`/op/${data.opId}/detail`)}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Detalhes da OP
-                    </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="container flex flex-col items-center mt-8 gap-6">
-              <h2 className="text-xl">Falha ao carregar OP!</h2>
-              <Button onClick={() => redirectAction("/")}>Voltar</Button>
-            </div>
-          )}
-        </>
-      )}
+            ) : (
+              <div className="container flex flex-col items-center mt-8 gap-6">
+                <h2 className="text-xl">Falha ao carregar OP!</h2>
+                <Button onClick={() => redirectAction("/")}>Voltar</Button>
+              </div>
+            )}
+          </>
+        )}
 
-      <ManagerAuthFormDialog
-        title={"Autorizar quebra de Caixa"}
-        message={
-          "A caixa será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."
-        }
-        isOpen={openForceFinalizationDialog}
-        initialQuantity={inspection?.count}
-        onOpenChange={setOpenForceFinalizationDialog}
-        onManagerAuth={(quantity, managerId) =>
-          configLastBlisterQuantity(quantity, managerId)
-        }
-      />
-
-
-      {data && (
-        <SupervisorPieceConfigDialog
-          isOpen={openSupervisorConfigDialog}
-          onOpenChange={setOpenSupervisorConfigDialog}
-          pieceName={data.productType.name}
-          blisterTypeId={data.blisterType?.id}
-          externalOpId={Number(opId)}
-          initialSlots={data.blisterType?.slots}
-          initialLimitPerBox={data.blisterType?.limitPerBox}
-          isNewOp={data.isNewOp}
-          availableBlisters={data.availableBlisters}
-          onConfirmed={() => {
-            setSupervisorConfigured(true);
-            setOpenSupervisorConfigDialog(false);
-            // Exibe alerta de OP nova criada após configuração do supervisor
-            setVisorMessage("OP NOVA CRIADA COM SUCESSO!", "yellow");
-            // Aguarda 3 segundos antes de recarregar
-            setTimeout(() => {
-              // Recarrega os dados para refletir a OP criada (sem isNewOp para evitar loop)
-              syncAndGetOpToProduceById(opId)
-                .then((opData) => {
-                  // Remove a flag isNewOp para não mostrar o alerta novamente
-                  const updatedOpData = { ...opData, isNewOp: false };
-                  setData(updatedOpData);
-                  continueLoadingFlow(updatedOpData);
-                  if (pendingInspection) {
-                    nextObjectValidation(pendingInspection, ObjectTypes.product);
-                    setPendingInspection(undefined);
-                  }
-                })
-                .catch((error) => {
-                  setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
-                });
-            }, 3000);
-          }}
+        <ManagerAuthFormDialog
+          title={"Autorizar quebra de Caixa"}
+          message={
+            "A caixa será finalizada com os itens embalados até o momento. **ATENÇÃO** Essa ação não poderá ser desfeita."
+          }
+          isOpen={openForceFinalizationDialog}
+          initialQuantity={inspection?.count}
+          onOpenChange={setOpenForceFinalizationDialog}
+          onManagerAuth={(quantity, managerId) =>
+            configLastBlisterQuantity(quantity, managerId)
+          }
         />
-      )}
 
-      {data && (
-        <PrintTagDialog
-          onPrintSuccess={handlePrintSuccess}
-          printConfig={{ pdfBase64: pdfBase64, quantity: quantityToPrint }}
-          isOpen={openPrintTagDialog}
-          onOpenChange={setOpenPrintTagDialog}
-        />
-      )}
-    </div>
+
+        {data && (
+          <SupervisorPieceConfigDialog
+            isOpen={openSupervisorConfigDialog}
+            onOpenChange={setOpenSupervisorConfigDialog}
+            pieceName={data.productType.name}
+            blisterTypeId={data.blisterType?.id}
+            externalOpId={Number(opId)}
+            initialSlots={data.blisterType?.slots}
+            initialLimitPerBox={data.blisterType?.limitPerBox}
+            isNewOp={data.isNewOp}
+            availableBlisters={data.availableBlisters}
+            onConfirmed={() => {
+              setSupervisorConfigured(true);
+              setOpenSupervisorConfigDialog(false);
+              // Exibe alerta de OP nova criada após configuração do supervisor
+              setVisorMessage("OP NOVA CRIADA COM SUCESSO!", "yellow");
+              // Aguarda 3 segundos antes de recarregar
+              setTimeout(() => {
+                // Recarrega os dados para refletir a OP criada (sem isNewOp para evitar loop)
+                syncAndGetOpToProduceById(opId)
+                  .then((opData) => {
+                    // Remove a flag isNewOp para não mostrar o alerta novamente
+                    const updatedOpData = { ...opData, isNewOp: false };
+                    setData(updatedOpData);
+                    continueLoadingFlow(updatedOpData);
+                    if (pendingInspection) {
+                      nextObjectValidation(pendingInspection, ObjectTypes.product);
+                      setPendingInspection(undefined);
+                    }
+                  })
+                  .catch((error) => {
+                    setVisorMessage(error?.message || "Falha na sincronização da OP", "red");
+                  });
+              }, 3000);
+            }}
+          />
+        )}
+
+        {data && (
+          <PrintTagDialog
+            onPrintSuccess={handlePrintSuccess}
+            printConfig={{ pdfBase64: pdfBase64, quantity: quantityToPrint }}
+            isOpen={openPrintTagDialog}
+            onOpenChange={setOpenPrintTagDialog}
+          />
+        )}
+      </div>
+    </RequireAuth>
   );
 }

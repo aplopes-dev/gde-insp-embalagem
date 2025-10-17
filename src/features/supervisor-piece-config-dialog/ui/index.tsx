@@ -43,7 +43,7 @@ export default function SupervisorPieceConfigDialog({
 }: SupervisorPieceConfigDialogProps) {
   const [slots, setSlots] = useState<number | "">(initialSlots ?? "");
   const [limitPerBox, setLimitPerBox] = useState<number | "">(initialLimitPerBox ?? "");
-  const [managerCode, setManagerCode] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
   const [managerPassword, setManagerPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedBlisterPackagingId, setSelectedBlisterPackagingId] = useState<number | undefined>(
@@ -54,7 +54,7 @@ export default function SupervisorPieceConfigDialog({
     if (isOpen) {
       setSlots(initialSlots ?? "");
       setLimitPerBox(initialLimitPerBox ?? "");
-      setManagerCode("");
+      setManagerEmail("");
       setManagerPassword("");
       setSelectedBlisterPackagingId(
         availableBlisters && availableBlisters.length === 1 ? availableBlisters[0].id : undefined
@@ -78,7 +78,7 @@ export default function SupervisorPieceConfigDialog({
         externalOpId: Number(externalOpId),
         slots: Number(slots),
         limitPerBox: Number(limitPerBox),
-        managerCode,
+        managerEmail,
         managerPassword,
         selectedBlisterPackagingId,
       });
@@ -184,7 +184,7 @@ export default function SupervisorPieceConfigDialog({
           <div className="grid gap-2">
             <Label>Autorização do responsável</Label>
             <div className="grid gap-2">
-              <Input placeholder="Código" value={managerCode} onChange={(e) => setManagerCode(e.target.value)} />
+              <Input placeholder="E-mail" type="email" value={managerEmail} onChange={(e) => setManagerEmail(e.target.value)} />
               <Input placeholder="Senha" type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} />
             </div>
           </div>

@@ -25,7 +25,7 @@ import { managarAuthorization } from "../actions";
 
 export const opBreakAuthorizationSchema = z.object({
   quantity: z.number().min(1),
-  code: z.string().min(1),
+  email: z.string().email(),
   password: z.string().min(3),
 });
 
@@ -54,7 +54,7 @@ const ManagerAuthFormDialog = ({
     resolver: zodResolver(opBreakAuthorizationSchema),
     defaultValues: {
       quantity: initialQuantity || 1,
-      code: "",
+      email: "",
       password: "",
     },
     mode: "onChange",
@@ -67,8 +67,8 @@ const ManagerAuthFormDialog = ({
   } = form;
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const { quantity, code, password } = data;
-    await managarAuthorization(code, password)
+    const { quantity, email, password } = data as any;
+    await managarAuthorization(email, password)
       .then((id) => {
         toast({
           title: "Sucesso",
@@ -88,7 +88,7 @@ const ManagerAuthFormDialog = ({
 
   useEffect(() => {
     if (isOpen) {
-      reset({ quantity: initialQuantity, code: "", password: "" });
+      reset({ quantity: initialQuantity, email: "", password: "" });
     }
   }, [isOpen]);
 
@@ -122,14 +122,14 @@ const ManagerAuthFormDialog = ({
               />
               <FormField
                 control={form.control}
-                name="code"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código</FormLabel>
+                    <FormLabel>E-mail</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        placeholder="Insira o codigo do responsável"
+                        type="email"
+                        placeholder="Insira o e-mail do responsável"
                         {...field}
                       />
                     </FormControl>

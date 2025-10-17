@@ -71,10 +71,10 @@ export async function getPaginatedBoxOp({
 }
 
 
-export async function generateBarcodeByBoxId(opId: number, boxId: number): Promise<PrintTagJerpDto | ApiResponseError> {
+export async function generateBarcodeByBoxId(opId: number, boxId: string): Promise<PrintTagJerpDto | ApiResponseError> {
   const box = await db.opBox.findUnique({
     where: {
-      id: `${boxId}`,
+      id: boxId,
       opId: opId,
       status: {
         not: OpBoxStatus.PENDING,

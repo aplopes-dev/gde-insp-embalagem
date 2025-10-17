@@ -3,16 +3,17 @@
 import { isSamePass } from "@/libs/bcrypt";
 import db from "@/providers/database";
 
-export async function managarAuthorization(code: string, password: string) {
-  const manager = await db.manager.findUnique({
-    where: {
-      id: Number(code),
-    },
-  });
-  const managerPassword = manager?.password || "";
-  const confirmPass = await isSamePass(password, managerPassword);
-  if (!confirmPass) {
-    throw new Error("Código / Senha inválidos!");
+export async function managarAuthorization(email: string, password: string) {
+  const user = await db.user.findUnique({ where: { email } });
+  if (!user) {
+    throw new Error("CADASTRO INVALIDO.");
   }
-  return manager && manager.id;
+  const ok = await isSamePass(password, user.password);
+  if (!ok) {
+    throw new Error("CADASTRO INVALIDO.");
+  }
+  if (user.role !== "ADMINISTRADOR" && user.role !== "SUPERVISOR") {
+    throw new Error("CADASTRO INVALIDO.");
+  }
+  return user.id;
 }

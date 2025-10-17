@@ -104,3 +104,20 @@ enum OpBoxStatus {
   PACKAGED
   PACKAGED_W_BREAK
 }
+
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(OPERADOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMINISTRADOR
+  SUPERVISOR
+  OPERADOR
+}

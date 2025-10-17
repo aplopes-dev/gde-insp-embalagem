@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, UserRole } from '@prisma/client'
+import bcrypt from 'bcrypt'
 const prisma = new PrismaClient()
 async function main() {
 
@@ -117,11 +118,24 @@ async function main() {
     }
   })
 
+  const adminEmail = "danillomota99@gmail.com";
+  const userSeed$ = prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      name: "Danillo",
+      email: adminEmail,
+      role: UserRole.ADMINISTRADOR,
+      password: bcrypt.hashSync("Abc123!", 10)
+    }
+  })
+
   await prisma.$transaction([
     boxTypesSeed$,
     blisterTypesSeed$,
     productTypesSeed$,
-    managerSeed$
+    managerSeed$,
+    userSeed$
   ])
 
 }

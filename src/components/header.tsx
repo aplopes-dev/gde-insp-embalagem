@@ -41,13 +41,22 @@ const Header = () => {
         )}
         <ThemeModeToggle />
         {isAdmin && (
-          <Link
-            href="/users/create"
-            className="border px-3 py-1 rounded text-sm bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-            title="Cadastrar novo usuário"
-          >
-            + Usuário
-          </Link>
+          <>
+            <Link
+              href="/users"
+              className="border px-3 py-1 rounded text-sm bg-green-500 text-white hover:bg-green-600 transition-colors"
+              title="Gerenciar usuários"
+            >
+              Usuários
+            </Link>
+            <Link
+              href="/admin"
+              className="border px-3 py-1 rounded text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+              title="Painel de administração"
+            >
+              Admin
+            </Link>
+          </>
         )}
         {status === "authenticated" && (
           <button className="border px-2 py-1 rounded text-sm" onClick={() => signOut({ callbackUrl: "/login" })}>

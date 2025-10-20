@@ -107,17 +107,46 @@ enum OpBoxStatus {
 
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      UserRole @default(OPERADOR)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String            @id @default(uuid())
+  name            String
+  email           String            @unique
+  password        String
+  role            UserRole          @default(OPERADOR)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  OpActivityLogs  OpActivityLog[]
 }
 
 enum UserRole {
   ADMINISTRADOR
   SUPERVISOR
   OPERADOR
+}
+
+enum ActivityActionType {
+  BOX_INSPECTION_APPROVED
+  BOX_INSPECTION_REJECTED
+  PRODUCT_CREATED
+  PRODUCT_AUTHORIZED
+  STATUS_CHANGED
+  OP_STARTED
+  OP_COMPLETED
+}
+
+model OpActivityLog {
+  id          String              @id @default(uuid())
+  opId        Int
+  userId      String
+  user        User                @relation(fields: [userId], references: [id])
+  actionType  ActivityActionType
+  description String
+  details     Json?
+  boxId       String?
+  productId   Int?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([opId])
+  @@index([userId])
+  @@index([createdAt])
 }

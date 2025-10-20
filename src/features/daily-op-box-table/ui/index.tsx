@@ -28,7 +28,7 @@ export default function DailyOpBoxTable({
   const { columnFilters, onColumnFiltersChange } = useFiltering();
   const { toast } = useToast();
 
-  const onCLickGenBarcode = async (boxId: number) => {
+  const onCLickGenBarcode = async (boxId: string) => {
     setExternalLoading(true);
     try {
       const response: any = await generateBarcodeByBoxId(Number(opId), boxId);

@@ -9,9 +9,10 @@ import { useEffect, useState } from "react";
 const Header = () => {
   const { data, status } = useSession();
 
-  // Use session data directly instead of state
-  // The structure is data.session.user, not data.user
-  const user = status === "authenticated" ? data?.session?.user : null;
+  // Prefer data.user; fallback to data.session.user (safety)
+  const sessionUser = (data as any)?.user ?? (data as any)?.session?.user ?? null;
+  const user = status === "authenticated" ? (sessionUser as any) : null;
+  const isAdmin = (user as any)?.role === "ADMINISTRADOR";
 
   useEffect(() => {
     console.log("[Header] Session status:", status);
@@ -32,14 +33,23 @@ const Header = () => {
         </div>
       </Link>
       <div className="flex items-center gap-3">
-        {user?.name && user?.role && (
-          <span className="text-sm font-semibold">{user.name} - {user.role}</span>
+        {user?.name && (user as any)?.role && (
+          <span className="text-sm font-semibold">{user.name} - {(user as any).role}</span>
         )}
-        {!user && status === "authenticated" && (
+        {status === "loading" && (
           <span className="text-sm text-gray-500">Carregando...</span>
         )}
         <ThemeModeToggle />
-        {user && (
+        {isAdmin && (
+          <Link
+            href="/users/create"
+            className="border px-3 py-1 rounded text-sm bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+            title="Cadastrar novo usuário"
+          >
+            + Usuário
+          </Link>
+        )}
+        {status === "authenticated" && (
           <button className="border px-2 py-1 rounded text-sm" onClick={() => signOut({ callbackUrl: "/login" })}>
             Sair
           </button>

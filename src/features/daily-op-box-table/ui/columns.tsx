@@ -12,7 +12,7 @@ export function useBoxOpColumns({
   onCLickPrint,
 }: {
   onCLickView: (value: any) => void;
-  onCLickGenBarcode: (boxId: number) => void;
+  onCLickGenBarcode: (boxId: string) => void | Promise<void>;
   onCLickPrint: (value: any) => void;
 }): {
   columns: any[];

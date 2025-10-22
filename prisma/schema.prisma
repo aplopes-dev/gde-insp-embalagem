@@ -118,7 +118,6 @@ model User {
 }
 
 enum UserRole {
-  ADMINISTRADOR
   SUPERVISOR
   OPERADOR
 }

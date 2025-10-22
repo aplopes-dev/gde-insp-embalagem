@@ -11,7 +11,7 @@ export async function GET(
     const session = await getServerSession(authOptions);
     const user = session?.user as any;
 
-    if (!user || user.role !== "ADMINISTRADOR") {
+    if (!user || user.role !== "SUPERVISOR") {
       return NextResponse.json(
         { error: "Acesso negado" },
         { status: 403 }
@@ -72,7 +72,7 @@ export async function GET(
       }
       opMap.get(log.opId)!.inspections.push({
         id: log.id,
-        boxId: log.boxId,
+        boxId: log.boxId || undefined,
         actionType: log.actionType,
         createdAt: log.createdAt,
         details: log.details,

@@ -125,7 +125,7 @@ async function main() {
     create: {
       name: "Danillo",
       email: adminEmail,
-      role: "ADMINISTRADOR",
+      role: "SUPERVISOR",
       password: bcrypt.hashSync("Abc123!", 10)
     }
   })

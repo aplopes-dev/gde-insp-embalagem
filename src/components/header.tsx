@@ -12,7 +12,7 @@ const Header = () => {
   // Prefer data.user; fallback to data.session.user (safety)
   const sessionUser = (data as any)?.user ?? (data as any)?.session?.user ?? null;
   const user = status === "authenticated" ? (sessionUser as any) : null;
-  const isAdmin = (user as any)?.role === "ADMINISTRADOR";
+  const isSupervisor = (user as any)?.role === "SUPERVISOR";
 
   useEffect(() => {
     console.log("[Header] Session status:", status);
@@ -40,23 +40,14 @@ const Header = () => {
           <span className="text-sm text-gray-500">Carregando...</span>
         )}
         <ThemeModeToggle />
-        {isAdmin && (
-          <>
-            <Link
-              href="/users"
-              className="border px-3 py-1 rounded text-sm bg-green-500 text-white hover:bg-green-600 transition-colors"
-              title="Gerenciar usuários"
-            >
-              Usuários
-            </Link>
-            <Link
-              href="/admin"
-              className="border px-3 py-1 rounded text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-              title="Painel de administração"
-            >
-              Admin
-            </Link>
-          </>
+        {isSupervisor && (
+          <Link
+            href="/admin"
+            className="border px-3 py-1 rounded text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+            title="Painel de administração"
+          >
+            Admin
+          </Link>
         )}
         {status === "authenticated" && (
           <button className="border px-2 py-1 rounded text-sm" onClick={() => signOut({ callbackUrl: "/login" })}>

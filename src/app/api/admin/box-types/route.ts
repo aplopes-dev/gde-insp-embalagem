@@ -10,7 +10,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     const boxTypes = await db.boxType.findMany({
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     const { id, name, code, description } = await req.json();

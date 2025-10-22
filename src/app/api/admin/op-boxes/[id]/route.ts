@@ -13,7 +13,7 @@ export async function PUT(
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     const { opId, code, status } = await req.json();
@@ -46,7 +46,7 @@ export async function DELETE(
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     await db.opBox.delete({ where: { id: params.id } });

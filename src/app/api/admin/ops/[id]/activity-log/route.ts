@@ -22,9 +22,9 @@ export async function GET(
       where: { email: session.user.email! },
     });
 
-    if (!user || user.role !== "ADMINISTRADOR") {
+    if (!user || user.role !== "SUPERVISOR") {
       return NextResponse.json(
-        { error: "Acesso negado. Apenas administradores podem acessar." },
+        { error: "Acesso negado. Apenas supervisores podem acessar." },
         { status: 403 }
       );
     }

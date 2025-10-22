@@ -13,7 +13,7 @@ export default async function OpsControlPage() {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || user.role !== "ADMINISTRADOR") {
+  if (!user || user.role !== "SUPERVISOR") {
     redirect("/");
   }
 
@@ -84,13 +84,13 @@ export default async function OpsControlPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Status:</span>
                       <span className={`font-semibold px-2 py-1 rounded text-xs ${
-                        op.status === "ATIVA"
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
-                          : op.status === "PAUSADA"
+                        op.status === "PENDING"
                           ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200"
+                          : op.status === "COMPLETED"
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
                           : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                       }`}>
-                        {op.status}
+                        {op.status === "PENDING" ? "Pendente" : op.status === "COMPLETED" ? "Concluída" : op.status}
                       </span>
                     </div>
                     <div className="flex justify-between">

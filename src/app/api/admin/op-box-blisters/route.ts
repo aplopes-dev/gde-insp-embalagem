@@ -10,7 +10,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     const opBoxBlisters = await db.opBoxBlister.findMany({

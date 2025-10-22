@@ -15,6 +15,6 @@ export type PackagingJerpDto = {
   id: number
   nome: string
   quantidadeAlocada: number
-  slots?: number              // NOVO: Quantos produtos cabem no blister
-  limitePorCaixa?: number     // NOVO: Quantos blisters cabem na caixa
+  slots?: number              // Quantos produtos cabem no blister (apenas para BLISTER)
+  limitePorCaixa?: number     // Quantos blisters cabem na caixa (apenas para BLISTER)
 }

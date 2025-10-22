@@ -10,7 +10,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     const blisterTypes = await db.blisterType.findMany({
@@ -28,20 +28,20 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
-    const { id, name, code, description, slots, limitPerBox } = await req.json();
+    const { id, name, code, description, slots, limitPerBox, boxTypeId } = await req.json();
 
-    if (!id || !name || !code) {
+    if (!id || !name || !code || !boxTypeId) {
       return new Response(
-        JSON.stringify({ error: "ID, nome e código são obrigatórios" }),
+        JSON.stringify({ error: "ID, nome, código e boxTypeId são obrigatórios" }),
         { status: 400 }
       );
     }
 
     const blisterType = await db.blisterType.create({
-      data: { id, name, code, description, slots, limitPerBox },
+      data: { id, name, code, description, slots, limitPerBox, boxTypeId },
     });
 
     return Response.json(blisterType);

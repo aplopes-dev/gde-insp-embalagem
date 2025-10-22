@@ -6,12 +6,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import { redirect } from "next/navigation";
 
-const ALLOWED_ROLES = ["ADMINISTRADOR", "SUPERVISOR", "OPERADOR"] as const;
+const ALLOWED_ROLES = ["SUPERVISOR", "OPERADOR"] as const;
 
 export async function updateUserAction(userId: string, formData: FormData) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
-  if (!session?.user || role !== "ADMINISTRADOR") {
+  if (!session?.user || role !== "SUPERVISOR") {
     redirect("/login");
   }
 

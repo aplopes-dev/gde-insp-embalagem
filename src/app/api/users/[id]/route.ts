@@ -9,7 +9,7 @@ function forbidden() { return new Response(JSON.stringify({ error: "Forbidden" }
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
   const body = await req.json();
   const { name, email, password, role: userRole } = body || {};
   const data: any = {};
@@ -29,7 +29,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
   await db.user.delete({ where: { id: params.id } });
   return Response.json({ ok: true });
 }

@@ -9,7 +9,7 @@ function forbidden() { return new Response(JSON.stringify({ error: "Forbidden" }
 export async function GET() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
   const users = await db.user.findMany({ orderBy: { createdAt: "desc" } });
   return Response.json(users);
 }
@@ -17,7 +17,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
   const body = await req.json();
   const { name, email, password, role: userRole } = body || {};
   if (!name || !email || !password || !userRole) {

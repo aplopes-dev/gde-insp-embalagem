@@ -17,7 +17,7 @@ export default async function DatabasePage() {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || user.role !== "ADMINISTRADOR") {
+  if (!user || user.role !== "SUPERVISOR") {
     redirect("/");
   }
 

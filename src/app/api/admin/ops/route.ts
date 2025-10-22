@@ -10,7 +10,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
     const ops = await db.op.findMany({
@@ -28,20 +28,28 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
-  if (role !== "ADMINISTRADOR") return forbidden();
+  if (role !== "SUPERVISOR") return forbidden();
 
   try {
-    const { id, code, quantityToProduce, status } = await req.json();
+    const { id, code, quantityToProduce, status, productTypeId, blisterTypeId, boxTypeId } = await req.json();
 
-    if (!id || !code || !quantityToProduce) {
+    if (!id || !code || !quantityToProduce || !productTypeId || !blisterTypeId || !boxTypeId) {
       return new Response(
-        JSON.stringify({ error: "ID, código e quantidade são obrigatórios" }),
+        JSON.stringify({ error: "ID, código, quantidade, productTypeId, blisterTypeId e boxTypeId são obrigatórios" }),
         { status: 400 }
       );
     }
 
     const op = await db.op.create({
-      data: { id, code, quantityToProduce, status: status || "PENDING" },
+      data: {
+        id,
+        code,
+        quantityToProduce,
+        status: status || "PENDING",
+        productTypeId,
+        blisterTypeId,
+        boxTypeId,
+      },
     });
 
     return Response.json(op);

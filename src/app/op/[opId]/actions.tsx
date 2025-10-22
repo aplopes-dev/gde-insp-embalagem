@@ -43,17 +43,21 @@ export async function syncAndGetOpToProduceById(id: string) {
       const packagingIds = externalOp.embalagens.map((emb) => emb.id);
       const existingBlisterType = await findFirstBlisterTypeInIds({ ids: packagingIds });
 
-      if (existingBlisterType) {
-        // Já existe BlisterType configurado: podemos criar a OP normalmente.
+      // Verifica se o JERP já forneceu slots e limitePorCaixa
+      const blisterPackagings = externalOp.embalagens.filter((emb) =>
+        emb.nome.toLowerCase().includes("blister") ||
+        emb.nome.toLowerCase().includes("cartela")
+      );
+      const blisterFromJerp = blisterPackagings[0];
+      const hasJerpConfig = blisterFromJerp?.slots && blisterFromJerp?.limitePorCaixa;
+
+      if (existingBlisterType || hasJerpConfig) {
+        // Já existe BlisterType configurado OU o JERP forneceu os dados: podemos criar a OP normalmente.
         const created = await createInternalOp(externalOp!);
         internalOp = created.op;
         requiresSupervisorConfig = false;
       } else {
         // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
-        const blisterPackagings = externalOp.embalagens.filter((emb) =>
-          emb.nome.toLowerCase().includes("blister") ||
-          emb.nome.toLowerCase().includes("cartela")
-        );
         const boxPackaging = externalOp.embalagens.find((emb) =>
           emb.nome.toLowerCase().includes("caixa") ||
           emb.nome.toLowerCase().includes("box")

@@ -6,11 +6,15 @@ let connection: Connection | null = null; // Conexão com RabbitMQ
 export async function connectRabbitMQ(): Promise<Channel> {
   if (channel) return channel; // Usa o canal existente, se disponível
   try {
-    connection = await amqp.connect(`${process.env.RABBITMQ_URL}`); // Ajuste conforme necessário
-    channel = await connection.createChannel();
+    const conn = await amqp.connect(`${process.env.RABBITMQ_URL}`);
+    connection = conn as any;
+    const ch = await (conn as any).createChannel();
+    channel = ch;
     // await channel.assertQueue('fila_envio', { durable: true });
-    await channel.assertQueue('fila_recebimento', { durable: true });
-    return channel;
+    if (channel) {
+      await channel.assertQueue('fila_recebimento', { durable: true });
+    }
+    return channel!;
   } catch (error) {
     console.error('Erro ao conectar ao RabbitMQ:', error);
     throw error;

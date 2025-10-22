@@ -12,7 +12,7 @@ export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || user.role !== "ADMINISTRADOR") {
+  if (!user || user.role !== "SUPERVISOR") {
     redirect("/");
   }
 

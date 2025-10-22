@@ -12,7 +12,7 @@ export async function managarAuthorization(email: string, password: string) {
   if (!ok) {
     throw new Error("CADASTRO INVALIDO.");
   }
-  if (user.role !== "ADMINISTRADOR" && user.role !== "SUPERVISOR") {
+  if (user.role !== "SUPERVISOR") {
     throw new Error("CADASTRO INVALIDO.");
   }
   return user.id;

@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { ThemeModeToggle } from "@/components/theme-mode-toggle";
 import Image from "next/image";
 
 type LoginStep = "email" | "password";
@@ -115,6 +116,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
+      {/* Botão de Tema no Canto Superior Direito */}
+      <div className="absolute top-4 right-4">
+        <ThemeModeToggle />
+      </div>
+
       <form
         onSubmit={step === "email" ? handleEmailSubmit : handlePasswordSubmit}
         className="w-full max-w-sm space-y-6"

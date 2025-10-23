@@ -7,31 +7,38 @@ import { useEffect, useState } from "react";
 
 export function ThemeModeToggle() {
   const { theme, setTheme } = useTheme();
-  const [enabledTheme, setEnabledTheme] = useState("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setEnabledTheme(theme || "light")
-  }, [theme]);
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  const isLight = theme === "light";
+  const isDark = theme === "dark";
 
   return (
-    <div className="flex gap-1 xl:gap-2 exl:gap-4">
+    <div className="flex gap-1 xl:gap-2">
       <Button
-        disabled={enabledTheme == "light"}
         onClick={() => setTheme("light")}
         variant="ghost"
         size="icon"
-        className="round"
+        title="Tema Claro"
+        className={isLight ? "bg-gray-200 dark:bg-gray-700" : ""}
       >
-        <Sun className="h-4 xl:h-6 exl:h-10" />
+        <Sun className={`h-5 w-5 ${isLight ? "text-yellow-500" : "text-gray-500"}`} />
       </Button>
       <Button
-        disabled={enabledTheme == "dark"}
         onClick={() => setTheme("dark")}
         variant="ghost"
         size="icon"
-        className="round"
+        title="Tema Escuro"
+        className={isDark ? "bg-gray-200 dark:bg-gray-700" : ""}
       >
-        <Moon className="h-4 xl:h-6 exl:h-10" />
+        <Moon className={`h-5 w-5 ${isDark ? "text-blue-400" : "text-gray-500"}`} />
       </Button>
     </div>
   );

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
-import { fetchUserFromJerp } from "@/services/jerp-auth";
 
 type LoginStep = "email" | "password";
 
@@ -42,13 +41,28 @@ export default function LoginPage() {
         return;
       }
 
-      const user = await fetchUserFromJerp(email);
-      if (!user) {
+      const response = await fetch("/api/auth/fetch-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.status === 404) {
         setError("E-mail não encontrado no JERP");
         setLoading(false);
         return;
       }
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error || "Erro ao conectar com JERP");
+        setLoading(false);
+        return;
+      }
+
+      const user = await response.json();
       setUserInfo(user);
       setStep("password");
     } catch (err) {

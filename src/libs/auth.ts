@@ -34,7 +34,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Passo 3: Mapear role do JERP para o sistema
-          const role = mapJerpRoleToSystemRole(jerpUser.lideranca);
+          const role = mapJerpRoleToSystemRole(jerpUser.isLideranca);
 
           // Passo 4: Persistir/atualizar usuário localmente
           let user = await db.user.findUnique({ where: { email: credentials.email } });

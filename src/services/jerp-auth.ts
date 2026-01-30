@@ -1,14 +1,13 @@
 /**
  * Serviço de autenticação integrado com JERP
  * Responsável por buscar usuários e validar senhas no JERP
- *
- * Modo Mock: Configure USE_MOCK_AUTH=true no .env para usar dados fictícios
  */
 
 export interface JerpUserResponse {
   email: string;
   nome: string;
-  lideranca: boolean; // true = SUPERVISOR, false = OPERADOR
+  isLideranca: boolean; // true = SUPERVISOR, false = OPERADOR
+  isValid?: boolean;
 }
 
 export interface JerpAuthError {
@@ -16,58 +15,22 @@ export interface JerpAuthError {
   message: string;
 }
 
-const JERP_API_URL = process.env.JERP_API_URL || "";
+const JERP_API_AUTH = process.env.JERP_API_AUTH || "";
 const JERP_TOKEN = process.env.JERP_TOKEN || "";
-const USE_MOCK_AUTH = process.env.USE_MOCK_AUTH === "true";
-
-/**
- * Dados mock para desenvolvimento/testes
- */
-const MOCK_USERS: Record<string, { nome: string; password: string; lideranca: boolean }> = {
-  "supervisor@test.com": {
-    nome: "Supervisor Teste",
-    password: "Supervisor123!",
-    lideranca: true,
-  },
-  "operador@test.com": {
-    nome: "Operador Teste",
-    password: "Operador123!",
-    lideranca: false,
-  },
-  "danillomota99@gmail.com": {
-    nome: "Danillo",
-    password: "Abc123!",
-    lideranca: true,
-  },
-};
 
 /**
  * Busca um usuário no JERP pelo email
  * GET /users/emails/{email}
  */
 export async function fetchUserFromJerp(email: string): Promise<JerpUserResponse | null> {
-  // Modo Mock
-  if (USE_MOCK_AUTH) {
-    console.log("[MOCK AUTH] Buscando usuário:", email);
-    const mockUser = MOCK_USERS[email];
-    if (mockUser) {
-      return {
-        email,
-        nome: mockUser.nome,
-        lideranca: mockUser.lideranca,
-      };
-    }
-    return null;
-  }
-
   // Modo Real (JERP)
-  if (!JERP_API_URL || !JERP_TOKEN) {
-    throw new Error("JERP_API_URL ou JERP_TOKEN não configurados");
+  if (!JERP_API_AUTH || !JERP_TOKEN) {
+    throw new Error("JERP_API ou JERP_TOKEN não configurados");
   }
 
   try {
     const encodedEmail = encodeURIComponent(email);
-    const response = await fetch(`${JERP_API_URL}/users/emails/${encodedEmail}`, {
+    const response = await fetch(`${JERP_API_AUTH}/users/emails/${encodedEmail}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${JERP_TOKEN}`,
@@ -99,28 +62,15 @@ export async function verifyPasswordWithJerp(
   email: string,
   password: string
 ): Promise<boolean> {
-  // Modo Mock
-  if (USE_MOCK_AUTH) {
-    console.log("[MOCK AUTH] Verificando senha para:", email);
-    const mockUser = MOCK_USERS[email];
-    if (!mockUser) {
-      console.log("[MOCK AUTH] Usuário não encontrado");
-      return false;
-    }
-    const isValid = mockUser.password === password;
-    console.log("[MOCK AUTH] Senha válida:", isValid);
-    return isValid;
-  }
-
   // Modo Real (JERP)
-  if (!JERP_API_URL || !JERP_TOKEN) {
-    throw new Error("JERP_API_URL ou JERP_TOKEN não configurados");
+  if (!JERP_API_AUTH || !JERP_TOKEN) {
+    throw new Error("JERP_API ou JERP_TOKEN não configurados");
   }
 
   try {
     const encodedEmail = encodeURIComponent(email);
     const response = await fetch(
-      `${JERP_API_URL}/users/emails/${encodedEmail}/verify-password`,
+      `${JERP_API_AUTH}/users/emails/${encodedEmail}/verify-password`,
       {
         method: "POST",
         headers: {
@@ -158,7 +108,6 @@ export async function verifyPasswordWithJerp(
 /**
  * Converte o campo 'lideranca' do JERP para role do sistema
  */
-export function mapJerpRoleToSystemRole(lideranca: boolean): "SUPERVISOR" | "OPERADOR" {
-  return lideranca ? "SUPERVISOR" : "OPERADOR";
+export function mapJerpRoleToSystemRole(isLideranca: boolean): "SUPERVISOR" | "OPERADOR" {
+  return isLideranca ? "SUPERVISOR" : "OPERADOR";
 }
-

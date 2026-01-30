@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeModeToggle } from "@/components/theme-mode-toggle";
 import Image from "next/image";
-
 type LoginStep = "email" | "password";
 
 interface UserInfo {
   email: string;
   nome: string;
-  lideranca: boolean;
+  isLideranca: boolean;
+  isValid?: boolean;
 }
 
 function LoginContent() {
@@ -165,7 +165,7 @@ function LoginContent() {
                 <span className="font-semibold">{userInfo.nome}</span>
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Cargo: <span className="font-semibold">{userInfo.lideranca ? "Supervisor" : "Operador"}</span>
+                Cargo: <span className="font-semibold">{userInfo.isLideranca ? "Supervisor" : "Operador"}</span>
               </p>
             </div>
 
@@ -208,4 +208,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

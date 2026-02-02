@@ -472,16 +472,22 @@ export default function PackagingInspection({
 
   async function persistBoxInspection(currentBlisters: OpBoxBlisterInspection[]) {
     if (box) {
+      console.log("[persistBoxInspection] Iniciando persistência da caixa:", box.id);
       await persistBoxStatusWithBlisters(box.id, currentBlisters)
-        .then((_) => {
+        .then((result) => {
+          console.log("[persistBoxInspection] Caixa persistida com sucesso. Resultado:", result);
           setVisorMessage("Inspeção de caixa finalizada com sucesso!", "green");
           setTimeout(async () => {
+            console.log("[persistBoxInspection] Chamando printTag...");
             printTag(currentBlisters);
           }, 2000);
         })
         .catch((err) => {
+          console.error("[persistBoxInspection] Erro ao persistir:", err);
           setVisorMessage(err.message, "red");
         });
+    } else {
+      console.error("[persistBoxInspection] Box não encontrado!");
     }
   }
 
@@ -493,24 +499,33 @@ export default function PackagingInspection({
   };
 
   async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
+    console.log("[printTag] Iniciando geração de etiqueta...");
     const productQuantity = currentBlisters
       .filter((bl) => bl.status == 1)
       .reduce((acc, i) => acc + i.quantity, 0);
 
+    console.log("[printTag] Quantidade de produtos:", productQuantity);
+    console.log("[printTag] OpId:", data!.opId, "BoxId:", box!.id);
+
     setVisorMessage("IMPRIMINDO ETIQUETA...", "black");
 
     try {
+      const payload = {
+        opId: data!.opId,
+        boxId: box!.id,
+        quantity: productQuantity,
+      };
+      console.log("[printTag] Enviando requisição para /api/op-jerp/barcode com payload:", payload);
+      
       const response = await fetch("/api/op-jerp/barcode", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          opId: data!.opId,
-          boxId: box!.id,
-          quantity: productQuantity,
-        }),
+        body: JSON.stringify(payload),
       });
+      
+      console.log("[printTag] Resposta recebida:", response.status, response.statusText);
 
       if (!response.ok) {
         const { error, errorData } = await response.json();

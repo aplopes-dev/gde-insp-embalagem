@@ -14,6 +14,9 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
+    console.log("[Barcode API] Sessão:", session ? "existe" : "não existe");
+    console.log("[Barcode API] User:", session?.user);
+
     if (!session || !session.user) {
       return NextResponse.json(
         { error: "Não autenticado" },
@@ -22,8 +25,10 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    console.log("[Barcode API] UserId extraído:", userId);
 
     if (!userId) {
+      console.error("[Barcode API] UserId não encontrado na sessão. Session.user completo:", JSON.stringify(session.user, null, 2));
       return NextResponse.json(
         { error: "ID do usuário não encontrado na sessão" },
         { status: 400 }
@@ -31,6 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { opId, boxId, quantity } = await req.json() as GenerateBarcodeBody;
+    console.log("[Barcode API] Dados recebidos:", { opId, boxId, quantity, userId });
     const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userId);
 
     if (tagDataReq.isRight()) {

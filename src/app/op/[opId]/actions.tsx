@@ -23,6 +23,8 @@ import {
   OpBoxInspectionDto,
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/auth";
 
 export async function syncAndGetOpToProduceById(id: string) {
   const externalOpRed = await getOpFromId(id);
@@ -321,6 +323,14 @@ export async function persistBoxStatusWithBlisters(
   opBoxId: string,
   blisters: OpBoxBlisterInspection[]
 ) {
+  // Obtém o userId da sessão
+  const session = await getServerSession(authOptions);
+  const userId = session?.user ? (session.user as any).id : undefined;
+
+  console.log("[persistBoxStatusWithBlisters] UserId:", userId);
+  console.log("[persistBoxStatusWithBlisters] OpBoxId:", opBoxId);
+  console.log("[persistBoxStatusWithBlisters] Blisters count:", blisters.length);
+
   const queryCollection: any[] = blisters.map((bl) =>
     db.opBoxBlister.update({
       data: {
@@ -347,6 +357,9 @@ export async function persistBoxStatusWithBlisters(
   );
 
   await db.$transaction(queryCollection);
+
+  // Retorna o userId para uso posterior se necessário
+  return { userId };
 }
 
 export async function persistWithOpBreak(

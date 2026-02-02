@@ -49,7 +49,12 @@ export async function generateBarcode(id: number, opBoxId: string, quantity: num
     // Adiciona userId ao payload se fornecido
     if (userId) {
       payload.userId = userId;
+      logger.info({ message: `UserId incluído no payload para JERP: ${userId}`, opId: id, boxId: opBoxId });
+    } else {
+      logger.warn({ message: "UserId não fornecido para generateBarcode", opId: id, boxId: opBoxId });
     }
+
+    logger.info({ message: "Enviando payload para JERP", payload, url: `${JERP_API}/ordemproducao` });
 
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,

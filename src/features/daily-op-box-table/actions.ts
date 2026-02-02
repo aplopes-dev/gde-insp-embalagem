@@ -8,6 +8,8 @@ import OpBoxDto from "@/types/dtos/op-box-dto";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import { FilterPaginationParams } from "@/types/filter";
 import { OpBoxStatus } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/auth";
 
 export async function getPaginatedBoxOp({
   limit,
@@ -72,6 +74,9 @@ export async function getPaginatedBoxOp({
 
 
 export async function generateBarcodeByBoxId(opId: number, boxId: string): Promise<PrintTagJerpDto | ApiResponseError> {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user ? (session.user as any).id : undefined;
+
   const box = await db.opBox.findUnique({
     where: {
       id: boxId,
@@ -109,7 +114,7 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
   } as ApiResponseError;
 
   const quantity = box.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0);
-  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity);
+  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userId);
 
   if (tagDataReq.isRight()) {
     return tagDataReq.get()

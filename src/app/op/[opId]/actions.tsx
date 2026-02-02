@@ -327,10 +327,6 @@ export async function persistBoxStatusWithBlisters(
   const session = await getServerSession(authOptions);
   const userId = session?.user ? (session.user as any).id : undefined;
 
-  console.log("[persistBoxStatusWithBlisters] UserId:", userId);
-  console.log("[persistBoxStatusWithBlisters] OpBoxId:", opBoxId);
-  console.log("[persistBoxStatusWithBlisters] Blisters count:", blisters.length);
-
   const queryCollection: any[] = blisters.map((bl) =>
     db.opBoxBlister.update({
       data: {
@@ -358,7 +354,25 @@ export async function persistBoxStatusWithBlisters(
 
   await db.$transaction(queryCollection);
 
-  // Retorna o userId para uso posterior se necessário
+  // Envia os dados para o RabbitMQ com userId via API
+  if (userId) {
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([opBoxId, blisters, userId]),
+      });
+
+      if (!response.ok) {
+        // Silenciosamente falha se não conseguir enviar para RabbitMQ
+      }
+    } catch (error) {
+      // Silenciosamente falha se não conseguir enviar para RabbitMQ
+    }
+  }
+
   return { userId };
 }
 

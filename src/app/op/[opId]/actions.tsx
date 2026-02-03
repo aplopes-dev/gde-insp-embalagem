@@ -25,6 +25,7 @@ import {
 } from "../../../types/op-box-inspection-dto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
+import { connectRabbitMQ } from "@/libs/rabbitmq";
 
 export async function syncAndGetOpToProduceById(id: string) {
   const externalOpRed = await getOpFromId(id);
@@ -325,7 +326,13 @@ export async function persistBoxStatusWithBlisters(
 ) {
   // Obtém o userId da sessão
   const session = await getServerSession(authOptions);
-  const userId = session?.user ? (session.user as any).id : undefined;
+
+  if (!session || !session.user) {
+    return {
+      userId: null,
+    };
+  }
+  const userId = ( session.user as any ).id;
 
   const queryCollection: any[] = blisters.map((bl) =>
     db.opBoxBlister.update({
@@ -354,20 +361,16 @@ export async function persistBoxStatusWithBlisters(
 
   await db.$transaction(queryCollection);
 
-  // Envia os dados para o RabbitMQ com userId via API
+  // Publica direto na fila RabbitMQ (evita fetch interno sem cookie → 401)
   if (userId) {
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([opBoxId, blisters, userId]),
-      });
-
-      if (!response.ok) {
-        // Silenciosamente falha se não conseguir enviar para RabbitMQ
-      }
+      const payload = {
+        boxId: opBoxId,
+        blisters,
+        userId,
+      };
+      const channel = await connectRabbitMQ();
+      channel.sendToQueue('fila_recebimento', Buffer.from(JSON.stringify(payload)), { persistent: true });
     } catch (error) {
       // Silenciosamente falha se não conseguir enviar para RabbitMQ
     }

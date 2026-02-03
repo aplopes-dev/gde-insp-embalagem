@@ -75,7 +75,17 @@ export async function getPaginatedBoxOp({
 
 export async function generateBarcodeByBoxId(opId: number, boxId: string): Promise<PrintTagJerpDto | ApiResponseError> {
   const session = await getServerSession(authOptions);
-  const userId = session?.user ? (session.user as any).id : undefined;
+
+  if (!session || !session.user) {
+    return {
+      status: 401,
+      error: "Falha ao gerar etiqueta",
+      errorData: {
+        message: "Usuário não autenticado",
+      },
+    } as ApiResponseError;
+  }
+  const userId = ( session.user as any ).id;
 
   const box = await db.opBox.findUnique({
     where: {

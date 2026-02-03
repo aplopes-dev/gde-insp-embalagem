@@ -10,7 +10,11 @@ export async function POST(request: Request) {
     
     // Obtém o userId da sessão
     const session = await getServerSession(authOptions);
-    const userId = session?.user ? (session.user as any).id : undefined;
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+    const userId = ( session.user as any ).id;
 
     // Se o payload contém dados de blisters (array com boxId, blisters e userId)
     if (Array.isArray(data) && data.length >= 3) {

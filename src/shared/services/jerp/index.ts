@@ -39,17 +39,12 @@ export async function getOpFromId(id: string): Promise<Either<ApiResponseError, 
   }
 }
 
-export async function generateBarcode(id: number, opBoxId: string, quantity: number, userId?: string): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
+export async function generateBarcode(id: number, opBoxId: string, quantity: number, userId: string): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
   try {
-    const payload: any = { id, quantidadeApontada: quantity };
-    
-    // Adiciona userId ao payload se fornecido
-    if (userId) {
-      payload.userId = userId;
-    }
+    const payload = { id, quantidadeApontada: quantity, userId: userId };
 
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,

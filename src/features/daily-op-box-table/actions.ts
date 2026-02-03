@@ -85,7 +85,6 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
       },
     } as ApiResponseError;
   }
-  const userId = ( session.user as any ).id;
 
   const box = await db.opBox.findUnique({
     where: {
@@ -122,6 +121,19 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
       message: "Caixa não pode ser finalizada! Verifique se há pendências.",
     },
   } as ApiResponseError;
+
+  // Prioriza userId do banco (operador que embalou); fallback para sessão (caixas antigas)
+  const userId = box.packedByUserId ?? (session.user as any).id;
+
+  if (!userId) {
+    return {
+      status: 400,
+      error: "Falha ao gerar etiqueta",
+      errorData: {
+        message: "Usuário que embalou a caixa não identificado.",
+      },
+    } as ApiResponseError;
+  }
 
   const quantity = box.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0);
   const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userId);

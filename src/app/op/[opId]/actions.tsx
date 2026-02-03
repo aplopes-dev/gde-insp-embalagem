@@ -352,6 +352,7 @@ export async function persistBoxStatusWithBlisters(
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED,
+        packedByUserId: userId,
       },
       where: {
         id: opBoxId,
@@ -386,6 +387,10 @@ export async function persistWithOpBreak(
   managerId: number
 ) {
   const { id, status } = boxDto;
+  
+  // Obtém o userId do operador (quem fez a inspeção) da sessão
+  const session = await getServerSession(authOptions);
+  const packedByUserId = session?.user ? (session.user as any).id : null;
   const blistersToRemove = blisters
     .filter((bl) => !bl.packedAt)
     .map((bl) => bl.id) as string[];
@@ -422,6 +427,7 @@ export async function persistWithOpBreak(
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED_W_BREAK,
         breakAuthorizerId: managerId,
+        ...(packedByUserId && { packedByUserId }),
       },
       where: {
         id,

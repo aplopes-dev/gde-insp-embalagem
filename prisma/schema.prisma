@@ -63,12 +63,14 @@ model OpBox {
   code               String
   createdAt          DateTime       @default(now())
   packedAt           DateTime?
+  packedByUserId     String?
   breakAuthorizerId  Int?
   barCode            String?
   barCodeGeneratedAt DateTime?
   status             OpBoxStatus    @default(PENDING)
   breakAuthorizer    Manager?       @relation(fields: [breakAuthorizerId], references: [id])
   op                 Op             @relation(fields: [opId], references: [id], onDelete: Cascade)
+  packedBy           User?          @relation(fields: [packedByUserId], references: [id])
   OpBoxBlister       OpBoxBlister[]
 }
 
@@ -115,6 +117,7 @@ model User {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   OpActivityLogs  OpActivityLog[]
+  packedOpBoxes   OpBox[]
 }
 
 enum UserRole {

@@ -85,7 +85,7 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
       },
     } as ApiResponseError;
   }
-  const userId = ( session.user as any ).id;
+  const userName = ( session.user as any ).email;
 
   const box = await db.opBox.findUnique({
     where: {
@@ -124,7 +124,7 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
   } as ApiResponseError;
 
   const quantity = box.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0);
-  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userId);
+  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userName);
 
   if (tagDataReq.isRight()) {
     return tagDataReq.get()

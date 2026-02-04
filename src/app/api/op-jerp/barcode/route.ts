@@ -21,17 +21,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId = (session.user as any).id;
+    const userName = (session.user as any).email;
 
-    if (!userId) {
+    if (!userName) {
       return NextResponse.json(
-        { error: "ID do usuário não encontrado na sessão" },
+        { error: "Nome do usuário não encontrado na sessão" },
         { status: 400 }
       );
     }
 
     const { opId, boxId, quantity } = await req.json() as GenerateBarcodeBody;
-    const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userId);
+    const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userName);
 
     if (tagDataReq.isRight()) {
       return NextResponse.json(tagDataReq.get());

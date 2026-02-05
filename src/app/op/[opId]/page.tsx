@@ -539,7 +539,7 @@ export default function PackagingInspection({
     if (box?.status != InspectionStatus.VALID || !issetPackedBlister) {
       setVisorMessage("Não há itens embalados", "red");
     } else {
-      await persistWithOpBreak(box, currentBlisters, data!.opId, Number(managerId))
+      await persistWithOpBreak(box, currentBlisters, data!.opId, managerId ?? null)
         .then((_) => {
           setVisorMessage("Caixa finalizada com sucesso!", "green");
           setTimeout(async () => {

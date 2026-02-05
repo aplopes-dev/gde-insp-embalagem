@@ -21,7 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { managarAuthorization } from "../actions";
+import { authorizeBreakWithJerp } from "../actions";
 
 export const opBreakAuthorizationSchema = z.object({
   quantity: z.number().min(1),
@@ -68,7 +68,7 @@ const ManagerAuthFormDialog = ({
 
   const onSubmit = form.handleSubmit(async (data) => {
     const { quantity, email, password } = data as any;
-    await managarAuthorization(email, password)
+    await authorizeBreakWithJerp(email, password)
       .then((id) => {
         toast({
           title: "Sucesso",

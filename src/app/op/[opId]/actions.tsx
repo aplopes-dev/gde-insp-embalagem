@@ -383,9 +383,9 @@ export async function persistWithOpBreak(
   boxDto: OpBoxInspectionDto,
   blisters: OpBoxBlisterInspection[],
   opId: number,
-  managerId: number
+  authorizerUserId: string | null
 ) {
-  const { id, status } = boxDto;
+  const { id } = boxDto;
   const blistersToRemove = blisters
     .filter((bl) => !bl.packedAt)
     .map((bl) => bl.id) as string[];
@@ -421,7 +421,6 @@ export async function persistWithOpBreak(
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED_W_BREAK,
-        breakAuthorizerId: managerId,
       },
       where: {
         id,
@@ -459,6 +458,28 @@ export async function persistWithOpBreak(
       await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
     } else {
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
+    }
+
+    if (authorizerUserId) {
+      try {
+        const authorizer = await db.user.findUnique({
+          where: { id: authorizerUserId },
+          select: { name: true, email: true },
+        });
+        if (authorizer) {
+          await db.opActivityLog.create({
+            data: {
+              opId,
+              userId: authorizerUserId,
+              actionType: "STATUS_CHANGED",
+              description: `Quebra de caixa autorizada por ${authorizer.name} (${authorizer.email})`,
+              boxId: id,
+            },
+          });
+        }
+      } catch (logError) {
+        console.error("[persistWithOpBreak] Erro ao registrar autorização no log:", logError);
+      }
     }
   } catch (error) {
     handleError(error, "Falha ao persistir caixa com quebra");

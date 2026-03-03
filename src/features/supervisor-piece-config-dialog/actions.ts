@@ -1,6 +1,6 @@
 "use server";
 
-import { managarAuthorization } from "@/features/manager-auth-form-dialog/actions";
+import { authorizeBreakWithJerp } from "@/features/manager-auth-form-dialog/actions";
 import { updateBlisterTypeParams, createOpAfterSupervisorConfig } from "@/app/op/[opId]/actions";
 
 export type SaveSupervisorPieceConfigInput = {
@@ -16,8 +16,8 @@ export type SaveSupervisorPieceConfigInput = {
 export async function saveSupervisorPieceConfig(input: SaveSupervisorPieceConfigInput) {
   const { blisterTypeId, externalOpId, slots, limitPerBox, managerEmail, managerPassword, selectedBlisterPackagingId } = input;
 
-  // Authorize manager (admin/supervisor)
-  const managerId = await managarAuthorization(managerEmail, managerPassword);
+  // Authorize manager (admin/supervisor) via JERP - mesma validação da quebra de caixa
+  const managerId = await authorizeBreakWithJerp(managerEmail, managerPassword);
 
   if (!managerId) {
     throw new Error("Autorização negada");

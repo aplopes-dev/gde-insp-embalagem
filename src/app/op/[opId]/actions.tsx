@@ -9,6 +9,7 @@ import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
+import { selectOpPackagings } from "@/usecases/op-jerp/select-op-packagings";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
 import {
   BlisterType,
@@ -42,17 +43,22 @@ export async function syncAndGetOpToProduceById(id: string) {
 
     if (!internalOp) {
       isNewOp = true;
-      // Se a OP interna ainda não existe, verificamos se já existe um BlisterType correspondente.
-      const packagingIds = externalOp.embalagens.map((emb) => emb.id);
-      const existingBlisterType = await findFirstBlisterTypeInIds({ ids: packagingIds });
+      const {
+        blisterPackagings,
+        blisterPackaging,
+        boxPackaging,
+        preferredBlisterPackagingId,
+      } = selectOpPackagings(externalOp);
 
-      // Verifica se o JERP já forneceu slots e limitePorCaixa
-      const blisterPackagings = externalOp.embalagens.filter((emb) =>
-        emb.nome.toLowerCase().includes("blister") ||
-        emb.nome.toLowerCase().includes("cartela")
+      // Se a OP interna ainda não existe, verificamos se o blister principal da peça já existe.
+      const existingBlisterType = blisterPackaging
+        ? await findFirstBlisterTypeInIds({ ids: [blisterPackaging.id] })
+        : null;
+
+      // Verifica se o JERP já forneceu slots e limitePorCaixa para o blister principal.
+      const hasJerpConfig = Boolean(
+        blisterPackaging?.slots && blisterPackaging?.limitePorCaixa
       );
-      const blisterFromJerp = blisterPackagings[0];
-      const hasJerpConfig = blisterFromJerp?.slots && blisterFromJerp?.limitePorCaixa;
 
       if (existingBlisterType || hasJerpConfig) {
         // Já existe BlisterType configurado OU o JERP forneceu os dados: podemos criar a OP normalmente.
@@ -61,13 +67,7 @@ export async function syncAndGetOpToProduceById(id: string) {
         requiresSupervisorConfig = false;
       } else {
         // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
-        const boxPackaging = externalOp.embalagens.find((emb) =>
-          emb.nome.toLowerCase().includes("caixa") ||
-          emb.nome.toLowerCase().includes("box")
-        );
-
-        // Usa o primeiro blister como padrão (será selecionável no dialog)
-        const defaultBlisterPackaging = blisterPackagings[0];
+        const defaultBlisterPackaging = blisterPackaging || blisterPackagings[0];
 
         requiresSupervisorConfig = true;
 
@@ -105,7 +105,8 @@ export async function syncAndGetOpToProduceById(id: string) {
           blisterCodes: [],
           requiresSupervisorConfig,
           isNewOp,
-          availableBlisters: blisterPackagings, // Nova propriedade com todos os blisters
+          availableBlisters: blisterPackagings,
+          preferredBlisterPackagingId,
         } as OpInspectionDto;
       }
     }
@@ -119,19 +120,27 @@ export async function syncAndGetOpToProduceById(id: string) {
 
 async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
   const productId = externalOp.produto.id;
-  const packagingIds = externalOp.embalagens.map((emb) => emb.id);
+  const { blisterPackaging, boxPackaging } = selectOpPackagings(externalOp);
+
+  if (!blisterPackaging || !boxPackaging) {
+    throw new Error(
+      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map((e) => e.nome).join(", ")}`
+    );
+  }
 
   // Busca as referências existentes
   const transaction = await db.$transaction([
     findProductTypeById({ id: productId }),
-    findFirstBlisterTypeInIds({ ids: packagingIds }),
-    findFirstBoxTypeInIds({ ids: packagingIds }),
+    findFirstBlisterTypeInIds({ ids: [blisterPackaging.id] }),
+    findFirstBoxTypeInIds({ ids: [boxPackaging.id] }),
   ]);
 
   // Cria dinamicamente as referências que não existem
   const ensured = await ensureReferencesExist(
     transaction,
-    externalOp
+    externalOp,
+    blisterPackaging,
+    boxPackaging
   );
   const { productType, blisterType, boxType, created } = ensured;
 
@@ -178,7 +187,9 @@ async function ensureReferencesExist(
     blisterType: BlisterType | null,
     boxType: BoxType | null
   ],
-  externalOp: OpJerpDto
+  externalOp: OpJerpDto,
+  blisterPackaging: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number },
+  boxPackaging: { id: number; nome: string }
 ): Promise<{ productType: ProductType; blisterType: BlisterType; boxType: BoxType; created: { product: boolean; blister: boolean; box: boolean } }> {
   const [existingProductType, existingBlisterType, existingBoxType] = transactionResults;
 
@@ -189,22 +200,6 @@ async function ensureReferencesExist(
     createdFlags.product = true;
     return createProductTypeFromJerp(externalOp.produto);
   })();
-
-  // Identifica qual embalagem é blister e qual é caixa baseado no nome
-  const blisterPackaging = externalOp.embalagens.find(emb =>
-    emb.nome.toLowerCase().includes('blister') ||
-    emb.nome.toLowerCase().includes('cartela')
-  );
-  const boxPackaging = externalOp.embalagens.find(emb =>
-    emb.nome.toLowerCase().includes('caixa') ||
-    emb.nome.toLowerCase().includes('box')
-  );
-
-  if (!blisterPackaging || !boxPackaging) {
-    throw new Error(
-      `Não foi possível identificar blister e caixa nas embalagens: ${externalOp.embalagens.map(e => e.nome).join(', ')}`
-    );
-  }
 
   // Cria BoxType primeiro (necessário para BlisterType)
   const boxType = existingBoxType || await (async () => {
@@ -592,17 +587,12 @@ export async function createOpAfterSupervisorConfig(
   const externalOp = externalOpRed.get();
   validateOpJerpToProduce(externalOp);
 
-  // Identifica embalagens
+  const { blisterPackaging: preferredBlisterPackaging, boxPackaging } =
+    selectOpPackagings(externalOp);
+
   const blisterPackaging = selectedBlisterPackagingId
     ? externalOp.embalagens.find((emb) => emb.id === selectedBlisterPackagingId)
-    : externalOp.embalagens.find((emb) =>
-        emb.nome.toLowerCase().includes("blister") ||
-        emb.nome.toLowerCase().includes("cartela")
-      );
-  const boxPackaging = externalOp.embalagens.find((emb) =>
-    emb.nome.toLowerCase().includes("caixa") ||
-    emb.nome.toLowerCase().includes("box")
-  );
+    : preferredBlisterPackaging;
 
   if (!blisterPackaging || !boxPackaging) {
     throw new Error(

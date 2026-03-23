@@ -19,6 +19,7 @@ export type OpInspectionDto = {
   requiresSupervisorConfig?: boolean;
   isNewOp?: boolean;
   availableBlisters?: PackagingJerpDto[];
+  preferredBlisterPackagingId?: number;
 };
 
 export type OpBoxInspectionDto = {

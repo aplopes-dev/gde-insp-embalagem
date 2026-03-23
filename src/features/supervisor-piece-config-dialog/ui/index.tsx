@@ -16,6 +16,9 @@ import { PackagingJerpDto } from "@/types/dtos/op-jerp-dto";
 import { useState, useEffect } from "react";
 import { saveSupervisorPieceConfig } from "../actions";
 
+type PreventableEvent = { preventDefault: () => void };
+type InputChangeEvent = { target: { value: string } };
+
 type SupervisorPieceConfigDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,6 +30,7 @@ type SupervisorPieceConfigDialogProps = {
   onConfirmed: () => void;
   isNewOp?: boolean;
   availableBlisters?: PackagingJerpDto[];
+  preferredBlisterPackagingId?: number;
 };
 
 export default function SupervisorPieceConfigDialog({
@@ -40,14 +44,19 @@ export default function SupervisorPieceConfigDialog({
   onConfirmed,
   isNewOp,
   availableBlisters,
+  preferredBlisterPackagingId,
 }: SupervisorPieceConfigDialogProps) {
+  const initialBlisterPackagingId =
+    preferredBlisterPackagingId ??
+    (availableBlisters && availableBlisters.length === 1 ? availableBlisters[0].id : undefined);
+
   const [slots, setSlots] = useState<number | "">(initialSlots ?? "");
   const [limitPerBox, setLimitPerBox] = useState<number | "">(initialLimitPerBox ?? "");
   const [managerEmail, setManagerEmail] = useState("");
   const [managerPassword, setManagerPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedBlisterPackagingId, setSelectedBlisterPackagingId] = useState<number | undefined>(
-    availableBlisters && availableBlisters.length === 1 ? availableBlisters[0].id : undefined
+    initialBlisterPackagingId
   );
 
   useEffect(() => {
@@ -56,11 +65,9 @@ export default function SupervisorPieceConfigDialog({
       setLimitPerBox(initialLimitPerBox ?? "");
       setManagerEmail("");
       setManagerPassword("");
-      setSelectedBlisterPackagingId(
-        availableBlisters && availableBlisters.length === 1 ? availableBlisters[0].id : undefined
-      );
+      setSelectedBlisterPackagingId(initialBlisterPackagingId);
     }
-  }, [isOpen, initialSlots, initialLimitPerBox, availableBlisters]);
+  }, [isOpen, initialSlots, initialLimitPerBox, initialBlisterPackagingId]);
 
   const handleConfirm = async () => {
     try {
@@ -85,8 +92,12 @@ export default function SupervisorPieceConfigDialog({
       toast({ title: "Sucesso", description: "Parâmetros salvos" });
       onOpenChange(false);
       onConfirmed();
-    } catch (err: any) {
-      toast({ title: "Erro", description: err?.message || "Falha ao salvar", variant: "destructive" });
+    } catch (err: unknown) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Falha ao salvar",
+        variant: "destructive"
+      });
     } finally {
       setSubmitting(false);
     }
@@ -96,8 +107,8 @@ export default function SupervisorPieceConfigDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange} modal>
       <DialogContent
         className="max-w-md"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e: PreventableEvent) => e.preventDefault()}
+        onEscapeKeyDown={(e: PreventableEvent) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>
@@ -136,7 +147,7 @@ export default function SupervisorPieceConfigDialog({
               ) : (
                 <Select
                   value={selectedBlisterPackagingId?.toString()}
-                  onValueChange={(value) => setSelectedBlisterPackagingId(Number(value))}
+                  onValueChange={(value: string) => setSelectedBlisterPackagingId(Number(value))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo de blister correto" />
@@ -163,7 +174,7 @@ export default function SupervisorPieceConfigDialog({
             <Input
               type="number"
               value={slots}
-              onChange={(e) => setSlots(e.target.value === "" ? "" : Number(e.target.value))}
+              onChange={(e: InputChangeEvent) => setSlots(e.target.value === "" ? "" : Number(e.target.value))}
               placeholder="Ex.: 10"
             />
             <p className="text-xs text-gray-600">Quantidade de peças que cabem em um blister</p>
@@ -173,7 +184,7 @@ export default function SupervisorPieceConfigDialog({
             <Input
               type="number"
               value={limitPerBox}
-              onChange={(e) => setLimitPerBox(e.target.value === "" ? "" : Number(e.target.value))}
+              onChange={(e: InputChangeEvent) => setLimitPerBox(e.target.value === "" ? "" : Number(e.target.value))}
               placeholder="Ex.: 1"
             />
             <p className="text-xs text-gray-600">Quantidade de blisters que cabem em uma caixa</p>
@@ -184,8 +195,8 @@ export default function SupervisorPieceConfigDialog({
           <div className="grid gap-2">
             <Label>Autorização do responsável</Label>
             <div className="grid gap-2">
-              <Input placeholder="E-mail" type="email" value={managerEmail} onChange={(e) => setManagerEmail(e.target.value)} />
-              <Input placeholder="Senha" type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} />
+              <Input placeholder="E-mail" type="email" value={managerEmail} onChange={(e: InputChangeEvent) => setManagerEmail(e.target.value)} />
+              <Input placeholder="Senha" type="password" value={managerPassword} onChange={(e: InputChangeEvent) => setManagerPassword(e.target.value)} />
             </div>
           </div>
 

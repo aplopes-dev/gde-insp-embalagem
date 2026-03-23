@@ -744,6 +744,7 @@ export default function PackagingInspection({
             initialLimitPerBox={data.blisterType?.limitPerBox}
             isNewOp={data.isNewOp}
             availableBlisters={data.availableBlisters}
+            preferredBlisterPackagingId={data.preferredBlisterPackagingId}
             onConfirmed={() => {
               setSupervisorConfigured(true);
               setOpenSupervisorConfigDialog(false);

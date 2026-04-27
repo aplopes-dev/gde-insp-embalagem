@@ -90,11 +90,14 @@ export default function PackagingInspection({
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
 
+  const currentOpId = Number(opId);
+
   const { socket } = useSocketDetection({
+    opId: currentOpId,
     onDetectionUpdate: handleDetectionUpdate,
     onActionHandler: handleActionHandler,
   });
-  const { sendSocketEvent } = useSocketEmmiter();
+  const { sendSocketEvent } = useSocketEmmiter(currentOpId);
 
   function sendWithDelay(message: any, delay: number = 2000) {
     setTimeout(() => sendMessageToRabbitMq(message), delay);
@@ -190,6 +193,7 @@ export default function PackagingInspection({
     sendSocketEvent("iaHandler", {
       receivedCount: data.count,
       receivedItemId: data.itemId,
+      opId: data.opId ?? currentOpId,
     });
 
     if (data.itemId) {
@@ -376,17 +380,20 @@ export default function PackagingInspection({
     itemId?: string;
     fileName?: string;
     model?: string;
+    opId?: number | string;
   }) {
     console.log("-------------validation-------------");
     console.log(validation);
 
     sendSocketEvent("iaHandler", {
       ...validation,
+      opId: validation.opId ?? currentOpId,
     });
 
     sendWithDelay(
       {
         ...validation,
+        opId: validation.opId ?? currentOpId,
       },
       3000
     );

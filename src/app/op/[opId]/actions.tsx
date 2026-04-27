@@ -359,10 +359,15 @@ export async function persistBoxStatusWithBlisters(
   // Publica direto na fila RabbitMQ (evita fetch interno sem cookie → 401)
   if (userId) {
     try {
+      const opBox = await db.opBox.findUnique({
+        where: { id: opBoxId },
+        select: { opId: true },
+      });
       const payload = {
         boxId: opBoxId,
         blisters,
         userId,
+        opId: opBox?.opId,
       };
       const channel = await connectRabbitMQ();
       channel.sendToQueue('fila_recebimento', Buffer.from(JSON.stringify(payload)), { persistent: true });

@@ -1,4 +1,4 @@
-import { connectRabbitMQ } from '@/libs/rabbitmq';
+import { COMMANDS_EXCHANGE, buildRoutingKey, publishDual } from '@/libs/rabbitmq';
 import { buildV2Envelope } from '@/libs/message-contract';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -36,8 +36,12 @@ export async function POST(request: Request) {
         source: "next_api_send",
       });
       const dataStr = JSON.stringify(envelope);
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
+      await publishDual(
+        'fila_recebimento',
+        COMMANDS_EXCHANGE,
+        buildRoutingKey(String((payloadWithUserId as any).device_id ?? ''), 'command'),
+        envelope,
+      );
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
     } else if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'string' && Array.isArray(data[1])) {
       // Formato: [boxId, blisters[]] (fallback)
@@ -56,8 +60,12 @@ export async function POST(request: Request) {
         source: "next_api_send",
       });
       const dataStr = JSON.stringify(envelope);
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
+      await publishDual(
+        'fila_recebimento',
+        COMMANDS_EXCHANGE,
+        buildRoutingKey(String((payloadWithUserId as any).device_id ?? ''), 'command'),
+        envelope,
+      );
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
     } else {
       // Para outros tipos de mensagem, adiciona userId se não existir
@@ -75,8 +83,12 @@ export async function POST(request: Request) {
         source: "next_api_send",
       });
       const dataStr = JSON.stringify(envelope);
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
+      await publishDual(
+        'fila_recebimento',
+        COMMANDS_EXCHANGE,
+        buildRoutingKey(String((payloadWithUserId as any).device_id ?? ''), 'command'),
+        envelope,
+      );
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
     }
   } catch (error) {

@@ -1,4 +1,4 @@
-import { connectRabbitMQ } from '@/libs/rabbitmq';
+import { EVENTS_EXCHANGE, buildRoutingKey, publishDual } from '@/libs/rabbitmq';
 import { buildV2Envelope } from '@/libs/message-contract';
 import { NextResponse } from 'next/server';
 
@@ -13,10 +13,13 @@ export async function POST(request: Request) {
     action: String((data as any).action ?? "MOBILE_MESSAGE"),
     source: "next_api_send_mobile",
   });
-  const dataStr = JSON.stringify(envelope)
   try {
-    const channel = await connectRabbitMQ();
-    channel.sendToQueue('fila_oculos', Buffer.from(dataStr), { persistent: true });
+    await publishDual(
+      'fila_oculos',
+      EVENTS_EXCHANGE,
+      buildRoutingKey(String((envelope as any).device_id ?? ''), 'mobile_message'),
+      envelope,
+    );
     return NextResponse.json({ message: 'Mensagem publicada com sucesso!' })
   } catch (error) {
     console.error(error);

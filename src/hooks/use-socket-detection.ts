@@ -1,8 +1,6 @@
 import { DetectionDto, ActionDto, HeartbeatDto } from "@/types/dtos/socket-detection-dto";
 import { useEffect, useRef } from "react";
-import { io, Socket } from "socket.io-client";
-
-const SOCKET_URL = `${process.env.NEXT_PUBLIC_SOCKET_URL}`;
+import { getSocket } from "@/libs/socket";
 
 // Device_id ao qual esta instância do frontend está pareada.
 // Definido por NEXT_PUBLIC_DEVICE_ID no .env de cada servidor/workstation.
@@ -15,22 +13,24 @@ interface UseSocketProps {
   onHeartbeat?: (data: HeartbeatDto) => void;
 }
 
-let sharedSocket: Socket | null = null;
-
 export function useSocketDetection({
   opId,
   onDetectionUpdate,
   onActionHandler,
   onHeartbeat,
 }: UseSocketProps) {
-  const opIdRef = useRef(opId);
-  useEffect(() => { opIdRef.current = opId; }, [opId]);
+  const opIdRef       = useRef(opId);
+  const detectionRef  = useRef(onDetectionUpdate);
+  const actionRef     = useRef(onActionHandler);
+  const heartbeatRef  = useRef(onHeartbeat);
+
+  useEffect(() => { opIdRef.current      = opId;             }, [opId]);
+  useEffect(() => { detectionRef.current = onDetectionUpdate; }, [onDetectionUpdate]);
+  useEffect(() => { actionRef.current    = onActionHandler;   }, [onActionHandler]);
+  useEffect(() => { heartbeatRef.current = onHeartbeat;       }, [onHeartbeat]);
 
   useEffect(() => {
-    if (!sharedSocket) {
-      sharedSocket = io(SOCKET_URL);
-    }
-    const socket = sharedSocket;
+    const socket = getSocket();
 
     const handleConnect = () => {
       // Entra na room desta OP — 1ª camada: separa OPs diferentes
@@ -41,8 +41,11 @@ export function useSocketDetection({
       // 2ª camada: dentro da mesma OP, aceita só eventos do óculos pareado.
       // Garante que 2 operadores na mesma OP não validem análise um do outro.
       if (MY_DEVICE_ID && data.device_id !== MY_DEVICE_ID) return;
-      onDetectionUpdate?.(data);
+      detectionRef.current?.(data);
     };
+
+    const handleAction    = (data: ActionDto)    => actionRef.current?.(data);
+    const handleHeartbeat = (data: HeartbeatDto) => heartbeatRef.current?.(data);
 
     socket.on("connect", handleConnect);
     if (socket.connected && opIdRef.current) {
@@ -50,17 +53,17 @@ export function useSocketDetection({
     }
 
     socket.on("detectionUpdate", handleDetection);
-    if (onActionHandler) socket.on("actionHandler", onActionHandler);
-    if (onHeartbeat)     socket.on("heartbeat", onHeartbeat);
+    socket.on("actionHandler", handleAction);
+    socket.on("heartbeat", handleHeartbeat);
 
     return () => {
       if (opIdRef.current) socket.emit("leaveOp", { op_id: opIdRef.current });
       socket.off("connect", handleConnect);
       socket.off("detectionUpdate", handleDetection);
-      if (onActionHandler) socket.off("actionHandler", onActionHandler);
-      if (onHeartbeat)     socket.off("heartbeat", onHeartbeat);
+      socket.off("actionHandler", handleAction);
+      socket.off("heartbeat", handleHeartbeat);
     };
   }, []);
 
-  return { socket: sharedSocket };
+  return { socket: getSocket() };
 }

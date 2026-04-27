@@ -1,4 +1,5 @@
 import { connectRabbitMQ } from '@/libs/rabbitmq';
+import { buildV2Envelope } from '@/libs/message-contract';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/libs/auth';
@@ -26,7 +27,15 @@ export async function POST(request: Request) {
         userId: providedUserId || userId
       };
       
-      const dataStr = JSON.stringify(payloadWithUserId);
+      const envelope = buildV2Envelope({
+        type: "command",
+        payload: payloadWithUserId,
+        deviceId: String((payloadWithUserId as any).device_id ?? ""),
+        opId: String((payloadWithUserId as any).op_id ?? ""),
+        action: String((payloadWithUserId as any).action ?? "START_INSPECTION"),
+        source: "next_api_send",
+      });
+      const dataStr = JSON.stringify(envelope);
       const channel = await connectRabbitMQ();
       channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
@@ -38,7 +47,15 @@ export async function POST(request: Request) {
         userId: userId
       };
       
-      const dataStr = JSON.stringify(payloadWithUserId);
+      const envelope = buildV2Envelope({
+        type: "command",
+        payload: payloadWithUserId,
+        deviceId: String((payloadWithUserId as any).device_id ?? ""),
+        opId: String((payloadWithUserId as any).op_id ?? ""),
+        action: String((payloadWithUserId as any).action ?? "START_INSPECTION"),
+        source: "next_api_send",
+      });
+      const dataStr = JSON.stringify(envelope);
       const channel = await connectRabbitMQ();
       channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
@@ -49,7 +66,15 @@ export async function POST(request: Request) {
         ...(userId && !data.userId ? { userId } : {})
       };
       
-      const dataStr = JSON.stringify(payloadWithUserId);
+      const envelope = buildV2Envelope({
+        type: "command",
+        payload: payloadWithUserId,
+        deviceId: String((payloadWithUserId as any).device_id ?? ""),
+        opId: String((payloadWithUserId as any).op_id ?? ""),
+        action: String((payloadWithUserId as any).action ?? "START_INSPECTION"),
+        source: "next_api_send",
+      });
+      const dataStr = JSON.stringify(envelope);
       const channel = await connectRabbitMQ();
       channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });

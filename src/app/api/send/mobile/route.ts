@@ -1,10 +1,19 @@
 import { connectRabbitMQ } from '@/libs/rabbitmq';
+import { buildV2Envelope } from '@/libs/message-contract';
 import { NextResponse } from 'next/server';
 
 
 export async function POST(request: Request) {
   const data = await request.json();
-  const dataStr = JSON.stringify(data)
+  const envelope = buildV2Envelope({
+    type: "mobile_message",
+    payload: data,
+    deviceId: String((data as any).device_id ?? ""),
+    opId: String((data as any).op_id ?? ""),
+    action: String((data as any).action ?? "MOBILE_MESSAGE"),
+    source: "next_api_send_mobile",
+  });
+  const dataStr = JSON.stringify(envelope)
   try {
     const channel = await connectRabbitMQ();
     channel.sendToQueue('fila_oculos', Buffer.from(dataStr), { persistent: true });

@@ -52,6 +52,14 @@ const mobileColorKeysMap = new Map<string, number>([
 ]);
 
 import RequireAuth from "@/components/require-auth";
+import { GlassesPickerCard } from "@/features/glasses-picker/ui";
+import { useGlassesDeviceId } from "@/hooks/use-glasses-device-id";
+import { getStoredGlassesDeviceId } from "@/shared/glasses-catalog";
+
+function glassesPayload() {
+  const id = getStoredGlassesDeviceId();
+  return id ? { deviceId: id } : {};
+}
 
 export default function PackagingInspection({
   params: { opId },
@@ -91,6 +99,7 @@ export default function PackagingInspection({
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
 
   const currentOpId = Number(opId);
+  const { deviceId: glassesDeviceId, ready: glassesReady } = useGlassesDeviceId();
 
   const { socket } = useSocketDetection({
     opId: currentOpId,
@@ -160,8 +169,10 @@ export default function PackagingInspection({
   };
 
   useEffect(() => {
-    socket && loadData();
-  }, [socket]);
+    if (socket && glassesReady && glassesDeviceId) {
+      loadData();
+    }
+  }, [socket, glassesReady, glassesDeviceId]);
 
   function mountInspecionState(
     boxData: OpBoxInspectionDto,
@@ -194,6 +205,7 @@ export default function PackagingInspection({
       receivedCount: data.count,
       receivedItemId: data.itemId,
       opId: data.opId ?? currentOpId,
+      ...glassesPayload(),
     });
 
     if (data.itemId) {
@@ -215,9 +227,17 @@ export default function PackagingInspection({
     );
 
     switch (data.action) {
-      case "BREAK_OP":
+      case "BREAK_OP": {
+        if (data.opId != null && Number(data.opId) !== currentOpId) {
+          return;
+        }
+        const sid = getStoredGlassesDeviceId();
+        if (data.deviceId != null && sid && String(data.deviceId) !== sid) {
+          return;
+        }
         handleOpBoxBreak();
         break;
+      }
     }
   }
 
@@ -372,6 +392,8 @@ export default function PackagingInspection({
     sendMessageToRabbitMqMobile({
       mensagem: `${message}`.toUpperCase(),
       cor: mobileColorKeysMap.get(color),
+      opId: currentOpId,
+      ...glassesPayload(),
     });
   }
 
@@ -388,12 +410,14 @@ export default function PackagingInspection({
     sendSocketEvent("iaHandler", {
       ...validation,
       opId: validation.opId ?? currentOpId,
+      ...glassesPayload(),
     });
 
     sendWithDelay(
       {
         ...validation,
         opId: validation.opId ?? currentOpId,
+        ...glassesPayload(),
       },
       3000
     );
@@ -622,11 +646,39 @@ export default function PackagingInspection({
     sendMessageToRabbitMqMobile({
       mensagem: "CAIXA FINALIZADA COM SUCESSO!",
       cor: 3,
+      opId: currentOpId,
+      ...glassesPayload(),
     });
 
     setTimeout(() => {
       redirectAction("/");
     }, 2000);
+  }
+
+  if (!glassesReady) {
+    return (
+      <RequireAuth>
+        <div className="h-screen w-full flex flex-col">
+          <Header />
+          <div className="flex-1 flex justify-center items-center">
+            <Loader2 className="h-24 w-24 animate-spin" />
+          </div>
+        </div>
+      </RequireAuth>
+    );
+  }
+
+  if (!glassesDeviceId) {
+    return (
+      <RequireAuth>
+        <div className="h-screen w-full flex flex-col">
+          <Header />
+          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
+            <GlassesPickerCard />
+          </div>
+        </div>
+      </RequireAuth>
+    );
   }
 
   return (

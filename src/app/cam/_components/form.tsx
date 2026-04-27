@@ -27,6 +27,7 @@ const CamForm = () => {
   const form = useForm<ValidationFormType>({
     resolver: zodResolver(validationSchema),
     defaultValues: {
+      opId: "",
       itemId: "",
       count: "",
       code: "",
@@ -39,12 +40,17 @@ const CamForm = () => {
   } = form;
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const { itemId, count, code } = data;
-    await sendNotification({
+    const { opId, itemId, count, code } = data;
+    const quantity = Number(count);
+    const opIdNum = Number(opId);
+    const payload = {
       itemId,
-      count: Number(count),
-      code,
-    });
+      count: quantity,
+      quantity,
+      opId: opIdNum,
+      ...(code ? { code } : {}),
+    };
+    await sendNotification(payload);
   });
 
   return (
@@ -52,12 +58,27 @@ const CamForm = () => {
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <FormField
           control={form.control}
+          name="opId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>OP (ordem de produção)</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex.: 327140" inputMode="numeric" {...field} />
+              </FormControl>
+              <FormMessage>
+                {errors.opId && errors.opId.message}
+              </FormMessage>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="itemId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>ID</FormLabel>
+              <FormLabel>ID do item</FormLabel>
               <FormControl>
-                <Input placeholder="Insira o ID" {...field} />
+                <Input placeholder="Insira o ID do item" {...field} />
               </FormControl>
               <FormMessage>
                 {errors.itemId && errors.itemId.message}
@@ -87,7 +108,7 @@ const CamForm = () => {
               <FormControl>
                 <Input placeholder="Insira o código" {...field} />
               </FormControl>
-              <FormMessage>{errors.count && errors.count.message}</FormMessage>
+              <FormMessage>{errors.code && errors.code.message}</FormMessage>
             </FormItem>
           )}
         />

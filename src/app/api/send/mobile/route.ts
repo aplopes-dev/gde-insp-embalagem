@@ -1,10 +1,20 @@
 import { EVENTS_EXCHANGE, buildRoutingKey, publishDual } from '@/libs/rabbitmq';
 import { buildV2Envelope } from '@/libs/message-contract';
 import { NextResponse } from 'next/server';
+import { nestPublishMobile, useGdeApi } from '@/libs/gde-api';
 
 
 export async function POST(request: Request) {
   const data = await request.json();
+  if (useGdeApi()) {
+    try {
+      await nestPublishMobile(data as Record<string, unknown>);
+      return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
+    } catch (error) {
+      console.error(error);
+      return NextResponse.json({ error: 'GDE API indisponível' }, { status: 500 });
+    }
+  }
   const envelope = buildV2Envelope({
     type: "mobile_message",
     payload: data,

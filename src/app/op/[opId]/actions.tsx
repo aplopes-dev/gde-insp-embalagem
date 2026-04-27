@@ -26,7 +26,13 @@ import {
 } from "../../../types/op-box-inspection-dto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
-import { connectRabbitMQ } from "@/libs/rabbitmq";
+import {
+  COMMANDS_EXCHANGE,
+  buildRoutingKey,
+  publishDual,
+} from "@/libs/rabbitmq";
+import { buildV2Envelope } from "@/libs/message-contract";
+import { nestPublishCommand, useGdeApi } from "@/libs/gde-api";
 
 export async function syncAndGetOpToProduceById(id: string) {
   const externalOpRed = await getOpFromId(id);
@@ -356,18 +362,41 @@ export async function persistBoxStatusWithBlisters(
 
   await db.$transaction(queryCollection);
 
-  // Publica direto na fila RabbitMQ (evita fetch interno sem cookie → 401)
   if (userId) {
     try {
-      const payload = {
+      const payloadWithUserId = {
         boxId: opBoxId,
         blisters,
         userId,
       };
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(JSON.stringify(payload)), { persistent: true });
-    } catch (error) {
-      // Silenciosamente falha se não conseguir enviar para RabbitMQ
+      if (useGdeApi()) {
+        await nestPublishCommand(
+          [opBoxId, blisters, userId],
+          userId,
+        );
+      } else {
+        const envelope = buildV2Envelope({
+          type: "command",
+          payload: payloadWithUserId,
+          deviceId: String((payloadWithUserId as { device_id?: string }).device_id ?? ""),
+          opId: String((payloadWithUserId as { op_id?: string }).op_id ?? ""),
+          action: String(
+            (payloadWithUserId as { action?: string }).action ?? "START_INSPECTION",
+          ),
+          source: "next_server_action_persist_box",
+        });
+        await publishDual(
+          "fila_recebimento",
+          COMMANDS_EXCHANGE,
+          buildRoutingKey(
+            String((payloadWithUserId as { device_id?: string }).device_id ?? ""),
+            "command",
+          ),
+          envelope,
+        );
+      }
+    } catch {
+      /* falha silenciosa de mensageria */
     }
   }
 

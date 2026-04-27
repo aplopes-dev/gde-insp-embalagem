@@ -3,6 +3,7 @@ import { buildV2Envelope } from '@/libs/message-contract';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/libs/auth';
+import { nestPublishCommand, useGdeApi } from '@/libs/gde-api';
 
 
 export async function POST(request: Request) {
@@ -16,6 +17,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
     const userId = ( session.user as any ).id;
+
+    if (useGdeApi()) {
+      await nestPublishCommand(data, userId);
+      return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
+    }
 
     // Se o payload contém dados de blisters (array com boxId, blisters e userId)
     if (Array.isArray(data) && data.length >= 3) {

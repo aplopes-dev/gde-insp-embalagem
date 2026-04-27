@@ -149,3 +149,22 @@ model OpActivityLog {
   @@index([userId])
   @@index([createdAt])
 }
+
+/// Auditoria de mensagens Rabbit (Fase 5 — correlação message_id / op_id).
+model GdeMessageAudit {
+  id          String   @id @default(uuid())
+  messageId   String   @map("message_id")
+  opId        String?  @map("op_id")
+  deviceId    String?  @map("device_id")
+  direction   String
+  eventType   String   @map("event_type")
+  source      String?
+  payload     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([messageId])
+  @@index([opId])
+  @@index([deviceId])
+  @@index([createdAt])
+  @@map("gde_message_audit")
+}

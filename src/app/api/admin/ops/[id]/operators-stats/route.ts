@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { nestGetOperatorStats, useGdeApi } from "@/libs/gde-api";
 
 export async function GET(
   req: NextRequest,
@@ -20,10 +21,21 @@ export async function GET(
 
     const opId = parseInt(params.id);
 
-    // Obter URL search params para filtro de período
     const searchParams = req.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+
+    if (useGdeApi()) {
+      try {
+        const operatorArray = await nestGetOperatorStats(params.id, {
+          startDate: startDate ?? undefined,
+          endDate: endDate ?? undefined,
+        });
+        return NextResponse.json(operatorArray);
+      } catch {
+        return NextResponse.json({ error: "Erro ao buscar estatísticas" }, { status: 500 });
+      }
+    }
 
     // Construir filtro de data
     const dateFilter: any = {

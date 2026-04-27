@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { nestCreateOp, nestListOps, useGdeApi } from "@/libs/gde-api";
 
 function forbidden() {
   return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
@@ -13,6 +14,10 @@ export async function GET() {
   if (role !== "SUPERVISOR") return forbidden();
 
   try {
+    if (useGdeApi()) {
+      const ops = await nestListOps();
+      return Response.json(ops);
+    }
     const ops = await db.op.findMany({
       orderBy: { createdAt: "desc" },
     });
@@ -38,6 +43,19 @@ export async function POST(req: Request) {
         JSON.stringify({ error: "ID, código, quantidade, productTypeId, blisterTypeId e boxTypeId são obrigatórios" }),
         { status: 400 }
       );
+    }
+
+    if (useGdeApi()) {
+      const op = await nestCreateOp({
+        id,
+        code,
+        quantityToProduce,
+        status: status || "PENDING",
+        productTypeId,
+        blisterTypeId,
+        boxTypeId,
+      });
+      return Response.json(op);
     }
 
     const op = await db.op.create({

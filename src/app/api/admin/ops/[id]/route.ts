@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { nestDeleteOp, nestUpdateOp, useGdeApi } from "@/libs/gde-api";
 
 function forbidden() {
   return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
@@ -24,6 +25,11 @@ export async function PUT(
         JSON.stringify({ error: "Código e quantidade são obrigatórios" }),
         { status: 400 }
       );
+    }
+
+    if (useGdeApi()) {
+      const op = await nestUpdateOp(params.id, { code, quantityToProduce, status });
+      return Response.json(op);
     }
 
     const op = await db.op.update({
@@ -51,6 +57,10 @@ export async function DELETE(
 
   try {
     const id = parseInt(params.id);
+    if (useGdeApi()) {
+      await nestDeleteOp(params.id);
+      return Response.json({ ok: true });
+    }
     await db.op.delete({ where: { id } });
     return Response.json({ ok: true });
   } catch (error: any) {

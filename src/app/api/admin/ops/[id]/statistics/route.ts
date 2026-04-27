@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { nestGetStatistics, useGdeApi } from "@/libs/gde-api";
 
 export async function GET(
   req: NextRequest,
@@ -31,7 +32,15 @@ export async function GET(
 
     const opId = parseInt(params.id);
 
-    // Verificar se a OP existe
+    if (useGdeApi()) {
+      try {
+        const stats = await nestGetStatistics(params.id);
+        return NextResponse.json(stats);
+      } catch {
+        return NextResponse.json({ error: "OP não encontrada" }, { status: 404 });
+      }
+    }
+
     const op = await db.op.findUnique({
       where: { id: opId },
     });

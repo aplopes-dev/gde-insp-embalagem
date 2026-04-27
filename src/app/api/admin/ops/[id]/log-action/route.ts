@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { nestPostActivityLog, useGdeApi } from "@/libs/gde-api";
 
 export async function POST(
   req: NextRequest,
@@ -33,7 +34,6 @@ export async function POST(
 
     const { actionType, description, details, boxId, productId } = body;
 
-    // Validar campos obrigatórios
     if (!actionType || !description) {
       return NextResponse.json(
         { error: "actionType e description são obrigatórios" },
@@ -41,7 +41,21 @@ export async function POST(
       );
     }
 
-    // Verificar se a OP existe
+    if (useGdeApi()) {
+      try {
+        const activityLog = await nestPostActivityLog(
+          params.id,
+          { actionType, description, details, boxId, productId },
+          user.id,
+        );
+        return NextResponse.json(activityLog, { status: 201 });
+      } catch (e: any) {
+        const msg = e?.message || "Erro ao registrar ação";
+        const status = msg.includes("não encontrada") ? 404 : 400;
+        return NextResponse.json({ error: msg }, { status });
+      }
+    }
+
     const op = await db.op.findUnique({
       where: { id: opId },
     });
@@ -53,7 +67,6 @@ export async function POST(
       );
     }
 
-    // Criar log de atividade
     const activityLog = await db.opActivityLog.create({
       data: {
         opId,

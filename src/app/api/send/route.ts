@@ -1,60 +1,46 @@
-import { connectRabbitMQ } from '@/libs/rabbitmq';
+import { publishCommand, connectRabbitMQ } from '@/libs/rabbitmq';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/libs/auth';
-
+import { randomUUID } from 'crypto';
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    
-    // Obtém o userId da sessão
     const session = await getServerSession(authOptions);
-
     if (!session || !session.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
-    const userId = ( session.user as any ).id;
+    const userId = (session.user as any).id;
 
-    // Se o payload contém dados de blisters (array com boxId, blisters e userId)
-    if (Array.isArray(data) && data.length >= 3) {
-      // Formato: [boxId, blisters[], userId]
+    // Formato legado: array [boxId, blisters[], userId?]
+    if (Array.isArray(data)) {
       const [boxId, blisters, providedUserId] = data;
-      const payloadWithUserId = {
-        boxId: boxId,
-        blisters: blisters,
-        userId: providedUserId || userId
-      };
-      
-      const dataStr = JSON.stringify(payloadWithUserId);
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
-      return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
-    } else if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'string' && Array.isArray(data[1])) {
-      // Formato: [boxId, blisters[]] (fallback)
-      const payloadWithUserId = {
-        boxId: data[0],
-        blisters: data[1],
-        userId: userId
-      };
-      
-      const dataStr = JSON.stringify(payloadWithUserId);
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
-      return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
-    } else {
-      // Para outros tipos de mensagem, adiciona userId se não existir
-      const payloadWithUserId = {
-        ...data,
-        ...(userId && !data.userId ? { userId } : {})
-      };
-      
-      const dataStr = JSON.stringify(payloadWithUserId);
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(dataStr), { persistent: true });
+      const payload = { boxId, blisters, userId: providedUserId || userId };
+      const ch = await connectRabbitMQ();
+      ch.sendToQueue('fila_recebimento', Buffer.from(JSON.stringify(payload)), { persistent: true });
       return NextResponse.json({ message: 'Mensagem publicada com sucesso!' });
     }
-  } catch (error) {
-    return NextResponse.json({ error: 'Canal do RabbitMQ não está disponível' }, { status: 500 })
+
+    // Formato novo: { device_id, op_id, action, step, payload }
+    const { device_id, op_id, action, step, payload: cmdPayload } = data;
+    if (!device_id || !op_id) {
+      return NextResponse.json({ error: 'device_id e op_id são obrigatórios' }, { status: 400 });
+    }
+
+    const command = {
+      message_id: randomUUID(),
+      device_id,
+      op_id,
+      action: action ?? 'START_INSPECTION',
+      step:   step   ?? 'quantity',
+      payload: { ...cmdPayload, ...(userId && !cmdPayload?.userId ? { userId } : {}) },
+      timestamp: new Date().toISOString(),
+    };
+
+    await publishCommand(device_id, command);
+    return NextResponse.json({ message: 'Comando publicado!', message_id: command.message_id });
+  } catch {
+    return NextResponse.json({ error: 'RabbitMQ indisponível' }, { status: 500 });
   }
 }

@@ -13,7 +13,7 @@ import {
   sendMessageToRabbitMqMobile,
 } from "@/shared/services/rabbitmq";
 import { ObjectValidation, ValidableType } from "@/types/validation";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
@@ -59,7 +59,10 @@ export default function PackagingInspection({
   params: { opId: string };
 }) {
   const [loading, setLoading] = useState<boolean>(true);
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  // deviceId vem do ?deviceId= (página de seleção) ou do env build-time
+  const deviceId = searchParams.get("deviceId") ?? undefined;
 
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
@@ -91,6 +94,7 @@ export default function PackagingInspection({
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
 
   const { socket } = useSocketDetection({
+    deviceId,
     onDetectionUpdate: handleDetectionUpdate,
     onActionHandler: handleActionHandler,
   });

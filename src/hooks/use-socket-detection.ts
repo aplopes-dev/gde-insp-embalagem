@@ -2,11 +2,11 @@ import { DetectionDto, ActionDto, HeartbeatDto } from "@/types/dtos/socket-detec
 import { useEffect, useRef } from "react";
 import { getSocket } from "@/libs/socket";
 
-// Device_id ao qual esta instância do frontend está pareada.
-// Definido por NEXT_PUBLIC_DEVICE_ID no .env de cada servidor/workstation.
-const MY_DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID ?? '';
+// Build-time default; sobreposto por deviceId passado via prop (fluxo de seleção de óculos)
+const DEFAULT_DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID ?? "";
 
 interface UseSocketProps {
+  deviceId?: string; // override do NEXT_PUBLIC_DEVICE_ID quando vem do ?deviceId= na URL
   opId?: string;
   onDetectionUpdate?: (data: DetectionDto) => void;
   onActionHandler?: (data: ActionDto) => void;
@@ -14,17 +14,22 @@ interface UseSocketProps {
 }
 
 export function useSocketDetection({
+  deviceId: deviceIdProp,
   opId,
   onDetectionUpdate,
   onActionHandler,
   onHeartbeat,
 }: UseSocketProps) {
-  const opIdRef       = useRef(opId);
-  const detectionRef  = useRef(onDetectionUpdate);
-  const actionRef     = useRef(onActionHandler);
-  const heartbeatRef  = useRef(onHeartbeat);
+  const myDeviceId = deviceIdProp || DEFAULT_DEVICE_ID;
+
+  const opIdRef      = useRef(opId);
+  const deviceIdRef  = useRef(myDeviceId);
+  const detectionRef = useRef(onDetectionUpdate);
+  const actionRef    = useRef(onActionHandler);
+  const heartbeatRef = useRef(onHeartbeat);
 
   useEffect(() => { opIdRef.current      = opId;             }, [opId]);
+  useEffect(() => { deviceIdRef.current  = myDeviceId;       }, [myDeviceId]);
   useEffect(() => { detectionRef.current = onDetectionUpdate; }, [onDetectionUpdate]);
   useEffect(() => { actionRef.current    = onActionHandler;   }, [onActionHandler]);
   useEffect(() => { heartbeatRef.current = onHeartbeat;       }, [onHeartbeat]);
@@ -33,14 +38,15 @@ export function useSocketDetection({
     const socket = getSocket();
 
     const handleConnect = () => {
-      // Entra na room desta OP — 1ª camada: separa OPs diferentes
-      if (opIdRef.current) socket.emit("joinOp", { op_id: opIdRef.current });
+      // Inscreve no canal deste óculos — eventos chegam via room device:{device_id}
+      if (deviceIdRef.current) {
+        socket.emit("joinDevice", { device_id: deviceIdRef.current });
+      }
     };
 
     const handleDetection = (data: DetectionDto) => {
-      // 2ª camada: dentro da mesma OP, aceita só eventos do óculos pareado.
-      // Garante que 2 operadores na mesma OP não validem análise um do outro.
-      if (MY_DEVICE_ID && data.device_id !== MY_DEVICE_ID) return;
+      // Defesa extra: descarta eventos de outros óculos mesmo que o room não filtre
+      if (deviceIdRef.current && data.device_id !== deviceIdRef.current) return;
       detectionRef.current?.(data);
     };
 
@@ -48,20 +54,23 @@ export function useSocketDetection({
     const handleHeartbeat = (data: HeartbeatDto) => heartbeatRef.current?.(data);
 
     socket.on("connect", handleConnect);
-    if (socket.connected && opIdRef.current) {
-      socket.emit("joinOp", { op_id: opIdRef.current });
+    // Se já estava conectado quando o hook montou, inscreve imediatamente
+    if (socket.connected && deviceIdRef.current) {
+      socket.emit("joinDevice", { device_id: deviceIdRef.current });
     }
 
     socket.on("detectionUpdate", handleDetection);
-    socket.on("actionHandler", handleAction);
-    socket.on("heartbeat", handleHeartbeat);
+    socket.on("actionHandler",   handleAction);
+    socket.on("heartbeat",       handleHeartbeat);
 
     return () => {
-      if (opIdRef.current) socket.emit("leaveOp", { op_id: opIdRef.current });
-      socket.off("connect", handleConnect);
+      if (deviceIdRef.current) {
+        socket.emit("leaveDevice", { device_id: deviceIdRef.current });
+      }
+      socket.off("connect",         handleConnect);
       socket.off("detectionUpdate", handleDetection);
-      socket.off("actionHandler", handleAction);
-      socket.off("heartbeat", handleHeartbeat);
+      socket.off("actionHandler",   handleAction);
+      socket.off("heartbeat",       handleHeartbeat);
     };
   }, []);
 

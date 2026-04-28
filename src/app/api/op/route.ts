@@ -1,6 +1,8 @@
 import { getPaginatedOp } from "@/features/daily-op-list/actions";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -9,9 +11,9 @@ export async function GET(req: Request) {
     const field = url.searchParams.get("field") || "createdAt";
     const order = url.searchParams.get("order") || "desc";
 
-    const filters = url.searchParams.get("filters")
-      ? JSON.parse(url.searchParams.get("filters")!)
-      : {};
+    const rawFilters = url.searchParams.get("filters");
+    const parsedFilters = rawFilters ? JSON.parse(rawFilters) : [];
+    const filters = Array.isArray(parsedFilters) ? parsedFilters : [];
 
     const [data, count] = await getPaginatedOp({
       limit,

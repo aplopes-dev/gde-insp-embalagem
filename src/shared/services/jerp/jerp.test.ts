@@ -1,5 +1,10 @@
+jest.mock('@/app/op/[opId]/actions', () => ({
+  saveTagId: jest.fn(),
+}));
+
 import axios from 'axios';
 import { getOpFromCode, getOpFromId } from '.';
+
 const JERP_API = process.env.JERP_API;
 
 jest.mock('axios');

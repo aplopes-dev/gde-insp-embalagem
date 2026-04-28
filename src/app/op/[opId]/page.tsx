@@ -187,16 +187,20 @@ export default function PackagingInspection({
   }
 
   function handleDetectionUpdate(data: DetectionDto) {
+    const receivedCount = data.payload?.count;
+    const receivedItemId = data.payload?.item_id;
+    const receivedCode = data.payload?.code;
+
     sendSocketEvent("iaHandler", {
-      receivedCount: data.count,
-      receivedItemId: data.itemId,
+      receivedCount,
+      receivedItemId,
     });
 
-    if (data.itemId) {
+    if (receivedItemId) {
       setInspection({
-        itemId: data.itemId,
-        count: Number(data.count),
-        code: data.code,
+        itemId: receivedItemId,
+        count: Number(receivedCount),
+        code: receivedCode,
       });
     }
   }

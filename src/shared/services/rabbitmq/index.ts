@@ -13,12 +13,16 @@ export async function sendMessageToRabbitMq(message: any): Promise<void> {
 }
 
 
-export async function sendMessageToRabbitMqMobile(message: any): Promise<void> {
+export async function sendMessageToRabbitMqMobile(
+  message: any,
+  deviceId?: string
+): Promise<void> {
   try {
-    const response = await axios.post("/api/send/mobile", message, {
-      headers: { "Content-Type": "application/json" },
-    });
-
+    await axios.post(
+      "/api/send/mobile",
+      { ...message, ...(deviceId ? { device_id: deviceId } : {}) },
+      { headers: { "Content-Type": "application/json" } }
+    );
     console.log("RabbitMQ - Mobile", message);
   } catch (error) {
     console.error("Erro ao enviar mensagem ao RabbitMQ Mobile", error);

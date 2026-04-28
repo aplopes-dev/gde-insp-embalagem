@@ -373,10 +373,11 @@ export default function PackagingInspection({
     setDisplayColor(color);
     setDisplayMessage(`${message}`.toUpperCase());
 
-    sendMessageToRabbitMqMobile({
-      mensagem: `${message}`.toUpperCase(),
-      cor: mobileColorKeysMap.get(color),
-    });
+    // deviceId garante que a mensagem vai para a fila exclusiva deste óculos
+    sendMessageToRabbitMqMobile(
+      { mensagem: `${message}`.toUpperCase(), cor: mobileColorKeysMap.get(color) },
+      deviceId
+    );
   }
 
   function sendValidation(validation: {

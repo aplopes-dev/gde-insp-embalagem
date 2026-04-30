@@ -14,7 +14,7 @@ import {
 } from "@/shared/services/rabbitmq";
 import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
 import {
@@ -92,6 +92,9 @@ export default function PackagingInspection({
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
+  const pendingValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValidationKeyRef = useRef<string>("");
+  const lastValidationSentAtRef = useRef<number>(0);
 
   const { socket } = useSocketDetection({
     deviceId,
@@ -101,7 +104,13 @@ export default function PackagingInspection({
   const { sendSocketEvent } = useSocketEmmiter();
 
   function sendWithDelay(message: any, delay: number = 2000) {
-    setTimeout(() => sendMessageToRabbitMq(message), delay);
+    if (pendingValidationTimerRef.current) {
+      clearTimeout(pendingValidationTimerRef.current);
+    }
+    pendingValidationTimerRef.current = setTimeout(() => {
+      sendMessageToRabbitMq(message);
+      pendingValidationTimerRef.current = null;
+    }, delay);
   }
 
   const loadData = async () => {
@@ -163,6 +172,14 @@ export default function PackagingInspection({
   useEffect(() => {
     socket && loadData();
   }, [socket]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingValidationTimerRef.current) {
+        clearTimeout(pendingValidationTimerRef.current);
+      }
+    };
+  }, []);
 
   function mountInspecionState(
     boxData: OpBoxInspectionDto,
@@ -386,6 +403,18 @@ export default function PackagingInspection({
     fileName?: string;
     model?: string;
   }) {
+    const validationKey = JSON.stringify(validation);
+    const now = Date.now();
+    const sameValidation = validationKey === lastValidationKeyRef.current;
+    const recentlySent = now - lastValidationSentAtRef.current < 3500;
+
+    // Evita tempestade de comandos idênticos quando a inspeção permanece inválida.
+    if (sameValidation && recentlySent) {
+      return;
+    }
+    lastValidationKeyRef.current = validationKey;
+    lastValidationSentAtRef.current = now;
+
     console.log("-------------validation-------------");
     console.log(validation);
 

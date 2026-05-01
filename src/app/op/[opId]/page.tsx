@@ -844,7 +844,11 @@ export default function PackagingInspection({
         {data && (
           <PrintTagDialog
             onPrintSuccess={handlePrintSuccess}
-            printConfig={{ pdfBase64: pdfBase64, quantity: quantityToPrint }}
+            printConfig={{
+              pdfBase64: pdfBase64,
+              quantity: quantityToPrint,
+              barcode: barcodeToPrint,
+            }}
             isOpen={openPrintTagDialog}
             onOpenChange={setOpenPrintTagDialog}
           />

@@ -67,8 +67,13 @@ model OpBox {
   barCode            String?
   barCodeGeneratedAt DateTime?
   status             OpBoxStatus    @default(PENDING)
+  assignedDeviceId   String?
+  assignedAt         DateTime?
+  packedByUserId     String?
+  packedByDeviceId   String?
   breakAuthorizer    Manager?       @relation(fields: [breakAuthorizerId], references: [id])
   op                 Op             @relation(fields: [opId], references: [id], onDelete: Cascade)
+  packedByUser       User?          @relation("PackedByUser", fields: [packedByUserId], references: [id])
   OpBoxBlister       OpBoxBlister[]
 }
 
@@ -94,6 +99,17 @@ model Manager {
   OpBox     OpBox[]
 }
 
+model DeviceSession {
+  id          String    @id @default(cuid())
+  deviceId    String    @unique
+  userId      String
+  qrToken     String    @unique
+  qrExpiresAt DateTime
+  activatedAt DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+}
+
 enum OpStatus {
   PENDING
   COMPLETED
@@ -105,45 +121,45 @@ enum OpBoxStatus {
   PACKAGED_W_BREAK
 }
 
-
-model User {
-  id              String            @id @default(uuid())
-  name            String
-  email           String            @unique
-  password        String
-  role            UserRole          @default(OPERADOR)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  OpActivityLogs  OpActivityLog[]
-}
-
 enum UserRole {
   SUPERVISOR
   OPERADOR
 }
 
 enum ActivityActionType {
-  BOX_INSPECTION_APPROVED
-  BOX_INSPECTION_REJECTED
+  BOX_PACKED
+  BOX_BREAK_AUTHORIZED
   PRODUCT_CREATED
   PRODUCT_AUTHORIZED
-  STATUS_CHANGED
   OP_STARTED
   OP_COMPLETED
 }
 
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  password       String
+  role           UserRole        @default(OPERADOR)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  OpActivityLogs OpActivityLog[]
+  packedBoxes    OpBox[]         @relation("PackedByUser")
+  DeviceSessions DeviceSession[]
+}
+
 model OpActivityLog {
-  id          String              @id @default(uuid())
+  id          String             @id @default(uuid())
   opId        Int
   userId      String
-  user        User                @relation(fields: [userId], references: [id])
+  user        User               @relation(fields: [userId], references: [id])
   actionType  ActivityActionType
   description String
   details     Json?
   boxId       String?
   productId   Int?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([opId])
   @@index([userId])

@@ -4,6 +4,7 @@ import Header from "@/components/header";
 import DailyOpList from "@/features/daily-op-list";
 import OpLoadForm from "@/features/op-load-form";
 import RequireAuth from "@/components/require-auth";
+import { Suspense } from "react";
 
 export default function Home() {
   return (
@@ -14,9 +15,13 @@ export default function Home() {
           <h1 className="text-xl xl:text-4xl exl:text-8xl uppercase font-bold text-center">
             Insira o ID da OP
           </h1>
-          <OpLoadForm />
+          <Suspense fallback={<div className="text-center text-muted-foreground">A carregar…</div>}>
+            <OpLoadForm />
+          </Suspense>
         </div>
-        <DailyOpList />
+        <Suspense fallback={null}>
+          <DailyOpList />
+        </Suspense>
       </div>
     </RequireAuth>
   );

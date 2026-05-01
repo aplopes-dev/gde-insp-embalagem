@@ -52,6 +52,7 @@ const mobileColorKeysMap = new Map<string, number>([
 ]);
 
 import RequireAuth from "@/components/require-auth";
+import { withDeviceQuery } from "@/shared/utils/with-device-query";
 
 export default function PackagingInspection({
   params: { opId },
@@ -61,8 +62,10 @@ export default function PackagingInspection({
   const [loading, setLoading] = useState<boolean>(true);
   const router       = useRouter();
   const searchParams = useSearchParams();
-  // deviceId vem do ?deviceId= (página de seleção) ou do env build-time
-  const deviceId = searchParams.get("deviceId") ?? undefined;
+  // deviceId vem do ?deviceId= (página de seleção) com fallback para env build-time
+  const deviceIdFromQuery = searchParams.get("deviceId")?.trim();
+  const deviceIdFromEnv = process.env.NEXT_PUBLIC_DEVICE_ID?.trim();
+  const deviceId = deviceIdFromQuery || deviceIdFromEnv || undefined;
 
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
@@ -165,7 +168,7 @@ export default function PackagingInspection({
       const quantity: number = 1;
 
       setVisorMessage("AGUARDANDO CAIXA...", "blue");
-      sendValidation({ itemId, quantity, model });
+      sendValidation({ itemId, quantity, model }, { opId: opData.opId });
     }
   };
 
@@ -397,12 +400,15 @@ export default function PackagingInspection({
     );
   }
 
-  function sendValidation(validation: {
-    quantity?: number;
-    itemId?: string;
-    fileName?: string;
-    model?: string;
-  }) {
+  function sendValidation(
+    validation: {
+      quantity?: number;
+      itemId?: string;
+      fileName?: string;
+      model?: string;
+    },
+    opts?: { opId?: number | string }
+  ) {
     const validationKey = JSON.stringify(validation);
     const now = Date.now();
     const sameValidation = validationKey === lastValidationKeyRef.current;
@@ -422,9 +428,31 @@ export default function PackagingInspection({
       ...validation,
     });
 
+    const resolvedOpId = String(opts?.opId ?? data?.opId ?? opId).trim();
+    const payload: Record<string, unknown> = {};
+    if (validation.itemId != null) payload.itemId = validation.itemId;
+    if (validation.quantity != null) payload.quantity = validation.quantity;
+    if (validation.model != null) payload.model = validation.model;
+    if (validation.fileName != null) payload.fileName = validation.fileName;
+
+    if (!deviceId) {
+      console.error(
+        "sendValidation: falta deviceId na URL (?deviceId=…). Comando não enviado ao worker."
+      );
+      return;
+    }
+    if (!resolvedOpId) {
+      console.error("sendValidation: op_id inválido. Comando não enviado ao worker.");
+      return;
+    }
+
     sendWithDelay(
       {
-        ...validation,
+        device_id: deviceId,
+        op_id: resolvedOpId,
+        action: "START_INSPECTION",
+        step: "quantity",
+        payload,
       },
       3000
     );
@@ -611,7 +639,7 @@ export default function PackagingInspection({
   }
 
   function redirectAction(uri: string) {
-    router.push(`${uri}`);
+    router.push(withDeviceQuery(uri, deviceId));
   }
 
   function configLastBlisterQuantity(quantity: number, managerId: string) {
@@ -650,10 +678,13 @@ export default function PackagingInspection({
   }
 
   function handlePrintSuccess(idBarras: string) {
-    sendMessageToRabbitMqMobile({
-      mensagem: "CAIXA FINALIZADA COM SUCESSO!",
-      cor: 3,
-    });
+    sendMessageToRabbitMqMobile(
+      {
+        mensagem: "CAIXA FINALIZADA COM SUCESSO!",
+        cor: 3,
+      },
+      deviceId
+    );
 
     setTimeout(() => {
       redirectAction("/");

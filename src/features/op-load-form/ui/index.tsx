@@ -4,11 +4,17 @@ import DebouncedInput from "@/components/data-table-debounce-text-filter";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigatorOnLine } from "@/hooks/use-navigatior-online";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { withDeviceQuery } from "@/shared/utils/with-device-query";
 
 const OpLoadForm = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const deviceId =
+    searchParams.get("deviceId")?.trim() ||
+    process.env.NEXT_PUBLIC_DEVICE_ID?.trim() ||
+    undefined;
   const [opValue, setOpValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const isOnline = useNavigatorOnLine();
@@ -37,7 +43,7 @@ const OpLoadForm = () => {
 
       const reqData = await response.json();
       validateOpJerpToProduce(reqData);
-      redirectAction(`/op/${reqData.id}`);
+      redirectAction(withDeviceQuery(`/op/${reqData.id}`, deviceId));
       setIsLoading(false);
     } catch (error: any) {      
       toast({

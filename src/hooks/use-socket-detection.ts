@@ -22,57 +22,51 @@ export function useSocketDetection({
 }: UseSocketProps) {
   const myDeviceId = deviceIdProp || DEFAULT_DEVICE_ID;
 
-  const opIdRef      = useRef(opId);
-  const deviceIdRef  = useRef(myDeviceId);
   const detectionRef = useRef(onDetectionUpdate);
-  const actionRef    = useRef(onActionHandler);
+  const actionRef = useRef(onActionHandler);
   const heartbeatRef = useRef(onHeartbeat);
 
-  useEffect(() => { opIdRef.current      = opId;             }, [opId]);
-  useEffect(() => { deviceIdRef.current  = myDeviceId;       }, [myDeviceId]);
   useEffect(() => { detectionRef.current = onDetectionUpdate; }, [onDetectionUpdate]);
   useEffect(() => { actionRef.current    = onActionHandler;   }, [onActionHandler]);
   useEffect(() => { heartbeatRef.current = onHeartbeat;       }, [onHeartbeat]);
 
   useEffect(() => {
     const socket = getSocket();
+    const deviceId = myDeviceId;
 
     const handleConnect = () => {
-      // Inscreve no canal deste óculos — eventos chegam via room device:{device_id}
-      if (deviceIdRef.current) {
-        socket.emit("joinDevice", { device_id: deviceIdRef.current });
+      if (deviceId) {
+        socket.emit("joinDevice", { device_id: deviceId });
       }
     };
 
     const handleDetection = (data: DetectionDto) => {
-      // Defesa extra: descarta eventos de outros óculos mesmo que o room não filtre
-      if (deviceIdRef.current && data.device_id !== deviceIdRef.current) return;
+      if (deviceId && data.device_id !== deviceId) return;
       detectionRef.current?.(data);
     };
 
-    const handleAction    = (data: ActionDto)    => actionRef.current?.(data);
+    const handleAction = (data: ActionDto) => actionRef.current?.(data);
     const handleHeartbeat = (data: HeartbeatDto) => heartbeatRef.current?.(data);
 
     socket.on("connect", handleConnect);
-    // Se já estava conectado quando o hook montou, inscreve imediatamente
-    if (socket.connected && deviceIdRef.current) {
-      socket.emit("joinDevice", { device_id: deviceIdRef.current });
+    socket.on("detectionUpdate", handleDetection);
+    socket.on("actionHandler", handleAction);
+    socket.on("heartbeat", handleHeartbeat);
+
+    if (socket.connected && deviceId) {
+      socket.emit("joinDevice", { device_id: deviceId });
     }
 
-    socket.on("detectionUpdate", handleDetection);
-    socket.on("actionHandler",   handleAction);
-    socket.on("heartbeat",       handleHeartbeat);
-
     return () => {
-      if (deviceIdRef.current) {
-        socket.emit("leaveDevice", { device_id: deviceIdRef.current });
+      if (deviceId) {
+        socket.emit("leaveDevice", { device_id: deviceId });
       }
-      socket.off("connect",         handleConnect);
+      socket.off("connect", handleConnect);
       socket.off("detectionUpdate", handleDetection);
-      socket.off("actionHandler",   handleAction);
-      socket.off("heartbeat",       handleHeartbeat);
+      socket.off("actionHandler", handleAction);
+      socket.off("heartbeat", handleHeartbeat);
     };
-  }, []);
+  }, [myDeviceId]);
 
   return { socket: getSocket() };
 }

@@ -4,14 +4,21 @@ import { DataTableCommonActions } from "@/components/data-table/components/data-
 import { Badge } from "@/components/ui/badge";
 import { OpStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { withDeviceQuery } from "@/shared/utils/with-device-query";
 
 export function useBoxOpColumns(): { columns: any[] } {
   const resourcePath = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const deviceId =
+    searchParams.get("deviceId")?.trim() ||
+    process.env.NEXT_PUBLIC_DEVICE_ID?.trim() ||
+    undefined;
 
   function redirectAction(uri: string) {
-    router.push(`${resourcePath}${uri}`);
+    const path = `${resourcePath}${uri}`.replace(/\/{2,}/g, "/");
+    router.push(withDeviceQuery(path, deviceId));
   }
 
   function getOpBoxStatusBadge(status: OpStatus) {

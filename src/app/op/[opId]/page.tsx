@@ -41,6 +41,7 @@ import {
 // Types
 
 type DisplayColors = "blue" | "red" | "green" | "black" | "yellow";
+type OpMode = "loading" | "owner" | "monitor";
 
 // Maps
 const mobileColorKeysMap = new Map<string, number>([
@@ -53,6 +54,8 @@ const mobileColorKeysMap = new Map<string, number>([
 
 import RequireAuth from "@/components/require-auth";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
+import { useSession } from "next-auth/react";
+import { logActivity } from "@/lib/activity-logger";
 
 export default function PackagingInspection({
   params: { opId },
@@ -98,6 +101,13 @@ export default function PackagingInspection({
   const pendingValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastValidationKeyRef = useRef<string>("");
   const lastValidationSentAtRef = useRef<number>(0);
+
+  // ── Controle de modo (owner vs monitor) ──────────────────────────────────
+  const { data: authSession } = useSession();
+  const [opMode, setOpMode] = useState<OpMode>(() => (deviceId ? "loading" : "owner"));
+  const opModeRef = useRef<OpMode>(deviceId ? "loading" : "owner");
+  useEffect(() => { opModeRef.current = opMode; }, [opMode]);
+  const opStartedLoggedRef = useRef(false);
 
   const { socket } = useSocketDetection({
     deviceId,
@@ -173,8 +183,67 @@ export default function PackagingInspection({
   };
 
   useEffect(() => {
-    socket && loadData();
-  }, [socket]);
+    if (socket && opMode !== "loading") loadData();
+  }, [socket, opMode]);
+
+  // Registra OP_STARTED uma única vez quando o operador entra em modo owner
+  useEffect(() => {
+    if (opMode !== "owner" || opStartedLoggedRef.current || !data) return;
+    const userId = (authSession?.user as any)?.id as string | undefined;
+    if (!userId) return;
+    opStartedLoggedRef.current = true;
+    logActivity({ opId: data.opId, userId, actionType: "OP_STARTED", description: "OP iniciada" });
+  }, [opMode, data]);
+
+  // Verifica ownership da DeviceSession e define o modo de operação
+  useEffect(() => {
+    if (!deviceId) {
+      setOpMode("owner");
+      return;
+    }
+    if (!authSession) return;
+
+    const fromGui = searchParams.get("from_gui") === "1";
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/device/${deviceId}/session`);
+        const ds = res.ok ? await res.json() : null;
+
+        if (!ds) {
+          if (fromGui) {
+            // Flask GUI: criar sessão e ativar imediatamente sem QR
+            const createRes = await fetch(`/api/device/${deviceId}/session`, {
+              method: "POST",
+            });
+            if (createRes.ok) {
+              const { qrToken } = await createRes.json();
+              const activateRes = await fetch(
+                `/api/device/${deviceId}/session/activate`,
+                {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ qrToken }),
+                }
+              );
+              // 409 = já ativado (idempotente); 200 = ativado agora
+              if (activateRes.ok || activateRes.status === 409) {
+                setOpMode("owner");
+                return;
+              }
+            }
+          }
+          router.push(`/device/${deviceId}/select`);
+          return;
+        }
+
+        const currentUserId = (authSession.user as any)?.id;
+        setOpMode(ds.userId === currentUserId ? "owner" : "monitor");
+      } catch {
+        router.push(`/device/${deviceId}/select`);
+      }
+    })();
+  }, [deviceId, authSession]);
 
   useEffect(() => {
     return () => {
@@ -409,6 +478,9 @@ export default function PackagingInspection({
     },
     opts?: { opId?: number | string }
   ) {
+    // Em modo acompanhamento não envia comandos ao worker
+    if (opModeRef.current !== "owner") return;
+
     const validationKey = JSON.stringify(validation);
     const now = Date.now();
     const sameValidation = validationKey === lastValidationKeyRef.current;
@@ -538,7 +610,7 @@ export default function PackagingInspection({
 
   async function persistBoxInspection(currentBlisters: OpBoxBlisterInspection[]) {
     if (box) {
-      await persistBoxStatusWithBlisters(box.id, currentBlisters)
+      await persistBoxStatusWithBlisters(box.id, currentBlisters, data?.opId, deviceId)
         .then((result) => {
           setVisorMessage("Inspeção de caixa finalizada com sucesso!", "green");
           setTimeout(async () => {
@@ -552,7 +624,7 @@ export default function PackagingInspection({
   }
 
   const handleCheckOpCompletion = async () => {
-    const opCompletion = await opCompletionNowHandler(data!.opId);
+    const opCompletion = await opCompletionNowHandler(data!.opId, deviceId ?? undefined);
     if (opCompletion) {
       setVisorMessage("OP FINALIZADA COM SUCESSO!", "green");
     }
@@ -605,7 +677,7 @@ export default function PackagingInspection({
     if (box?.status != InspectionStatus.VALID || !issetPackedBlister) {
       setVisorMessage("Não há itens embalados", "red");
     } else {
-      await persistWithOpBreak(box, currentBlisters, data!.opId, managerId ?? null)
+      await persistWithOpBreak(box, currentBlisters, data!.opId, managerId ?? null, deviceId)
         .then((_) => {
           setVisorMessage("Caixa finalizada com sucesso!", "green");
           setTimeout(async () => {
@@ -689,6 +761,68 @@ export default function PackagingInspection({
     setTimeout(() => {
       redirectAction("/");
     }, 2000);
+  }
+
+  // ── Modo Acompanhamento ───────────────────────────────────────────────────
+  if (opMode === "monitor") {
+    return (
+      <RequireAuth>
+        <div className="h-screen w-full flex flex-col">
+          <Header />
+          <div className="bg-amber-100 dark:bg-amber-900/30 border-b border-amber-300 dark:border-amber-700 px-4 py-2 text-sm text-center font-medium text-amber-800 dark:text-amber-200">
+            Modo Acompanhamento — {deviceId}
+          </div>
+          {loading ? (
+            <div className="absolute w-full h-full flex justify-center items-center z-10">
+              <Loader2 className="h-24 w-24 animate-spin" />
+            </div>
+          ) : data ? (
+            <div className="flex-1 flex justify-center overflow-y-auto">
+              <div className="m-2 lg:m-4 xl:m-6 exl:m-10 w-full exl:w-[80%] flex flex-col">
+                <OpDisplay
+                  code={data.opCode}
+                  boxesCount={data.totalBoxes}
+                  boxesPacked={data.totalBoxes - data.pendingBoxes}
+                  itemsCount={data.quantityToProduce}
+                  itemsPacked={data.itemsPacked}
+                  displayMessage={displayMessage}
+                  displayColor={displayColor}
+                  statusMessage={getStatusName(data?.status) || ""}
+                  statusVariant={getStatusVariant(data?.status) || "default"}
+                  startDate={data?.createdAt || new Date()}
+                  endDate={data?.finishedAt}
+                />
+                {!data.finishedAt && data.nextBox && (
+                  <>
+                    <div className="mt-2">
+                      <h3 className="font-bold uppercase">Caixa</h3>
+                      <BoxDisplay
+                        name={data.boxType.name}
+                        isTarget={step === 0}
+                        description={data.boxType.description}
+                        status={box?.status}
+                      />
+                    </div>
+                    <div className="flex-1 overflow-auto mt-8">
+                      <BlisterDisplay
+                        blisterName={data.blisterType.code}
+                        itemName={data.productType.code}
+                        blisters={blisters}
+                        targetIndex={targetBlister}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-gray-500 dark:text-gray-400">Sem dados da OP</p>
+            </div>
+          )}
+        </div>
+      </RequireAuth>
+    );
   }
 
   return (

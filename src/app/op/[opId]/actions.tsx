@@ -317,17 +317,16 @@ async function fetchOpDetails(internalOp: Op) {
 
 export async function persistBoxStatusWithBlisters(
   opBoxId: string,
-  blisters: OpBoxBlisterInspection[]
+  blisters: OpBoxBlisterInspection[],
+  opId?: number,
+  deviceId?: string
 ) {
-  // Obtém o userId da sessão
   const session = await getServerSession(authOptions);
 
   if (!session || !session.user) {
-    return {
-      userId: null,
-    };
+    return { userId: null };
   }
-  const userId = ( session.user as any ).id;
+  const userId = (session.user as any).id as string;
 
   const queryCollection: any[] = blisters.map((bl) =>
     db.opBoxBlister.update({
@@ -335,10 +334,7 @@ export async function persistBoxStatusWithBlisters(
         packedAt: bl.packedAt?.toISOString(),
         code: bl.code,
       },
-      where: {
-        id: bl.id,
-        opBoxId,
-      },
+      where: { id: bl.id, opBoxId },
     })
   );
 
@@ -347,27 +343,46 @@ export async function persistBoxStatusWithBlisters(
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED,
+        packedByUserId: userId,
+        packedByDeviceId: deviceId ?? null,
+        // Libera o lock ao finalizar a caixa
+        assignedDeviceId: null,
+        assignedAt: null,
       },
-      where: {
-        id: opBoxId,
-      },
+      where: { id: opBoxId },
     })
   );
 
   await db.$transaction(queryCollection);
 
+  // Registra BOX_PACKED no activity log
+  if (opId) {
+    try {
+      await db.opActivityLog.create({
+        data: {
+          opId,
+          userId,
+          actionType: "BOX_PACKED",
+          description: `Caixa ${opBoxId} embalada`,
+          boxId: opBoxId,
+          details: deviceId ? { deviceId } : undefined,
+        },
+      });
+    } catch (logErr) {
+      console.error("[persistBoxStatusWithBlisters] Erro ao registrar log:", logErr);
+    }
+  }
+
   // Publica direto na fila RabbitMQ (evita fetch interno sem cookie → 401)
   if (userId) {
     try {
-      const payload = {
-        boxId: opBoxId,
-        blisters,
-        userId,
-      };
+      const payload = { boxId: opBoxId, blisters, userId };
       const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(JSON.stringify(payload)), { persistent: true });
-    } catch (error) {
-      // Silenciosamente falha se não conseguir enviar para RabbitMQ
+      channel.sendToQueue("fila_recebimento", Buffer.from(JSON.stringify(payload)), {
+        persistent: true,
+      });
+    } catch {
+      // Silenciosamente falha — não bloqueia o fluxo principal
     }
   }
 
@@ -378,7 +393,8 @@ export async function persistWithOpBreak(
   boxDto: OpBoxInspectionDto,
   blisters: OpBoxBlisterInspection[],
   opId: number,
-  authorizerUserId: string | null
+  authorizerUserId: string | null,
+  deviceId?: string
 ) {
   const { id } = boxDto;
   const blistersToRemove = blisters
@@ -411,15 +427,20 @@ export async function persistWithOpBreak(
     );
   }
 
+  const breakSession = await getServerSession(authOptions);
+  const operatorUserId = breakSession?.user ? (breakSession.user as any).id as string : null;
+
   queryCollection.push(
     db.opBox.update({
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED_W_BREAK,
+        packedByUserId: operatorUserId ?? undefined,
+        packedByDeviceId: deviceId ?? null,
+        assignedDeviceId: null,
+        assignedAt: null,
       },
-      where: {
-        id,
-      },
+      where: { id },
     })
   );
 
@@ -455,6 +476,24 @@ export async function persistWithOpBreak(
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
     }
 
+    // Registra BOX_PACKED para o operador que embalou (com quebra)
+    if (operatorUserId) {
+      try {
+        await db.opActivityLog.create({
+          data: {
+            opId,
+            userId: operatorUserId,
+            actionType: "BOX_PACKED",
+            description: `Caixa ${id} embalada com quebra`,
+            boxId: id,
+            details: deviceId ? { deviceId } : undefined,
+          },
+        });
+      } catch (logError) {
+        console.error("[persistWithOpBreak] Erro ao registrar BOX_PACKED:", logError);
+      }
+    }
+
     if (authorizerUserId) {
       try {
         const authorizer = await db.user.findUnique({
@@ -466,7 +505,7 @@ export async function persistWithOpBreak(
             data: {
               opId,
               userId: authorizerUserId,
-              actionType: "STATUS_CHANGED",
+              actionType: "BOX_BREAK_AUTHORIZED",
               description: `Quebra de caixa autorizada por ${authorizer.name} (${authorizer.email})`,
               boxId: id,
             },
@@ -682,7 +721,7 @@ export async function updateBlisterTypeParams(blisterTypeId: number, slots: numb
   });
 }
 
-export async function opCompletionNowHandler(opId: number) {
+export async function opCompletionNowHandler(opId: number, deviceId?: string) {
   const opWithBoxes = await db.op.findUnique({
     where: { id: opId },
     include: {
@@ -698,14 +737,30 @@ export async function opCompletionNowHandler(opId: number) {
 
     if (allBoxesCompleted) {
       const finishedNow = await db.op.update({
-        where: {
-          id: opId,
-        },
-        data: {
-          finishedAt: new Date(),
-          status: OpStatus.COMPLETED
-        },
+        where: { id: opId },
+        data: { finishedAt: new Date(), status: OpStatus.COMPLETED },
       });
+
+      // Registra OP_COMPLETED no activity log
+      try {
+        const completionSession = await getServerSession(authOptions);
+        const completionUserId = completionSession?.user
+          ? (completionSession.user as any).id as string
+          : null;
+        if (completionUserId) {
+          await db.opActivityLog.create({
+            data: {
+              opId,
+              userId: completionUserId,
+              actionType: "OP_COMPLETED",
+              description: "OP concluída",
+              details: deviceId ? { deviceId } : undefined,
+            },
+          });
+        }
+      } catch (logErr) {
+        console.error("[opCompletionNowHandler] Erro ao registrar log:", logErr);
+      }
 
       return !!finishedNow;
     }

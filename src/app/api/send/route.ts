@@ -3,6 +3,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/libs/auth';
 import { randomUUID } from 'crypto';
+import db from '@/providers/database';
+
+const LOCK_TIMEOUT_MS =
+  parseInt(process.env.OPBOX_LOCK_TIMEOUT_MINUTES ?? '10') * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +30,36 @@ export async function POST(request: Request) {
     const { device_id, op_id, action, step, payload: cmdPayload } = data;
     if (!device_id || !op_id) {
       return NextResponse.json({ error: 'device_id e op_id são obrigatórios' }, { status: 400 });
+    }
+
+    // Lock de OpBox — só verificado quando o caller envia opBoxId no payload
+    const opBoxId: string | undefined = cmdPayload?.opBoxId;
+    if (opBoxId) {
+      const opBox = await db.opBox.findUnique({
+        where: { id: opBoxId },
+        select: { id: true, assignedDeviceId: true, assignedAt: true, status: true },
+      });
+
+      if (!opBox) {
+        return NextResponse.json({ error: 'OpBox não encontrada' }, { status: 404 });
+      }
+
+      const lockExpired =
+        !opBox.assignedAt ||
+        Date.now() - opBox.assignedAt.getTime() > LOCK_TIMEOUT_MS;
+
+      if (opBox.assignedDeviceId && opBox.assignedDeviceId !== device_id && !lockExpired) {
+        return NextResponse.json(
+          { error: 'OpBox em uso por outro device', assignedDeviceId: opBox.assignedDeviceId },
+          { status: 409 }
+        );
+      }
+
+      // Atribuir (ou renovar) o lock
+      await db.opBox.update({
+        where: { id: opBoxId },
+        data: { assignedDeviceId: device_id, assignedAt: new Date() },
+      });
     }
 
     const command = {

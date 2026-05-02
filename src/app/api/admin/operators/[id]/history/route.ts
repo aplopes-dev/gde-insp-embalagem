@@ -37,7 +37,7 @@ export async function GET(
       where: {
         userId,
         actionType: {
-          in: ["BOX_INSPECTION_APPROVED", "BOX_INSPECTION_REJECTED"],
+          in: ["BOX_PACKED", "BOX_BREAK_AUTHORIZED"],
         },
       },
       include: {
@@ -93,10 +93,10 @@ export async function GET(
     const history = ops.map((op) => {
       const inspections = opMap.get(op.id)!.inspections;
       const approvalsCount = inspections.filter(
-        (i) => i.actionType === "BOX_INSPECTION_APPROVED"
+        (i) => i.actionType === "BOX_PACKED"
       ).length;
       const rejectionsCount = inspections.filter(
-        (i) => i.actionType === "BOX_INSPECTION_REJECTED"
+        (i) => i.actionType === "BOX_BREAK_AUTHORIZED"
       ).length;
 
       // Calcular tempo de inspeção
@@ -136,7 +136,7 @@ export async function GET(
         inspections: inspections.map((i) => ({
           id: i.id,
           boxId: i.boxId,
-          status: i.actionType === "BOX_INSPECTION_APPROVED" ? "APROVADA" : "REJEITADA",
+          status: i.actionType === "BOX_PACKED" ? "EMBALADA" : "EMBALADA_COM_QUEBRA",
           createdAt: i.createdAt,
         })),
       };
@@ -145,10 +145,10 @@ export async function GET(
     // Calcular estatísticas gerais
     const totalInspections = activityLogs.length;
     const totalApprovalsCount = activityLogs.filter(
-      (l) => l.actionType === "BOX_INSPECTION_APPROVED"
+      (l) => l.actionType === "BOX_PACKED"
     ).length;
     const totalRejectionsCount = activityLogs.filter(
-      (l) => l.actionType === "BOX_INSPECTION_REJECTED"
+      (l) => l.actionType === "BOX_BREAK_AUTHORIZED"
     ).length;
 
     return NextResponse.json({

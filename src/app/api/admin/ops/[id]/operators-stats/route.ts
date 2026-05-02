@@ -100,12 +100,12 @@ export async function GET(
 
         // Contar inspeções
         if (
-          log.actionType === "BOX_INSPECTION_APPROVED" ||
-          log.actionType === "BOX_INSPECTION_REJECTED"
+          log.actionType === "BOX_PACKED" ||
+          log.actionType === "BOX_BREAK_AUTHORIZED"
         ) {
           stats.totalInspections++;
 
-          if (log.actionType === "BOX_INSPECTION_APPROVED") {
+          if (log.actionType === "BOX_PACKED") {
             stats.approvalsCount++;
           } else {
             stats.rejectionsCount++;

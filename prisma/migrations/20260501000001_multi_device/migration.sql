@@ -15,20 +15,18 @@
 -- BOX_INSPECTION_APPROVED → BOX_PACKED
 --   Nunca foi gravado em produção. Apenas renomeia o rótulo.
 -- ---------------------------------------------------------------------
-ALTER TYPE "ActivityActionType" RENAME VALUE 'STATUS_CHANGED' TO 'BOX_BREAK_AUTHORIZED';
-ALTER TYPE "ActivityActionType" RENAME VALUE 'BOX_INSPECTION_APPROVED' TO 'BOX_PACKED';
-
 -- ---------------------------------------------------------------------
 -- 2. Remover BOX_INSPECTION_REJECTED do enum
 --
 -- PostgreSQL não suporta DROP VALUE — é necessário recriar o tipo.
--- Neste ponto todas as linhas já têm valores válidos no novo conjunto:
---   STATUS_CHANGED virou BOX_BREAK_AUTHORIZED no passo 1
---   BOX_INSPECTION_APPROVED virou BOX_PACKED no passo 1
---   BOX_INSPECTION_REJECTED nunca foi gravado
+-- Os RENAME VALUE também ficam dentro do BEGIN/COMMIT para que toda
+-- a alteração do enum seja atômica.
 -- O USING "actionType"::text::"ActivityActionType" é seguro.
 -- ---------------------------------------------------------------------
 BEGIN;
+
+ALTER TYPE "ActivityActionType" RENAME VALUE 'STATUS_CHANGED' TO 'BOX_BREAK_AUTHORIZED';
+ALTER TYPE "ActivityActionType" RENAME VALUE 'BOX_INSPECTION_APPROVED' TO 'BOX_PACKED';
 
 CREATE TYPE "ActivityActionType_new" AS ENUM (
   'BOX_PACKED',

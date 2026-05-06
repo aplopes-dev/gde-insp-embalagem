@@ -5,10 +5,12 @@ import db from "@/providers/database";
 import { garbageCollectExpiredLocksAndSessions } from "@/lib/multi-device-gc";
 
 function getConfiguredDevices(): string[] {
-  return (process.env.REALWEAR_DEVICES ?? "")
-    .split(",")
-    .map((d) => d.trim())
-    .filter(Boolean);
+  const csv =
+    process.env.REALWEAR_DEVICES ||
+    process.env.GUI_DEVICES ||
+    process.env.NEXT_PUBLIC_DEVICE_ID ||
+    "";
+  return csv.split(",").map((d) => d.trim()).filter(Boolean);
 }
 
 function unauthorized() {

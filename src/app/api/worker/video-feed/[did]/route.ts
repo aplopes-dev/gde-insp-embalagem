@@ -9,6 +9,59 @@ function unauthorized() {
   return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 }
 
+function parseWorkerDeviceMap(): Record<string, string> {
+  const raw = (process.env.WORKER_DEVICE_MAP ?? "").trim();
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof k === "string" && typeof v === "string" && v.trim() !== "") {
+        out[k] = v;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function parseHostPort(rawUrl: string): { host: string; port: string } | null {
+  try {
+    const parsed = new URL(rawUrl);
+    const host =
+      parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost"
+        ? "host.docker.internal"
+        : parsed.hostname;
+    const port = parsed.port || "5000";
+    return { host, port };
+  } catch {
+    return null;
+  }
+}
+
+function resolveWorkerEndpoint(deviceId: string): { host: string; port: string } {
+  const fromMap = parseWorkerDeviceMap()[deviceId];
+  if (fromMap) {
+    const hp = parseHostPort(fromMap);
+    if (hp) return hp;
+  }
+
+  const explicitHost = (process.env.WORKER_EXTERNAL_URL ?? "").trim();
+  const explicitPort = (process.env.WORKER_EXTERNAL_PORT ?? "").trim();
+  if (explicitHost) return { host: explicitHost, port: explicitPort || "5000" };
+
+  const guiUrl = (process.env.WORKER_GUI_URL ?? "").trim();
+  if (guiUrl) {
+    const hp = parseHostPort(guiUrl);
+    if (hp) return hp;
+  }
+
+  // Fallback padrão para worker no host (compose já injeta host.docker.internal)
+  return { host: "host.docker.internal", port: "5000" };
+}
+
 // GET — proxia o stream MJPEG do worker Flask para o browser
 // Evita expor o worker diretamente; exige NextAuth
 export async function GET(
@@ -18,17 +71,8 @@ export async function GET(
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
 
-  const workerUrl = process.env.WORKER_EXTERNAL_URL;
-  const workerPort = process.env.WORKER_EXTERNAL_PORT ?? "5010";
-
-  if (!workerUrl) {
-    return NextResponse.json(
-      { error: "WORKER_EXTERNAL_URL não configurado" },
-      { status: 503 }
-    );
-  }
-
-  const upstreamUrl = `http://${workerUrl}:${workerPort}/video_feed/${params.did}`;
+  const { host, port } = resolveWorkerEndpoint(params.did);
+  const upstreamUrl = `http://${host}:${port}/video_feed/${params.did}`;
 
   // Propaga o abort do cliente para o fetch upstream
   const abort = new AbortController();

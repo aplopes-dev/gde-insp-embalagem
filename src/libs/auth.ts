@@ -1,7 +1,11 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { verifyPasswordWithJerp, fetchUserFromJerp, mapJerpRoleToSystemRole } from "@/services/jerp-auth";
+import {
+  DEV_BYPASS_EMAIL_SET,
+} from "@/libs/auth-dev-bypass";
+import { isSamePass } from "@/libs/bcrypt";
 import db from "@/providers/database";
+import { verifyPasswordWithJerp, fetchUserFromJerp, mapJerpRoleToSystemRole } from "@/services/jerp-auth";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -19,6 +23,31 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
+          const emailNorm = credentials.email.trim().toLowerCase();
+          if (
+            process.env.AUTH_DEV_BYPASS === "true" &&
+            DEV_BYPASS_EMAIL_SET.has(emailNorm)
+          ) {
+            const user = await db.user.findUnique({
+              where: { email: emailNorm },
+            });
+            if (user?.password) {
+              const ok = await isSamePass(
+                credentials.password,
+                user.password
+              );
+              if (ok) {
+                return {
+                  id: user.id,
+                  name: user.name,
+                  email: user.email,
+                  role: user.role,
+                } as any;
+              }
+            }
+            return null;
+          }
+
           // Passo 1: Buscar usuário no JERP
           const jerpUser = await fetchUserFromJerp(credentials.email);
           if (!jerpUser) {

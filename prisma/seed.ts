@@ -1,5 +1,9 @@
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcrypt'
+import {
+  DEV_BYPASS_PASSWORD_PLAINTEXT,
+  DEV_BYPASS_USER_SEEDS,
+} from "../src/libs/auth-dev-bypass";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
 const prisma = new PrismaClient()
 async function main() {
 
@@ -126,17 +130,39 @@ async function main() {
       name: "Danillo",
       email: adminEmail,
       role: "SUPERVISOR",
-      password: bcrypt.hashSync("Abc123!", 10)
-    }
-  })
+      password: bcrypt.hashSync("Abc123!", 10),
+    },
+  });
+
+  const bypassPasswordHash = bcrypt.hashSync(
+    DEV_BYPASS_PASSWORD_PLAINTEXT,
+    10
+  );
+  const bypassUsersSeed$$ = DEV_BYPASS_USER_SEEDS.map((u) =>
+    prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        name: u.name,
+        role: u.role,
+        password: bypassPasswordHash,
+      },
+      create: {
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        password: bypassPasswordHash,
+      },
+    })
+  );
 
   await prisma.$transaction([
     boxTypesSeed$,
     blisterTypesSeed$,
     productTypesSeed$,
     managerSeed$,
-    userSeed$
-  ])
+    userSeed$,
+    ...bypassUsersSeed$$,
+  ]);
 
 }
 main()

@@ -19,7 +19,8 @@ interface UserInfo {
 function LoginContent() {
   const router = useRouter();
   const search = useSearchParams();
-  const callbackUrl = search.get("callbackUrl") || "/";
+  const callbackUrl = search.get("callbackUrl") || "/dashboard";
+  const targetAfterLogin = callbackUrl === "/" ? "/dashboard" : callbackUrl;
 
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
@@ -50,7 +51,14 @@ function LoginContent() {
       });
 
       if (response.status === 404) {
-        setError("E-mail não encontrado no JERP");
+        try {
+          const errorData = await response.json();
+          setError(
+            errorData.error || "E-mail não encontrado no JERP"
+          );
+        } catch {
+          setError("E-mail não encontrado no JERP");
+        }
         setLoading(false);
         return;
       }
@@ -93,7 +101,7 @@ function LoginContent() {
       });
 
       if (res?.ok) {
-        router.push(callbackUrl);
+        router.push(targetAfterLogin);
       } else {
         setError("Senha incorreta. Tente novamente.");
         setPassword("");

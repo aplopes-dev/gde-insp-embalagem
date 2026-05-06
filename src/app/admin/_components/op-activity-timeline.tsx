@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CheckCircle2,
-  XCircle,
   Plus,
   Clock,
   AlertCircle,
@@ -35,15 +34,16 @@ interface OpActivityTimelineProps {
 export function OpActivityTimeline({ activities }: OpActivityTimelineProps) {
   const getActionIcon = (actionType: string) => {
     switch (actionType) {
-      case "BOX_INSPECTION_APPROVED":
+      case "BOX_PACKED":
         return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case "BOX_INSPECTION_REJECTED":
-        return <XCircle className="w-5 h-5 text-red-500" />;
+      case "BOX_BREAK_AUTHORIZED":
+        return <Clock className="w-5 h-5 text-amber-600" />;
       case "PRODUCT_CREATED":
         return <Plus className="w-5 h-5 text-blue-500" />;
       case "PRODUCT_AUTHORIZED":
         return <CheckCircle2 className="w-5 h-5 text-blue-500" />;
-      case "STATUS_CHANGED":
+      case "OP_STARTED":
+      case "OP_COMPLETED":
         return <Clock className="w-5 h-5 text-yellow-500" />;
       default:
         return <AlertCircle className="w-5 h-5 text-gray-500" />;
@@ -52,16 +52,14 @@ export function OpActivityTimeline({ activities }: OpActivityTimelineProps) {
 
   const getActionLabel = (actionType: string) => {
     switch (actionType) {
-      case "BOX_INSPECTION_APPROVED":
-        return "Inspeção Aprovada";
-      case "BOX_INSPECTION_REJECTED":
-        return "Inspeção Rejeitada";
+      case "BOX_PACKED":
+        return "Caixa embalada";
+      case "BOX_BREAK_AUTHORIZED":
+        return "Quebra autorizada";
       case "PRODUCT_CREATED":
         return "Peça Criada";
       case "PRODUCT_AUTHORIZED":
         return "Peça Autorizada";
-      case "STATUS_CHANGED":
-        return "Status Alterado";
       case "OP_STARTED":
         return "OP Iniciada";
       case "OP_COMPLETED":
@@ -73,14 +71,15 @@ export function OpActivityTimeline({ activities }: OpActivityTimelineProps) {
 
   const getActionColor = (actionType: string) => {
     switch (actionType) {
-      case "BOX_INSPECTION_APPROVED":
+      case "BOX_PACKED":
         return "bg-green-50 border-green-200";
-      case "BOX_INSPECTION_REJECTED":
-        return "bg-red-50 border-red-200";
+      case "BOX_BREAK_AUTHORIZED":
+        return "bg-amber-50 border-amber-200";
       case "PRODUCT_CREATED":
       case "PRODUCT_AUTHORIZED":
         return "bg-blue-50 border-blue-200";
-      case "STATUS_CHANGED":
+      case "OP_STARTED":
+      case "OP_COMPLETED":
         return "bg-yellow-50 border-yellow-200";
       default:
         return "bg-gray-50 border-gray-200";

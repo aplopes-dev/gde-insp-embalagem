@@ -90,17 +90,14 @@ export function OpActivityFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="BOX_INSPECTION_APPROVED">
-                Inspeção Aprovada
-              </SelectItem>
-              <SelectItem value="BOX_INSPECTION_REJECTED">
-                Inspeção Rejeitada
+              <SelectItem value="BOX_PACKED">Caixa embalada</SelectItem>
+              <SelectItem value="BOX_BREAK_AUTHORIZED">
+                Quebra autorizada
               </SelectItem>
               <SelectItem value="PRODUCT_CREATED">Peça Criada</SelectItem>
               <SelectItem value="PRODUCT_AUTHORIZED">
                 Peça Autorizada
               </SelectItem>
-              <SelectItem value="STATUS_CHANGED">Status Alterado</SelectItem>
               <SelectItem value="OP_STARTED">OP Iniciada</SelectItem>
               <SelectItem value="OP_COMPLETED">OP Concluída</SelectItem>
             </SelectContent>

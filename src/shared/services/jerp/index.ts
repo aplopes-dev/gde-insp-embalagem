@@ -8,19 +8,26 @@ import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import axios from "axios";
 import { Either, makeLeft, makeRight } from '@/shared/utils/either';
 
-const JERP_API = process.env.JERP_API;
-const JERP_TOKEN = process.env.JERP_TOKEN;
+function readJerpEnv(): { api: string; token: string } | undefined {
+  const api = process.env.JERP_API;
+  const token = process.env.JERP_TOKEN;
+  if (!api || !token) return undefined;
+  return { api, token };
+}
 
-if (!JERP_API || !JERP_TOKEN) {
-  const errorMessage = "As variáveis de ambiente JERP_API e JERP_TOKEN são obrigatórias.";
-  logger.error({ message: errorMessage });
-  throw new Error(errorMessage);
+function missingJerpEnvError(): ApiResponseError {
+  const message =
+    "As variáveis de ambiente JERP_API e JERP_TOKEN são obrigatórias.";
+  logger.error({ message });
+  return { status: 503, error: message };
 }
 
 export async function getOpFromCode(code: string): Promise<Either<ApiResponseError, OpJerpDto>> {
+  const env = readJerpEnv();
+  if (!env) return makeLeft(missingJerpEnvError());
   try {
-    const response = await axios.get(`${JERP_API}/ordemproducao/${code}`, {
-      headers: getJerpHeaders(),
+    const response = await axios.get(`${env.api}/ordemproducao/${code}`, {
+      headers: getJerpHeaders(env.token),
     });
     return makeRight(response.data);
   } catch (error) {
@@ -29,9 +36,11 @@ export async function getOpFromCode(code: string): Promise<Either<ApiResponseErr
 }
 
 export async function getOpFromId(id: string): Promise<Either<ApiResponseError, OpJerpDto>> {
+  const env = readJerpEnv();
+  if (!env) return makeLeft(missingJerpEnvError());
   try {
-    const response = await axios.get(`${JERP_API}/ordemproducaoid/${id}`, {
-      headers: getJerpHeaders(),
+    const response = await axios.get(`${env.api}/ordemproducaoid/${id}`, {
+      headers: getJerpHeaders(env.token),
     });
     return makeRight(response.data);
   } catch (error) {
@@ -43,13 +52,16 @@ export async function generateBarcode(id: number, opBoxId: string, quantity: num
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
+  const env = readJerpEnv();
+  if (!env) return makeLeft(missingJerpEnvError());
+
   try {
     const payload = { id, quantidadeApontada: quantity, userName: userName };
 
     const response = await axios.post(
-      `${JERP_API}/ordemproducao`,
+      `${env.api}/ordemproducao`,
       payload,
-      { headers: getJerpHeaders() }
+      { headers: getJerpHeaders(env.token) }
     );
 
     await saveTagId(opBoxId, `${response.data.idBarras}`);
@@ -59,9 +71,9 @@ export async function generateBarcode(id: number, opBoxId: string, quantity: num
   }
 }
 
-function getJerpHeaders() {
+function getJerpHeaders(token: string) {
   return {
-    authorization: `Bearer ${JERP_TOKEN}`,
+    authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 }

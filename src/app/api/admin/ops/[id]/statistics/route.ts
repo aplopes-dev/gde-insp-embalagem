@@ -3,6 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
 
+/** Alinhado a `UserRole` no schema Prisma — tipo explícito para callbacks `.filter` / `.map`. */
+type StatisticsUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: "SUPERVISOR" | "OPERADOR";
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -43,19 +51,17 @@ export async function GET(
       );
     }
 
-    // Contar inspeções aprovadas
     const approvalsCount = await db.opActivityLog.count({
       where: {
         opId,
-        actionType: "BOX_INSPECTION_APPROVED",
+        actionType: "BOX_PACKED",
       },
     });
 
-    // Contar inspeções rejeitadas
     const rejectionsCount = await db.opActivityLog.count({
       where: {
         opId,
-        actionType: "BOX_INSPECTION_REJECTED",
+        actionType: "BOX_BREAK_AUTHORIZED",
       },
     });
 
@@ -75,9 +81,11 @@ export async function GET(
     });
 
     // Recuperar informações dos usuários
-    const userDetails = await db.user.findMany({
+    const userDetails: StatisticsUserRow[] = await db.user.findMany({
       where: {
-        id: { in: uniqueUsers.map((u) => u.userId) },
+        id: {
+          in: uniqueUsers.map((row: { userId: string }) => row.userId),
+        },
       },
       select: {
         id: true,
@@ -87,8 +95,10 @@ export async function GET(
       },
     });
 
-    const supervisors = userDetails.filter((u) => u.role === "SUPERVISOR");
-    const operators = userDetails.filter((u) => u.role === "OPERADOR");
+    const supervisors = userDetails.filter(
+      (row) => row.role === "SUPERVISOR"
+    );
+    const operators = userDetails.filter((row) => row.role === "OPERADOR");
 
     // Calcular taxa de aprovação
     const totalInspections = approvalsCount + rejectionsCount;
@@ -102,7 +112,7 @@ export async function GET(
       where: {
         opId,
         actionType: {
-          in: ["BOX_INSPECTION_APPROVED", "BOX_INSPECTION_REJECTED"],
+          in: ["BOX_PACKED", "BOX_BREAK_AUTHORIZED"],
         },
       },
       select: { createdAt: true },

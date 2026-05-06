@@ -315,6 +315,50 @@ async function fetchOpDetails(internalOp: Op) {
   } as OpInspectionDto;
 }
 
+export type LockCurrentBoxResult =
+  | null
+  | { conflict: true; currentDeviceId: string }
+  | { boxId: string };
+
+/** Atribui lock da próxima caixa pendente ao device (alinhado com fetchOpDetails: orderBy id asc). */
+export async function lockCurrentBoxForDevice(
+  opId: number,
+  deviceId: string
+): Promise<LockCurrentBoxResult> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return null;
+
+  const lockTimeoutMs =
+    parseInt(process.env.OPBOX_LOCK_TIMEOUT_MINUTES ?? "10", 10) * 60 * 1000;
+
+  const nextBox = await db.opBox.findFirst({
+    where: { opId, packedAt: null },
+    orderBy: { id: "asc" },
+    select: { id: true, assignedDeviceId: true, assignedAt: true },
+  });
+
+  if (!nextBox) return null;
+
+  const lockExpired =
+    !nextBox.assignedAt ||
+    Date.now() - nextBox.assignedAt.getTime() > lockTimeoutMs;
+
+  if (
+    nextBox.assignedDeviceId &&
+    nextBox.assignedDeviceId !== deviceId &&
+    !lockExpired
+  ) {
+    return { conflict: true, currentDeviceId: nextBox.assignedDeviceId };
+  }
+
+  await db.opBox.update({
+    where: { id: nextBox.id },
+    data: { assignedDeviceId: deviceId, assignedAt: new Date() },
+  });
+
+  return { boxId: nextBox.id };
+}
+
 export async function persistBoxStatusWithBlisters(
   opBoxId: string,
   blisters: OpBoxBlisterInspection[],

@@ -1,6 +1,5 @@
 "use client";
 
-// Requer: npm install react-qr-code
 import QRCode from "react-qr-code";
 
 import { useCallback, useEffect, useState } from "react";
@@ -56,7 +55,7 @@ export default function SelectClient({ deviceId, qrToken, qrExpiresAt }: Props) 
         const data = await res.json();
         if (data?.activatedAt) {
           clearInterval(t);
-          router.push("/");
+          router.push(`/?deviceId=${encodeURIComponent(deviceId)}`);
         }
       } catch {
         // ignora erros de rede — próxima iteração tenta novamente

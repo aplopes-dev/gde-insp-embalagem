@@ -318,7 +318,9 @@ export default function DashboardClient({ currentUserId, currentUserRole }: Prop
 
                       {(status === "EM_OPERACAO" || status === "OFFLINE") && (
                         <>
-                          {d.currentOpId ? (
+                          {d.currentOpId &&
+                          (currentUserRole === "SUPERVISOR" ||
+                            d.session?.user.id === currentUserId) ? (
                             <Link
                               href={`/op/${d.currentOpId}?deviceId=${d.deviceId}`}
                               className="flex-1"

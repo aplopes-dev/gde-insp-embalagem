@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { garbageCollectExpiredLocksAndSessions } from "@/lib/multi-device-gc";
 import { randomUUID } from "crypto";
 
 const QR_TTL_SECONDS = parseInt(process.env.DEVICE_SESSION_QR_TTL_SECONDS ?? "60");
@@ -27,6 +28,8 @@ export async function GET(
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
+
+  await garbageCollectExpiredLocksAndSessions();
 
   const deviceSession = await db.deviceSession.findUnique({
     where: { deviceId: params.did },

@@ -32,6 +32,7 @@ import {
   OpInspectionDto,
 } from "../../../types/op-box-inspection-dto";
 import {
+  lockCurrentBoxForDevice,
   opCompletionNowHandler,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
@@ -56,6 +57,7 @@ import RequireAuth from "@/components/require-auth";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
 import { useSession } from "next-auth/react";
 import { logActivity } from "@/lib/activity-logger";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function PackagingInspection({
   params: { opId },
@@ -69,6 +71,7 @@ export default function PackagingInspection({
   const deviceIdFromQuery = searchParams.get("deviceId")?.trim();
   const deviceIdFromEnv = process.env.NEXT_PUBLIC_DEVICE_ID?.trim();
   const deviceId = deviceIdFromQuery || deviceIdFromEnv || undefined;
+  const fromGuiParam = searchParams.get("from_gui") === "1";
 
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
@@ -104,10 +107,16 @@ export default function PackagingInspection({
 
   // ── Controle de modo (owner vs monitor) ──────────────────────────────────
   const { data: authSession } = useSession();
+  const { toast } = useToast();
+  const sessionUser =
+    (authSession as any)?.user ?? (authSession as any)?.session?.user ?? null;
+  const currentUserId = sessionUser?.id as string | undefined;
+
   const [opMode, setOpMode] = useState<OpMode>(() => (deviceId ? "loading" : "owner"));
   const opModeRef = useRef<OpMode>(deviceId ? "loading" : "owner");
   useEffect(() => { opModeRef.current = opMode; }, [opMode]);
   const opStartedLoggedRef = useRef(false);
+  const lastLockedBoxIdRef = useRef<string | null>(null);
 
   const { socket } = useSocketDetection({
     deviceId,
@@ -121,8 +130,29 @@ export default function PackagingInspection({
       clearTimeout(pendingValidationTimerRef.current);
     }
     pendingValidationTimerRef.current = setTimeout(() => {
-      sendMessageToRabbitMq(message);
-      pendingValidationTimerRef.current = null;
+      void (async () => {
+        try {
+          await sendMessageToRabbitMq(message);
+        } catch (e: any) {
+          const status = e?.status as number | undefined;
+          if (status === 409) {
+            toast({
+              variant: "destructive",
+              title: "Caixa em uso",
+              description:
+                "Esta caixa está em uso por outro device — recarregue para sincronizar.",
+            });
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Falha ao enviar comando",
+              description: e?.message ?? "Erro desconhecido",
+            });
+          }
+        } finally {
+          pendingValidationTimerRef.current = null;
+        }
+      })();
     }, delay);
   }
 
@@ -189,11 +219,15 @@ export default function PackagingInspection({
   // Registra OP_STARTED uma única vez quando o operador entra em modo owner
   useEffect(() => {
     if (opMode !== "owner" || opStartedLoggedRef.current || !data) return;
-    const userId = (authSession?.user as any)?.id as string | undefined;
-    if (!userId) return;
+    if (!currentUserId) return;
     opStartedLoggedRef.current = true;
-    logActivity({ opId: data.opId, userId, actionType: "OP_STARTED", description: "OP iniciada" });
-  }, [opMode, data]);
+    logActivity({
+      opId: data.opId,
+      userId: currentUserId,
+      actionType: "OP_STARTED",
+      description: "OP iniciada",
+    });
+  }, [opMode, data, currentUserId]);
 
   // Verifica ownership da DeviceSession e define o modo de operação
   useEffect(() => {
@@ -201,9 +235,7 @@ export default function PackagingInspection({
       setOpMode("owner");
       return;
     }
-    if (!authSession) return;
-
-    const fromGui = searchParams.get("from_gui") === "1";
+    if (!currentUserId) return;
 
     (async () => {
       try {
@@ -211,7 +243,7 @@ export default function PackagingInspection({
         const ds = res.ok ? await res.json() : null;
 
         if (!ds) {
-          if (fromGui) {
+          if (fromGuiParam) {
             // Flask GUI: criar sessão e ativar imediatamente sem QR
             const createRes = await fetch(`/api/device/${deviceId}/session`, {
               method: "POST",
@@ -237,13 +269,46 @@ export default function PackagingInspection({
           return;
         }
 
-        const currentUserId = (authSession.user as any)?.id;
         setOpMode(ds.userId === currentUserId ? "owner" : "monitor");
       } catch {
         router.push(`/device/${deviceId}/select`);
       }
     })();
-  }, [deviceId, authSession]);
+  }, [deviceId, currentUserId, router, fromGuiParam]);
+
+  // Lock da próxima OpBox pendente para o device (permite currentOpId no dashboard)
+  useEffect(() => {
+    if (opMode !== "owner" || !deviceId || !data?.opId || !data?.nextBox?.id) {
+      return;
+    }
+    const targetBoxId = data.nextBox.id;
+    if (lastLockedBoxIdRef.current === targetBoxId) return;
+
+    let cancelled = false;
+    void (async () => {
+      const result = await lockCurrentBoxForDevice(data.opId, deviceId);
+      if (cancelled) return;
+      if (result === null) {
+        lastLockedBoxIdRef.current = null;
+        return;
+      }
+      if ("conflict" in result && result.conflict) {
+        toast({
+          variant: "destructive",
+          title: "Caixa bloqueada",
+          description: `Em uso por ${result.currentDeviceId}. Recarregue para sincronizar.`,
+        });
+        return;
+      }
+      if ("boxId" in result) {
+        lastLockedBoxIdRef.current = result.boxId;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [opMode, deviceId, data?.opId, data?.nextBox?.id, toast]);
 
   useEffect(() => {
     return () => {
@@ -463,10 +528,12 @@ export default function PackagingInspection({
     setDisplayMessage(`${message}`.toUpperCase());
 
     // deviceId garante que a mensagem vai para a fila exclusiva deste óculos
-    sendMessageToRabbitMqMobile(
+    void sendMessageToRabbitMqMobile(
       { mensagem: `${message}`.toUpperCase(), cor: mobileColorKeysMap.get(color) },
       deviceId
-    );
+    ).catch(() => {
+      /* falha no mobile queue não bloqueia o visor */
+    });
   }
 
   function sendValidation(

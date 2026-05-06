@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ThemeModeToggle } from "./theme-mode-toggle";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
 
@@ -22,12 +22,6 @@ function HeaderInner() {
   const sessionUser = (data as any)?.user ?? (data as any)?.session?.user ?? null;
   const user = status === "authenticated" ? (sessionUser as any) : null;
   const isSupervisor = (user as any)?.role === "SUPERVISOR";
-
-  useEffect(() => {
-    console.log("[Header] Session status:", status);
-    console.log("[Header] Session data:", data);
-    console.log("[Header] User from session:", user);
-  }, [status, data, user]);
 
   return (
     <header className="w-full h-12 xl:h-16 exl:h-24 p-2 xl:p-6 flex justify-between items-center">

@@ -3,15 +3,21 @@ import axios from "axios";
 
 export async function sendMessageToRabbitMq(message: any): Promise<void> {
   try {
-    const response = await axios.post("/api/send", message, {
+    await axios.post("/api/send", message, {
       headers: { "Content-Type": "application/json" },
     });
-    console.log("RabbitMQ", message);
-  } catch (error) {
-    console.error("Erro ao enviar mensagem ao RabbitMQ", error);
+  } catch (error: any) {
+    const status = error?.response?.status as number | undefined;
+    const data = error?.response?.data;
+    console.error("Erro ao enviar mensagem ao RabbitMQ", status, data);
+    const err = new Error(
+      typeof data?.error === "string" ? data.error : "Falha ao enviar comando"
+    ) as Error & { status?: number; payload?: unknown };
+    err.status = status;
+    err.payload = data;
+    throw err;
   }
 }
-
 
 export async function sendMessageToRabbitMqMobile(
   message: any,
@@ -23,8 +29,15 @@ export async function sendMessageToRabbitMqMobile(
       { ...message, ...(deviceId ? { device_id: deviceId } : {}) },
       { headers: { "Content-Type": "application/json" } }
     );
-    console.log("RabbitMQ - Mobile", message);
-  } catch (error) {
-    console.error("Erro ao enviar mensagem ao RabbitMQ Mobile", error);
+  } catch (error: any) {
+    const status = error?.response?.status as number | undefined;
+    const data = error?.response?.data;
+    console.error("Erro ao enviar mensagem ao RabbitMQ Mobile", status, data);
+    const err = new Error(
+      typeof data?.error === "string" ? data.error : "Falha ao enviar comando"
+    ) as Error & { status?: number; payload?: unknown };
+    err.status = status;
+    err.payload = data;
+    throw err;
   }
 }

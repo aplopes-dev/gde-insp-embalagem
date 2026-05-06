@@ -26,14 +26,12 @@ export async function middleware(req: NextRequest) {
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  // Debug simples no server log
-  // @ts-ignore
-  console.log("[MW] path=", pathname, "isPublic=", isPublic, "hasToken=", !!token, "email=", (token as any)?.email);
-
   if (!token && !isPublic) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
+    const callbackTarget =
+      pathname === "/" ? "/dashboard" : pathname + req.nextUrl.search;
+    url.searchParams.set("callbackUrl", callbackTarget);
     return NextResponse.redirect(url);
   }
 

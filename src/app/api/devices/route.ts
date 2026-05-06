@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { garbageCollectExpiredLocksAndSessions } from "@/lib/multi-device-gc";
 
 function getConfiguredDevices(): string[] {
   return (process.env.REALWEAR_DEVICES ?? "")
@@ -19,6 +20,8 @@ function unauthorized() {
 export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
+
+  await garbageCollectExpiredLocksAndSessions();
 
   const deviceIds = getConfiguredDevices();
 

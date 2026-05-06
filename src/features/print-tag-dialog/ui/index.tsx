@@ -6,14 +6,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
 type PrintTagProps = {
   isOpen: boolean;
   printConfig: {
     pdfBase64: string | null;
     quantity: number;
-    /** Opcional: aparece no nome do trabalho CUPS / notificações do sistema (`Etiqueta …`). */
     barcode?: string | number | null;
   };
   onOpenChange: (open: boolean) => void;
@@ -26,68 +25,43 @@ const PrintTagDialog = ({
   onPrintSuccess,
   printConfig,
 }: PrintTagProps) => {
-  const printRef = useRef<HTMLDivElement>(null);
+  const imprimirNoBrowser = useCallback(
+    (pdfBase64: string) => {
+      const bytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
 
-  const enviarPdfParaImpressao = useCallback(
-    async (pdfBase64: string) => {
-      try {
-        const bc = printConfig.barcode;
-        const jobTitle =
-          bc != null && String(bc).trim().length > 0
-            ? `Etiqueta ${String(bc).trim()}`
-            : undefined;
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText =
+        "position:fixed;top:0;left:0;width:0;height:0;border:0;";
+      iframe.src = url;
+      document.body.appendChild(iframe);
 
-        const resposta = await fetch("/api/imprimir-pdf", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            pdfBase64,
-            ...(jobTitle ? { jobTitle } : {}),
-          }),
-        });
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+      };
 
-        const data = await resposta.json().catch(() => ({}));
+      const afterPrint = () => {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+        window.removeEventListener("afterprint", afterPrint);
+      };
+      window.addEventListener("afterprint", afterPrint);
 
-        if (resposta.ok) {
-          toast({
-            title: "Impressão",
-            description: "Pedido enviado ao servidor de impressão.",
-          });
-          onPrintSuccess?.(`${printConfig.quantity}`);
-          onOpenChange(false);
-        } else {
-          const desc =
-            (data as { detail?: string; message?: string }).detail ||
-            (data as { message?: string }).message ||
-            `HTTP ${resposta.status}`;
-          console.error("Erro ao enviar PDF para impressão:", desc);
-          toast({
-            title: "Impressão falhou",
-            description: desc.slice(0, 400),
-            variant: "destructive",
-          });
-        }
-      } catch (e) {
-        console.error("Erro ao enviar PDF para impressão", e);
-        toast({
-          title: "Impressão falhou",
-          description: e instanceof Error ? e.message : String(e),
-          variant: "destructive",
-        });
-      }
+      toast({ title: "Impressão", description: "Diálogo de impressão aberto." });
+      onPrintSuccess?.(`${printConfig.quantity}`);
+      onOpenChange(false);
     },
-    [onOpenChange, onPrintSuccess, printConfig.barcode, printConfig.quantity]
+    [onOpenChange, onPrintSuccess, printConfig.quantity]
   );
 
   useEffect(() => {
     if (!isOpen || !printConfig.pdfBase64) return;
     const t = window.setTimeout(() => {
-      void enviarPdfParaImpressao(printConfig.pdfBase64!);
+      imprimirNoBrowser(printConfig.pdfBase64!);
     }, 1000);
     return () => window.clearTimeout(t);
-  }, [isOpen, printConfig.pdfBase64, enviarPdfParaImpressao]);
+  }, [isOpen, printConfig.pdfBase64, imprimirNoBrowser]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -96,7 +70,7 @@ const PrintTagDialog = ({
           <DialogTitle>Etiqueta</DialogTitle>
           <DialogDescription>Etiqueta para impressão</DialogDescription>
         </DialogHeader>
-        <div ref={printRef} className="flex justify-center">
+        <div className="flex justify-center">
           {printConfig.pdfBase64 ? (
             <embed
               src={`data:application/pdf;base64,${printConfig.pdfBase64}`}

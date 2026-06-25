@@ -38,6 +38,9 @@ export type DetectionDto = {
     count: number;
     code?: string;
     confidence?: number;
+    reason?: string;
+    defect_labels?: string[];
+    wrong_side_labels?: string[];
   };
   timestamp: string;
 };

@@ -4,12 +4,17 @@ import { findFirstBlisterTypeInIds } from "@/entities/blister-type";
 import { findFirstBoxTypeInIds } from "@/entities/box-type";
 import { findProductTypeById } from "@/entities/product-type";
 import db from "@/providers/database";
-import { getOpFromId } from "@/shared/services/jerp";
+import { getOpFromCode, getOpFromId } from "@/shared/services/jerp";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
 import { selectOpPackagings } from "@/usecases/op-jerp/select-op-packagings";
+import {
+  getPackedQuantityForOp,
+  reconcileOpQuantityWithJerp,
+  resolvePendingQuantity,
+} from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
 import {
   BlisterType,
@@ -28,8 +33,24 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import { connectRabbitMQ } from "@/libs/rabbitmq";
 
+async function findInternalOpByRouteId(id: string) {
+  const numericId = Number(id);
+  return db.op.findFirst({
+    where: {
+      OR: [
+        ...(Number.isFinite(numericId) ? [{ id: numericId }] : []),
+        { code: id },
+      ],
+    },
+  });
+}
+
 export async function syncAndGetOpToProduceById(id: string) {
-  const externalOpRed = await getOpFromId(id);
+  let externalOpRed = await getOpFromId(id);
+  if (externalOpRed.isLeft()) {
+    externalOpRed = await getOpFromCode(id);
+  }
+
   if (externalOpRed.isRight()) {
     const externalOp = externalOpRed.get();
     validateOpJerpToProduce(externalOp!);
@@ -111,11 +132,30 @@ export async function syncAndGetOpToProduceById(id: string) {
       }
     }
 
+    if (internalOp) {
+      const pendingBoxCount = await db.opBox.count({
+        where: { opId: internalOp.id, packedAt: null },
+      });
+      if (pendingBoxCount === 0) {
+        internalOp = await reconcileOpQuantityWithJerp(internalOp, externalOp);
+      }
+    }
+
     const details = await fetchOpDetails(internalOp);
     return { ...details, requiresSupervisorConfig, isNewOp } as OpInspectionDto;
-  } else {
-    throw Error(externalOpRed.getLeft().error);
   }
+
+  const internalOp = await findInternalOpByRouteId(id);
+  if (internalOp) {
+    const details = await fetchOpDetails(internalOp);
+    return {
+      ...details,
+      requiresSupervisorConfig: false,
+      isNewOp: false,
+    } as OpInspectionDto;
+  }
+
+  throw Error(externalOpRed.getLeft().error);
 }
 
 async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
@@ -232,11 +272,16 @@ async function createProductTypeFromJerp(produto: { id: number; nome: string }):
 async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number }, boxTypeId: number): Promise<BlisterType> {
   console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
 
-  // Usa os novos campos do JERP se disponíveis, senão usa valores padrão
-  const slots = embalagem.slots || embalagem.quantidadeAlocada || 10;
-  const limitPerBox = embalagem.limitePorCaixa || 1;
+  if (!embalagem.slots || !embalagem.limitePorCaixa) {
+    throw new Error(
+      `Blister ${embalagem.nome} sem slots/limitePorCaixa definidos no JERP`
+    );
+  }
 
-  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} ${embalagem.slots ? '(do JERP)' : '(padrão)'}`);
+  const slots = embalagem.slots;
+  const limitPerBox = embalagem.limitePorCaixa;
+
+  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} (do JERP)`);
 
   return await db.blisterType.create({
     data: {
@@ -272,7 +317,7 @@ async function fetchOpDetails(internalOp: Op) {
     db.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
     db.opBox.findFirst({
       where: { opId: internalOp.id, packedAt: null },
-      orderBy: { id: "asc" },
+      orderBy: { createdAt: "asc" },
       include: { OpBoxBlister: true },
     }),
     db.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
@@ -426,34 +471,39 @@ export async function persistWithOpBreak(
   try {
     // Persist blister and boxes after packeging
     await db.$transaction(queryCollection);
-    const initialQuantity = await db.op.findUnique({
+    const opRecord = await db.op.findUnique({
       select: {
+        code: true,
         quantityToProduce: true,
       },
       where: {
         id: opId,
       },
     });
-    const countPackageItems = await db.opBoxBlister.aggregate({
-      _sum: {
-        quantity: true,
-      },
-      where: {
-        packedAt: {
-          not: null,
-        },
-        opBox: {
-          opId,
-        },
-      },
-    });
-    if (initialQuantity?.quantityToProduce && countPackageItems._sum.quantity) {
-      const quantityPending =
-        initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
-      await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
-    } else {
+    const itemsPacked = await getPackedQuantityForOp(opId);
+
+    if (!opRecord?.quantityToProduce && itemsPacked === 0) {
       throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
     }
+
+    let jerpRemaining: number | undefined;
+    const externalOpRed = await getOpFromCode(opRecord!.code);
+    if (externalOpRed.isRight()) {
+      jerpRemaining = externalOpRed.get().quantidadeAProduzir;
+    }
+
+    const quantityPending = resolvePendingQuantity(
+      itemsPacked,
+      opRecord!.quantityToProduce,
+      jerpRemaining
+    );
+
+    await db.op.update({
+      where: { id: opId },
+      data: { quantityToProduce: itemsPacked + quantityPending },
+    });
+
+    await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
 
     if (authorizerUserId) {
       try {
@@ -520,8 +570,11 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     }),
   ]);
 
+  const itemsPacked = await getPackedQuantityForOp(opId);
+
   return db.op.update({
     data: {
+      quantityToProduce: itemsPacked + quantityToProduce,
       OpBox: {
         create: boxes?.map((box) => {
           const blisters = [...(box.blisters || [])];

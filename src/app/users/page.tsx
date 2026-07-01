@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || user.role !== "ADMINISTRADOR") {
+  if (!user || user.role !== "SUPERVISOR") {
     redirect("/");
   }
 
@@ -18,9 +18,9 @@ export default async function UsersPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href="/admin"
             className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-            title="Voltar para leitura de OP"
+            title="Voltar para o painel de administração"
           >
             Voltar
           </Link>

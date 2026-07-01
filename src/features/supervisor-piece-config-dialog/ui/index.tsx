@@ -31,6 +31,7 @@ type SupervisorPieceConfigDialogProps = {
   isNewOp?: boolean;
   availableBlisters?: PackagingJerpDto[];
   preferredBlisterPackagingId?: number;
+  supervisorConfigReason?: string;
 };
 
 export default function SupervisorPieceConfigDialog({
@@ -45,6 +46,7 @@ export default function SupervisorPieceConfigDialog({
   isNewOp,
   availableBlisters,
   preferredBlisterPackagingId,
+  supervisorConfigReason,
 }: SupervisorPieceConfigDialogProps) {
   const initialBlisterPackagingId =
     preferredBlisterPackagingId ??
@@ -115,7 +117,7 @@ export default function SupervisorPieceConfigDialog({
             Cadastramento de peça: {pieceName}
           </DialogTitle>
           <DialogDescription style={{ color: "red" }} className="text-lg">
-            Contate o supervisor.
+            {supervisorConfigReason ?? "Contate o supervisor."}
           </DialogDescription>
         </DialogHeader>
 

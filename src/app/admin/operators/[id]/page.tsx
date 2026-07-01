@@ -68,6 +68,8 @@ export default function OperatorHistoryPage({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const isSupervisor =
+    (session?.user as { role?: string } | undefined)?.role === "SUPERVISOR";
   const [data, setData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,8 +77,12 @@ export default function OperatorHistoryPage({
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
+      return;
     }
-  }, [status, router]);
+    if (status === "authenticated" && !isSupervisor) {
+      router.push("/");
+    }
+  }, [status, isSupervisor, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,7 +93,7 @@ export default function OperatorHistoryPage({
         const res = await fetch(`/api/admin/operators/${params.id}/history`);
         if (!res.ok) {
           if (res.status === 403) {
-            setError("Acesso negado. Apenas administradores podem acessar.");
+            setError("Acesso negado. Apenas supervisores podem acessar.");
             setTimeout(() => router.push("/admin"), 2000);
             return;
           }
@@ -110,10 +116,10 @@ export default function OperatorHistoryPage({
       }
     };
 
-    if (status === "authenticated") {
+    if (status === "authenticated" && isSupervisor) {
       fetchData();
     }
-  }, [params.id, status, router]);
+  }, [params.id, status, isSupervisor, router]);
 
   if (status === "loading" || loading) {
     return (

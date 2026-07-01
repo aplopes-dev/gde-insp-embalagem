@@ -920,11 +920,12 @@ export default function PackagingInspection({
             pieceName={data.productType.name}
             blisterTypeId={data.blisterType?.id}
             externalOpId={Number(opId)}
-            initialSlots={data.blisterType?.slots}
-            initialLimitPerBox={data.blisterType?.limitPerBox}
+            initialSlots={data.blisterType?.slots || undefined}
+            initialLimitPerBox={data.blisterType?.limitPerBox || undefined}
             isNewOp={data.isNewOp}
             availableBlisters={data.availableBlisters}
             preferredBlisterPackagingId={data.preferredBlisterPackagingId}
+            supervisorConfigReason={data.supervisorConfigReason}
             onConfirmed={() => {
               setSupervisorConfigured(true);
               setOpenSupervisorConfigDialog(false);

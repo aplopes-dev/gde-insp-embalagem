@@ -20,6 +20,8 @@ export type OpInspectionDto = {
   isNewOp?: boolean;
   availableBlisters?: PackagingJerpDto[];
   preferredBlisterPackagingId?: number;
+  supervisorConfigReason?: string;
+  registrationSource?: "local_db" | "jerp_op" | "history";
 };
 
 export type OpBoxInspectionDto = {

@@ -9,7 +9,13 @@ import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
-import { selectOpPackagings } from "@/usecases/op-jerp/select-op-packagings";
+import { selectOpPackagings, SelectedOpPackagings } from "@/usecases/op-jerp/select-op-packagings";
+import { findBlisterConfigFromProductHistory } from "@/usecases/op-jerp/find-blister-config-from-product-history";
+import {
+  PieceRegistrationResolution,
+  PieceRegistrationSource,
+  resolvePieceRegistration,
+} from "@/usecases/op-jerp/resolve-piece-registration";
 import {
   getPackedQuantityForOp,
   reconcileOpQuantityWithJerp,
@@ -61,74 +67,40 @@ export async function syncAndGetOpToProduceById(id: string) {
 
     let requiresSupervisorConfig = false;
     let isNewOp = false;
+    let registrationSource: PieceRegistrationSource | undefined;
 
     if (!internalOp) {
       isNewOp = true;
-      const {
-        blisterPackagings,
-        blisterPackaging,
-        boxPackaging,
-        preferredBlisterPackagingId,
-      } = selectOpPackagings(externalOp);
+      const packagings = selectOpPackagings(externalOp);
+      const { blisterPackaging } = packagings;
 
-      // Se a OP interna ainda não existe, verificamos se o blister principal da peça já existe.
       const existingBlisterType = blisterPackaging
         ? await findFirstBlisterTypeInIds({ ids: [blisterPackaging.id] })
         : null;
 
-      // Verifica se o JERP já forneceu slots e limitePorCaixa para o blister principal.
-      const hasJerpConfig = Boolean(
-        blisterPackaging?.slots && blisterPackaging?.limitePorCaixa
+      const historyBlisterConfig = await findBlisterConfigFromProductHistory(
+        externalOp.produto.id
       );
 
-      if (existingBlisterType || hasJerpConfig) {
-        // Já existe BlisterType configurado OU o JERP forneceu os dados: podemos criar a OP normalmente.
-        const created = await createInternalOp(externalOp!);
+      const resolution = resolvePieceRegistration({
+        blisterPackaging,
+        existingBlisterType,
+        historyBlisterConfig,
+      });
+
+      if (resolution.mode === "auto") {
+        const blisterOverride =
+          resolution.source === "history"
+            ? { slots: resolution.slots, limitPerBox: resolution.limitPerBox }
+            : undefined;
+
+        const created = await createInternalOp(externalOp!, blisterOverride);
         internalOp = created.op;
         requiresSupervisorConfig = false;
+        registrationSource = resolution.source;
       } else {
-        // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
-        const defaultBlisterPackaging = blisterPackaging || blisterPackagings[0];
-
         requiresSupervisorConfig = true;
-
-        return {
-          opId: externalOp.id,
-          opCode: `${externalOp.numero}`,
-          status: OpStatus.PENDING,
-          quantityToProduce: externalOp.quantidadeAProduzir,
-          productType: {
-            id: externalOp.produto.id,
-            code: `PROD_${externalOp.produto.id}`,
-            name: externalOp.produto.nome,
-            description: `Produto pendente de configuração de blister: ${externalOp.produto.nome}`,
-          },
-          blisterType: {
-            id: 0,
-            code: defaultBlisterPackaging ? `BLISTER_${defaultBlisterPackaging.id}` : "BLISTER_0",
-            name: defaultBlisterPackaging?.nome || "Blister",
-            description: "Configuração de blister pendente (slots/limitPerBox)",
-            slots: 0,
-            limitPerBox: 0,
-          },
-          boxType: {
-            id: boxPackaging?.id || 0,
-            code: boxPackaging ? `BOX_${boxPackaging.id}` : "BOX_0",
-            name: boxPackaging?.nome || "Caixa",
-            description: boxPackaging?.nome || "",
-          },
-          itemsPacked: 0,
-          totalBoxes: 0,
-          pendingBoxes: 0,
-          nextBox: undefined,
-          createdAt: new Date(),
-          finishedAt: undefined,
-          blisterCodes: [],
-          requiresSupervisorConfig,
-          isNewOp,
-          availableBlisters: blisterPackagings,
-          preferredBlisterPackagingId,
-        } as OpInspectionDto;
+        return buildPendingSupervisorPayload(externalOp, packagings, resolution);
       }
     }
 
@@ -142,7 +114,12 @@ export async function syncAndGetOpToProduceById(id: string) {
     }
 
     const details = await fetchOpDetails(internalOp);
-    return { ...details, requiresSupervisorConfig, isNewOp } as OpInspectionDto;
+    return {
+      ...details,
+      requiresSupervisorConfig,
+      isNewOp,
+      registrationSource,
+    } as OpInspectionDto;
   }
 
   const internalOp = await findInternalOpByRouteId(id);
@@ -158,7 +135,68 @@ export async function syncAndGetOpToProduceById(id: string) {
   throw Error(externalOpRed.getLeft().error);
 }
 
-async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
+type BlisterConfigOverride = {
+  slots: number;
+  limitPerBox: number;
+};
+
+function buildPendingSupervisorPayload(
+  externalOp: OpJerpDto,
+  packagings: SelectedOpPackagings,
+  resolution: Extract<PieceRegistrationResolution, { mode: "supervisor" }>
+): OpInspectionDto {
+  const {
+    blisterPackagings,
+    blisterPackaging,
+    boxPackaging,
+    preferredBlisterPackagingId,
+  } = packagings;
+  const defaultBlisterPackaging = blisterPackaging || blisterPackagings[0];
+
+  return {
+    opId: externalOp.id,
+    opCode: `${externalOp.numero}`,
+    status: OpStatus.PENDING,
+    quantityToProduce: externalOp.quantidadeAProduzir,
+    productType: {
+      id: externalOp.produto.id,
+      code: `PROD_${externalOp.produto.id}`,
+      name: externalOp.produto.nome,
+      description: `Produto pendente de configuração de blister: ${externalOp.produto.nome}`,
+    },
+    blisterType: {
+      id: 0,
+      code: defaultBlisterPackaging ? `BLISTER_${defaultBlisterPackaging.id}` : "BLISTER_0",
+      name: defaultBlisterPackaging?.nome || "Blister",
+      description: "Configuração de blister pendente (slots/limitPerBox)",
+      slots: resolution.partialData?.slots ?? 0,
+      limitPerBox: resolution.partialData?.limitPerBox ?? 0,
+    },
+    boxType: {
+      id: boxPackaging?.id || 0,
+      code: boxPackaging ? `BOX_${boxPackaging.id}` : "BOX_0",
+      name: boxPackaging?.nome || "Caixa",
+      description: boxPackaging?.nome || "",
+    },
+    itemsPacked: 0,
+    totalBoxes: 0,
+    pendingBoxes: 0,
+    nextBox: undefined,
+    createdAt: new Date(),
+    finishedAt: undefined,
+    blisterCodes: [],
+    requiresSupervisorConfig: true,
+    isNewOp: true,
+    availableBlisters: blisterPackagings,
+    preferredBlisterPackagingId,
+    supervisorConfigReason: resolution.reason,
+  };
+}
+
+async function createInternalOp(
+  externalOp: OpJerpDto,
+  blisterConfigOverride?: BlisterConfigOverride
+): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
   const productId = externalOp.produto.id;
   const { blisterPackaging, boxPackaging } = selectOpPackagings(externalOp);
 
@@ -180,7 +218,8 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
     transaction,
     externalOp,
     blisterPackaging,
-    boxPackaging
+    boxPackaging,
+    blisterConfigOverride
   );
   const { productType, blisterType, boxType, created } = ensured;
 
@@ -229,7 +268,8 @@ async function ensureReferencesExist(
   ],
   externalOp: OpJerpDto,
   blisterPackaging: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number },
-  boxPackaging: { id: number; nome: string }
+  boxPackaging: { id: number; nome: string },
+  blisterConfigOverride?: BlisterConfigOverride
 ): Promise<{ productType: ProductType; blisterType: BlisterType; boxType: BoxType; created: { product: boolean; blister: boolean; box: boolean } }> {
   const [existingProductType, existingBlisterType, existingBoxType] = transactionResults;
 
@@ -250,7 +290,11 @@ async function ensureReferencesExist(
   // Cria BlisterType se não existir (precisa do boxTypeId)
   const blisterType = existingBlisterType || await (async () => {
     createdFlags.blister = true;
-    return createBlisterTypeFromJerp(blisterPackaging, boxType.id);
+    return createBlisterTypeFromJerp(
+      blisterPackaging,
+      boxType.id,
+      blisterConfigOverride
+    );
   })();
 
   return { productType, blisterType, boxType, created: createdFlags };
@@ -269,19 +313,24 @@ async function createProductTypeFromJerp(produto: { id: number; nome: string }):
   });
 }
 
-async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number }, boxTypeId: number): Promise<BlisterType> {
+async function createBlisterTypeFromJerp(
+  embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number },
+  boxTypeId: number,
+  override?: BlisterConfigOverride
+): Promise<BlisterType> {
   console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
 
-  if (!embalagem.slots || !embalagem.limitePorCaixa) {
+  const slots = override?.slots ?? embalagem.slots;
+  const limitPerBox = override?.limitPerBox ?? embalagem.limitePorCaixa;
+
+  if (!slots || !limitPerBox) {
     throw new Error(
       `Blister ${embalagem.nome} sem slots/limitePorCaixa definidos no JERP`
     );
   }
 
-  const slots = embalagem.slots;
-  const limitPerBox = embalagem.limitePorCaixa;
-
-  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} (do JERP)`);
+  const source = override ? "histórico" : "JERP";
+  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} (fonte: ${source})`);
 
   return await db.blisterType.create({
     data: {

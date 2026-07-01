@@ -39,6 +39,20 @@ export async function getOpFromId(id: string): Promise<Either<ApiResponseError, 
   }
 }
 
+/** Tenta JERP por id interno e, se falhar, por número da OP. */
+export async function getOpFromRef(
+  ref: string
+): Promise<Either<ApiResponseError, OpJerpDto>> {
+  const trimmed = ref.trim();
+  const byId = await getOpFromId(trimmed);
+  if (byId.isRight()) return byId;
+
+  const byCode = await getOpFromCode(trimmed);
+  if (byCode.isRight()) return byCode;
+
+  return byId;
+}
+
 export async function generateBarcode(id: number, opBoxId: string, quantity: number, userName: string): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")

@@ -38,6 +38,10 @@ export type DetectionDto = {
     count: number;
     code?: string;
     confidence?: number;
+    reason?: string;
+    qr_op?: string;
+    expected_op?: string;
+    extra?: Record<string, unknown>;
   };
   timestamp: string;
 };

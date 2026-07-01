@@ -113,9 +113,15 @@ export async function syncAndGetOpToProduceById(id: string) {
 
     const details = await fetchOpDetails(internalOp);
     return { ...details, requiresSupervisorConfig, isNewOp } as OpInspectionDto;
-  } else {
-    throw Error(externalOpRed.getLeft().error);
   }
+
+  const localOp = await db.op.findFirst({ where: { id: Number(id) } });
+  if (localOp) {
+    const details = await fetchOpDetails(localOp);
+    return { ...details, requiresSupervisorConfig: false, isNewOp: false } as OpInspectionDto;
+  }
+
+  throw Error(externalOpRed.getLeft().error);
 }
 
 async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {

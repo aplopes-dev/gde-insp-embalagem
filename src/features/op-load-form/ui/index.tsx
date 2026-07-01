@@ -42,7 +42,9 @@ const OpLoadForm = () => {
       }
 
       const reqData = await response.json();
-      validateOpJerpToProduce(reqData);
+      if (!reqData._fromLocal) {
+        validateOpJerpToProduce(reqData);
+      }
       redirectAction(withDeviceQuery(`/op/${reqData.id}`, deviceId));
       setIsLoading(false);
     } catch (error: any) {      

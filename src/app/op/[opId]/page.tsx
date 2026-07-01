@@ -21,6 +21,7 @@ import {
   InspectionEnum,
   objectInspection,
 } from "@/shared/services/object-inspection";
+import { blisterQrMatchesOp } from "@/shared/services/blister-qr-code";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
@@ -210,10 +211,25 @@ export default function PackagingInspection({
     setBox({ ...boxData, status: InspectionStatus.PENDING });
   }
 
-  function handleDetectionUpdate(data: DetectionDto) {
-    const receivedCount = data.payload?.count;
-    const receivedItemId = data.payload?.item_id;
-    const receivedCode = data.payload?.code;
+  function handleDetectionUpdate(detection: DetectionDto) {
+    const receivedCount = detection.payload?.count;
+    const receivedItemId = detection.payload?.item_id;
+    const receivedCode = detection.payload?.code;
+    const { status, reason } = detection.payload ?? {};
+
+    if (status === "INVALID" && reason?.startsWith("QR_") && step === 1) {
+      const qrOp = detection.payload?.qr_op as string | undefined;
+      if (reason === "QR_OP_MISMATCH" && qrOp) {
+        setVisorMessage(
+          `BLISTER DE OUTRA OP! QR: ${qrOp} | OP ATUAL: ${data?.opCode}`,
+          "red"
+        );
+      } else {
+        setVisorMessage("CÓDIGO QR INVÁLIDO. VERIFIQUE O BLISTER.", "red");
+      }
+      sendValidation({ itemId: data?.blisterType.name, quantity: 1 });
+      return;
+    }
 
     sendSocketEvent("iaHandler", {
       receivedCount,
@@ -335,19 +351,32 @@ export default function PackagingInspection({
         if (!inspection.code) {
           setVisorMessage("ENVIE O CÓDIGO DO BLISTER.", "red");
           sendValidation({ itemId, quantity });
-        } else if (blisterCodes.includes(inspection.code)) {
-          setVisorMessage(
-            "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code,
-            "red"
-          );
-          sendValidation({ itemId, quantity });
         } else {
-          setVisorMessage("BLISTER VÁLIDO", "green");
-          if (data?.requiresSupervisorConfig && !supervisorConfigured) {
-            setPendingInspection(inspection);
-            setOpenSupervisorConfigDialog(true);
+          const qrCheck = blisterQrMatchesOp(inspection.code, data!.opCode);
+          if (!qrCheck.valid) {
+            if (qrCheck.reason === "OP_MISMATCH") {
+              setVisorMessage(
+                `BLISTER DE OUTRA OP! QR: ${qrCheck.qrOp} | OP ATUAL: ${data!.opCode}`,
+                "red"
+              );
+            } else {
+              setVisorMessage("CÓDIGO QR INVÁLIDO. VERIFIQUE O BLISTER.", "red");
+            }
+            sendValidation({ itemId, quantity });
+          } else if (blisterCodes.includes(inspection.code)) {
+            setVisorMessage(
+              "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code,
+              "red"
+            );
+            sendValidation({ itemId, quantity });
           } else {
-            setTimeout(() => nextObjectValidation(inspection, ObjectTypes.product), 4000);
+            setVisorMessage("BLISTER VÁLIDO", "green");
+            if (data?.requiresSupervisorConfig && !supervisorConfigured) {
+              setPendingInspection(inspection);
+              setOpenSupervisorConfigDialog(true);
+            } else {
+              setTimeout(() => nextObjectValidation(inspection, ObjectTypes.product), 4000);
+            }
           }
         }
         break;
@@ -434,6 +463,7 @@ export default function PackagingInspection({
     if (validation.quantity != null) payload.quantity = validation.quantity;
     if (validation.model != null) payload.model = validation.model;
     if (validation.fileName != null) payload.fileName = validation.fileName;
+    if (data?.opCode) payload.opCode = data.opCode;
 
     if (!deviceId) {
       console.error(

@@ -3,7 +3,7 @@ jest.mock('@/app/op/[opId]/actions', () => ({
 }));
 
 import axios from 'axios';
-import { getOpFromCode, getOpFromId } from '.';
+import { getOpFromCode, getOpFromId, getOpFromRef } from '.';
 
 const JERP_API = process.env.JERP_API;
 
@@ -120,4 +120,55 @@ describe('getOpFromId', () => {
   //   await expect(getOpFromId(mockId)).rejects.toThrow(`Falha ao obter OP para o id: ${mockId}`);
   // });
 
+});
+
+describe('getOpFromRef', () => {
+  it('retorna OP por id quando JERP responde na primeira tentativa', async () => {
+    jest.resetAllMocks();
+    const mockData = {
+      id: 432913,
+      numero: 77098,
+      produto: { id: 1, nome: 'Produto A' },
+      quantidadeAProduzir: 100,
+      embalagens: [
+        { id: 1, nome: 'Blister', quantidadeAlocada: 10, slots: 10, limitePorCaixa: 5 },
+        { id: 2, nome: 'Caixa', quantidadeAlocada: 1 },
+      ],
+    };
+
+    mockedAxios.get.mockResolvedValueOnce({ data: mockData });
+    const result = await getOpFromRef('432913');
+    expect(result.isRight()).toBe(true);
+    expect(result.get()?.id).toBe(432913);
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('tenta por código quando consulta por id falha', async () => {
+    jest.resetAllMocks();
+    const axiosError = {
+      message: 'Erro na API',
+      isAxiosError: true,
+      config: { method: 'get', url: `${JERP_API}/ordemproducaoid/78322`, headers: {} },
+      response: { status: 400, statusText: 'Bad Request', data: { message: 'Sequence contains no elements' } },
+    };
+    const mockData = {
+      id: 440296,
+      numero: 78322,
+      produto: { id: 1, nome: 'Produto A' },
+      quantidadeAProduzir: 100,
+      embalagens: [
+        { id: 1, nome: 'Blister', quantidadeAlocada: 10, slots: 10, limitePorCaixa: 5 },
+        { id: 2, nome: 'Caixa', quantidadeAlocada: 1 },
+      ],
+    };
+
+    mockedAxios.get
+      .mockRejectedValueOnce(axiosError)
+      .mockResolvedValueOnce({ data: mockData });
+
+    const result = await getOpFromRef('78322');
+    expect(result.isRight()).toBe(true);
+    expect(result.get()?.numero).toBe(78322);
+    expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+  });
 });

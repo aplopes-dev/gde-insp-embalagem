@@ -74,6 +74,8 @@ export default function OpDashboardPage({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const isSupervisor =
+    (session?.user as { role?: string } | undefined)?.role === "SUPERVISOR";
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<ActivityLog[]>(
@@ -95,8 +97,12 @@ export default function OpDashboardPage({
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
+      return;
     }
-  }, [status, router]);
+    if (status === "authenticated" && !isSupervisor) {
+      router.push("/");
+    }
+  }, [status, isSupervisor, router]);
 
   // Carregar dados
   useEffect(() => {
@@ -112,7 +118,7 @@ export default function OpDashboardPage({
         if (!statsRes.ok) {
           if (statsRes.status === 403) {
             setError(
-              "Acesso negado. Apenas administradores podem acessar este painel."
+              "Acesso negado. Apenas supervisores podem acessar este painel."
             );
             setTimeout(() => router.push("/admin"), 2000);
             return;
@@ -154,10 +160,10 @@ export default function OpDashboardPage({
       }
     };
 
-    if (status === "authenticated") {
+    if (status === "authenticated" && isSupervisor) {
       fetchData();
     }
-  }, [params.id, status, router]);
+  }, [params.id, status, isSupervisor, router]);
 
   // Aplicar filtros
   useEffect(() => {
@@ -248,7 +254,7 @@ export default function OpDashboardPage({
             </h1>
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Acesso exclusivo para Administrador
+            Acesso exclusivo para supervisores
           </p>
         </div>
       </div>

@@ -5,12 +5,23 @@ import { findFirstBoxTypeInIds } from "@/entities/box-type";
 import { findProductTypeById } from "@/entities/product-type";
 import db from "@/providers/database";
 import logger from "@/libs/logger";
-import { getOpFromId } from "@/shared/services/jerp";
+import { getOpFromCode, getOpFromId } from "@/shared/services/jerp";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { OpDto } from "@/types/op-dto";
 import { validateOpJerpToProduce } from "@/usecases/op-jerp/validate-op-jerp-to-produce";
-import { selectOpPackagings } from "@/usecases/op-jerp/select-op-packagings";
+import { selectOpPackagings, SelectedOpPackagings } from "@/usecases/op-jerp/select-op-packagings";
+import { findBlisterConfigFromProductHistory } from "@/usecases/op-jerp/find-blister-config-from-product-history";
+import {
+  PieceRegistrationResolution,
+  PieceRegistrationSource,
+  resolvePieceRegistration,
+} from "@/usecases/op-jerp/resolve-piece-registration";
+import {
+  getPackedQuantityForOp,
+  reconcileOpQuantityWithJerp,
+  resolvePendingQuantity,
+} from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
 import {
   BlisterType,
@@ -29,8 +40,24 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import { connectRabbitMQ } from "@/libs/rabbitmq";
 
+async function findInternalOpByRouteId(id: string) {
+  const numericId = Number(id);
+  return db.op.findFirst({
+    where: {
+      OR: [
+        ...(Number.isFinite(numericId) ? [{ id: numericId }] : []),
+        { code: id },
+      ],
+    },
+  });
+}
+
 export async function syncAndGetOpToProduceById(id: string) {
-  const externalOpRed = await getOpFromId(id);
+  let externalOpRed = await getOpFromId(id);
+  if (externalOpRed.isLeft()) {
+    externalOpRed = await getOpFromCode(id);
+  }
+
   if (externalOpRed.isRight()) {
     const externalOp = externalOpRed.get();
     validateOpJerpToProduce(externalOp!);
@@ -41,91 +68,136 @@ export async function syncAndGetOpToProduceById(id: string) {
 
     let requiresSupervisorConfig = false;
     let isNewOp = false;
+    let registrationSource: PieceRegistrationSource | undefined;
 
     if (!internalOp) {
       isNewOp = true;
-      const {
-        blisterPackagings,
-        blisterPackaging,
-        boxPackaging,
-        preferredBlisterPackagingId,
-      } = selectOpPackagings(externalOp);
+      const packagings = selectOpPackagings(externalOp);
+      const { blisterPackaging } = packagings;
 
-      // Se a OP interna ainda não existe, verificamos se o blister principal da peça já existe.
       const existingBlisterType = blisterPackaging
         ? await findFirstBlisterTypeInIds({ ids: [blisterPackaging.id] })
         : null;
 
-      // Verifica se o JERP já forneceu slots e limitePorCaixa para o blister principal.
-      const hasJerpConfig = Boolean(
-        blisterPackaging?.slots && blisterPackaging?.limitePorCaixa
+      const historyBlisterConfig = await findBlisterConfigFromProductHistory(
+        externalOp.produto.id
       );
 
-      if (existingBlisterType || hasJerpConfig) {
-        // Já existe BlisterType configurado OU o JERP forneceu os dados: podemos criar a OP normalmente.
-        const created = await createInternalOp(externalOp!);
+      const resolution = resolvePieceRegistration({
+        blisterPackaging,
+        existingBlisterType,
+        historyBlisterConfig,
+      });
+
+      if (resolution.mode === "auto") {
+        const blisterOverride =
+          resolution.source === "history"
+            ? { slots: resolution.slots, limitPerBox: resolution.limitPerBox }
+            : undefined;
+
+        const created = await createInternalOp(externalOp!, blisterOverride);
         internalOp = created.op;
         requiresSupervisorConfig = false;
+        registrationSource = resolution.source;
       } else {
-        // NÃO criar BlisterType nem OP ainda. Retornar payload mínimo pedindo configuração do supervisor.
-        const defaultBlisterPackaging = blisterPackaging || blisterPackagings[0];
-
         requiresSupervisorConfig = true;
+        return buildPendingSupervisorPayload(externalOp, packagings, resolution);
+      }
+    }
 
-        return {
-          opId: externalOp.id,
-          opCode: `${externalOp.numero}`,
-          status: OpStatus.PENDING,
-          quantityToProduce: externalOp.quantidadeAProduzir,
-          productType: {
-            id: externalOp.produto.id,
-            code: `PROD_${externalOp.produto.id}`,
-            name: externalOp.produto.nome,
-            description: `Produto pendente de configuração de blister: ${externalOp.produto.nome}`,
-          },
-          blisterType: {
-            id: 0,
-            code: defaultBlisterPackaging ? `BLISTER_${defaultBlisterPackaging.id}` : "BLISTER_0",
-            name: defaultBlisterPackaging?.nome || "Blister",
-            description: "Configuração de blister pendente (slots/limitPerBox)",
-            slots: 0,
-            limitPerBox: 0,
-          },
-          boxType: {
-            id: boxPackaging?.id || 0,
-            code: boxPackaging ? `BOX_${boxPackaging.id}` : "BOX_0",
-            name: boxPackaging?.nome || "Caixa",
-            description: boxPackaging?.nome || "",
-          },
-          itemsPacked: 0,
-          totalBoxes: 0,
-          pendingBoxes: 0,
-          nextBox: undefined,
-          createdAt: new Date(),
-          finishedAt: undefined,
-          blisterCodes: [],
-          requiresSupervisorConfig,
-          isNewOp,
-          availableBlisters: blisterPackagings,
-          preferredBlisterPackagingId,
-        } as OpInspectionDto;
+    if (internalOp) {
+      const pendingBoxCount = await db.opBox.count({
+        where: { opId: internalOp.id, packedAt: null },
+      });
+      if (pendingBoxCount === 0) {
+        internalOp = await reconcileOpQuantityWithJerp(internalOp, externalOp);
       }
     }
 
     const details = await fetchOpDetails(internalOp);
-    return { ...details, requiresSupervisorConfig, isNewOp } as OpInspectionDto;
+    return {
+      ...details,
+      requiresSupervisorConfig,
+      isNewOp,
+      registrationSource,
+    } as OpInspectionDto;
   }
 
-  const localOp = await db.op.findFirst({ where: { id: Number(id) } });
-  if (localOp) {
-    const details = await fetchOpDetails(localOp);
-    return { ...details, requiresSupervisorConfig: false, isNewOp: false } as OpInspectionDto;
+  const internalOp = await findInternalOpByRouteId(id);
+  if (internalOp) {
+    const details = await fetchOpDetails(internalOp);
+    return {
+      ...details,
+      requiresSupervisorConfig: false,
+      isNewOp: false,
+    } as OpInspectionDto;
   }
 
   throw Error(externalOpRed.getLeft().error);
 }
 
-async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
+type BlisterConfigOverride = {
+  slots: number;
+  limitPerBox: number;
+};
+
+function buildPendingSupervisorPayload(
+  externalOp: OpJerpDto,
+  packagings: SelectedOpPackagings,
+  resolution: Extract<PieceRegistrationResolution, { mode: "supervisor" }>
+): OpInspectionDto {
+  const {
+    blisterPackagings,
+    blisterPackaging,
+    boxPackaging,
+    preferredBlisterPackagingId,
+  } = packagings;
+  const defaultBlisterPackaging = blisterPackaging || blisterPackagings[0];
+
+  return {
+    opId: externalOp.id,
+    opCode: `${externalOp.numero}`,
+    status: OpStatus.PENDING,
+    quantityToProduce: externalOp.quantidadeAProduzir,
+    productType: {
+      id: externalOp.produto.id,
+      code: `PROD_${externalOp.produto.id}`,
+      name: externalOp.produto.nome,
+      description: `Produto pendente de configuração de blister: ${externalOp.produto.nome}`,
+    },
+    blisterType: {
+      id: 0,
+      code: defaultBlisterPackaging ? `BLISTER_${defaultBlisterPackaging.id}` : "BLISTER_0",
+      name: defaultBlisterPackaging?.nome || "Blister",
+      description: "Configuração de blister pendente (slots/limitPerBox)",
+      slots: resolution.partialData?.slots ?? 0,
+      limitPerBox: resolution.partialData?.limitPerBox ?? 0,
+    },
+    boxType: {
+      id: boxPackaging?.id || 0,
+      code: boxPackaging ? `BOX_${boxPackaging.id}` : "BOX_0",
+      name: boxPackaging?.nome || "Caixa",
+      description: boxPackaging?.nome || "",
+    },
+    itemsPacked: 0,
+    totalBoxes: 0,
+    pendingBoxes: 0,
+    nextBox: undefined,
+    createdAt: new Date(),
+    finishedAt: undefined,
+    blisterCodes: [],
+    requiresSupervisorConfig: true,
+    isNewOp: true,
+    availableBlisters: blisterPackagings,
+    preferredBlisterPackagingId,
+    supervisorConfigReason: resolution.reason,
+  };
+}
+
+async function createInternalOp(
+  externalOp: OpJerpDto,
+  blisterConfigOverride?: BlisterConfigOverride
+): Promise<{ op: Op; created: { product: boolean; blister: boolean; box: boolean } }> {
   const productId = externalOp.produto.id;
   const { blisterPackaging, boxPackaging } = selectOpPackagings(externalOp);
 
@@ -147,7 +219,8 @@ async function createInternalOp(externalOp: OpJerpDto): Promise<{ op: Op; create
     transaction,
     externalOp,
     blisterPackaging,
-    boxPackaging
+    boxPackaging,
+    blisterConfigOverride
   );
   const { productType, blisterType, boxType, created } = ensured;
 
@@ -196,7 +269,8 @@ async function ensureReferencesExist(
   ],
   externalOp: OpJerpDto,
   blisterPackaging: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number },
-  boxPackaging: { id: number; nome: string }
+  boxPackaging: { id: number; nome: string },
+  blisterConfigOverride?: BlisterConfigOverride
 ): Promise<{ productType: ProductType; blisterType: BlisterType; boxType: BoxType; created: { product: boolean; blister: boolean; box: boolean } }> {
   const [existingProductType, existingBlisterType, existingBoxType] = transactionResults;
 
@@ -217,7 +291,11 @@ async function ensureReferencesExist(
   // Cria BlisterType se não existir (precisa do boxTypeId)
   const blisterType = existingBlisterType || await (async () => {
     createdFlags.blister = true;
-    return createBlisterTypeFromJerp(blisterPackaging, boxType.id);
+    return createBlisterTypeFromJerp(
+      blisterPackaging,
+      boxType.id,
+      blisterConfigOverride
+    );
   })();
 
   return { productType, blisterType, boxType, created: createdFlags };
@@ -236,14 +314,24 @@ async function createProductTypeFromJerp(produto: { id: number; nome: string }):
   });
 }
 
-async function createBlisterTypeFromJerp(embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number }, boxTypeId: number): Promise<BlisterType> {
+async function createBlisterTypeFromJerp(
+  embalagem: { id: number; nome: string; quantidadeAlocada: number; slots?: number; limitePorCaixa?: number },
+  boxTypeId: number,
+  override?: BlisterConfigOverride
+): Promise<BlisterType> {
   console.log(`Criando BlisterType dinamicamente: ID ${embalagem.id}, Nome: ${embalagem.nome}, BoxTypeId: ${boxTypeId}`);
 
-  // Usa os novos campos do JERP se disponíveis, senão usa valores padrão
-  const slots = embalagem.slots || embalagem.quantidadeAlocada || 10;
-  const limitPerBox = embalagem.limitePorCaixa || 1;
+  const slots = override?.slots ?? embalagem.slots;
+  const limitPerBox = override?.limitPerBox ?? embalagem.limitePorCaixa;
 
-  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} ${embalagem.slots ? '(do JERP)' : '(padrão)'}`);
+  if (!slots || !limitPerBox) {
+    throw new Error(
+      `Blister ${embalagem.nome} sem slots/limitePorCaixa definidos no JERP`
+    );
+  }
+
+  const source = override ? "histórico" : "JERP";
+  console.log(`Usando slots: ${slots}, limitPerBox: ${limitPerBox} (fonte: ${source})`);
 
   return await db.blisterType.create({
     data: {
@@ -279,7 +367,7 @@ async function fetchOpDetails(internalOp: Op) {
     db.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
     db.opBox.findFirst({
       where: { opId: internalOp.id, packedAt: null },
-      orderBy: { id: "asc" },
+      orderBy: { createdAt: "asc" },
       include: { OpBoxBlister: true },
     }),
     db.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
@@ -477,8 +565,9 @@ export async function persistWithOpBreak(
     // Persist blister and boxes after packeging
     await db.$transaction(queryCollection);
 
-    const initialQuantity = await db.op.findUnique({
+    const opRecord = await db.op.findUnique({
       select: {
+        code: true,
         quantityToProduce: true,
       },
       where: {
@@ -494,14 +583,14 @@ export async function persistWithOpBreak(
       where: { packedAt: { not: null }, opBoxId: id },
     });
 
-    const totalToProduce = initialQuantity?.quantityToProduce ?? 0;
+    const totalToProduce = opRecord?.quantityToProduce ?? 0;
     const allPackedLocal = countPackageItems._sum.quantity ?? 0;
     const currentBoxPacked = currentBoxAgg._sum.quantity ?? 0;
 
     // Pendente local (fonte antiga): total planejado − tudo já embalado.
     const localPending = totalToProduce - allPackedLocal;
 
-    // Item 3: pendente derivado do JERP (fonte de verdade). No momento da quebra
+    // Pendente derivado do JERP (fonte de verdade). No momento da quebra
     // a caixa atual ainda não foi apontada no JERP, então subtraímos o que
     // acabou de ser embalado nela para obter o restante após esta caixa.
     const jerpRemaining = await getJerpRemainingQuantity(opId);
@@ -600,7 +689,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     return db.op.findUnique({ where: { id: opId } });
   }
 
-  // Item 4: numeração sem duplicidade. Continua a partir do maior `code` já
+  // Numeração sem duplicidade. Continua a partir do maior `code` já
   // existente (inclusive de caixas embaladas), evitando reuso após deleções.
   const maxCode = op.OpBox.reduce(
     (max, b) => Math.max(max, Number(b.code) || 0),
@@ -614,8 +703,12 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     boxGap: maxCode,
   });
 
+  const itemsPacked = await getPackedQuantityForOp(opId);
+
+
   return db.op.update({
     data: {
+      quantityToProduce: itemsPacked + quantityToProduce,
       OpBox: {
         create: boxes?.map((box) => {
           const blisters = [...(box.blisters || [])];

@@ -42,6 +42,8 @@ export type DetectionDto = {
     qr_op?: string;
     expected_op?: string;
     extra?: Record<string, unknown>;
+    defect_labels?: string[];
+    wrong_side_labels?: string[];
   };
   timestamp: string;
 };

@@ -52,8 +52,16 @@ const mobileColorKeysMap = new Map<string, number>([
   ["yellow", 5],
 ]);
 
+import ConfirmationDialog from "@/components/confirmation-dialog";
 import RequireAuth from "@/components/require-auth";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
+
+type PendingQuantityValidation = {
+  itemId?: string;
+  quantity: number;
+  fileName?: string;
+  model?: string;
+};
 
 export default function PackagingInspection({
   params: { opId },
@@ -93,6 +101,12 @@ export default function PackagingInspection({
   const [openSupervisorConfigDialog, setOpenSupervisorConfigDialog] = useState<boolean>(false);
   const [supervisorConfigured, setSupervisorConfigured] = useState<boolean>(false);
   const [pendingInspection, setPendingInspection] = useState<ObjectValidation | undefined>(undefined);
+
+  const [openPieceCorrectionDialog, setOpenPieceCorrectionDialog] = useState(false);
+  const [pieceCorrectionReason, setPieceCorrectionReason] = useState<string | undefined>();
+  const [pendingQuantityValidation, setPendingQuantityValidation] =
+    useState<PendingQuantityValidation | null>(null);
+  const pieceCorrectionDialogOpenRef = useRef(false);
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
   const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
@@ -234,15 +248,51 @@ export default function PackagingInspection({
     sendSocketEvent("iaHandler", {
       receivedCount,
       receivedItemId,
+      status,
     });
 
-    if (receivedItemId) {
+    if (!receivedItemId) return;
+
+    if (status === "INVALID") {
+      const reason = detection.payload?.reason;
+      setPieceCorrectionReason(reason);
       setInspection({
         itemId: receivedItemId,
-        count: Number(receivedCount),
+        count: 0,
         code: receivedCode,
       });
+      if (
+        step === 2 &&
+        targetBlister !== undefined &&
+        data &&
+        box &&
+        blisterCodes[targetBlister]
+      ) {
+        requestPieceCorrection({
+          itemId: data.productType.name,
+          quantity: blisters[targetBlister].quantity,
+          fileName: `OP_${data.opId}_BOX_${box.id}_BL_${blisterCodes[targetBlister]}`,
+          model: data.productType.name,
+        });
+      }
+      return;
     }
+
+    if (status === "TIMEOUT") {
+      setVisorMessage("TEMPO ESGOTADO NA DETECÇÃO!", "yellow");
+      setInspection({
+        itemId: receivedItemId,
+        count: Number(receivedCount) || 0,
+        code: receivedCode,
+      });
+      return;
+    }
+
+    setInspection({
+      itemId: receivedItemId,
+      count: Number(receivedCount),
+      code: receivedCode,
+    });
   }
 
   function handleActionHandler(data: ActionDto) {
@@ -394,6 +444,7 @@ export default function PackagingInspection({
 
     let itemId: string | undefined = data?.productType.name;
     let quantity: number = expectedQuantity;
+    let model: string | undefined = data?.productType.name;
     let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${
       blisterCodes[targetBlister!]
     }`;
@@ -401,21 +452,53 @@ export default function PackagingInspection({
     switch (inspectionData) {
       case InspectionEnum.OBJECT_INVALID:
         setVisorMessage("TIPO DE OBJETO INVÁLIDO. INSIRA PRODUTOS.", "red");
-        sendValidation({ itemId, quantity, fileName });
+        sendValidation({ itemId, quantity, fileName, model });
         break;
       case InspectionEnum.TYPE_INVALID:
         setVisorMessage("MODELO DE PRODUTO INVÁLIDO.", "red");
-        sendValidation({ itemId, quantity, fileName });
+        sendValidation({ itemId, quantity, fileName, model });
         break;
       case InspectionEnum.QUANTITY_INVALID:
-        setVisorMessage("ALERTA!!! VERIFIQUE PEÇAS!", "yellow");
-        sendValidation({ itemId, quantity, fileName });
+        requestPieceCorrection({ itemId, quantity, fileName, model });
         break;
       case InspectionEnum.VALID:
         setVisorMessage("BLISTER E QUANTIDADE DE ITENS VÁLIDOS", "green");
         setTimeout(() => verifyNextBlisterOrFinalize(inspection), 4000);
         break;
     }
+  }
+
+  function requestPieceCorrection(validation: PendingQuantityValidation) {
+    if (pieceCorrectionDialogOpenRef.current) return;
+
+    pieceCorrectionDialogOpenRef.current = true;
+    setPendingQuantityValidation(validation);
+    setOpenPieceCorrectionDialog(true);
+    setVisorMessage("PEÇA INCORRETA. CORRIJA E CONFIRME PARA CONTINUAR.", "yellow");
+  }
+
+  function handlePieceCorrectionConfirmed() {
+    const validation = pendingQuantityValidation;
+    pieceCorrectionDialogOpenRef.current = false;
+    setOpenPieceCorrectionDialog(false);
+    setPendingQuantityValidation(null);
+    setPieceCorrectionReason(undefined);
+    lastValidationKeyRef.current = "";
+
+    if (!validation) return;
+
+    setVisorMessage("VERIFICANDO QUANTIDADE DE ITENS...", "blue");
+    sendValidation(validation);
+  }
+
+  function pieceCorrectionDialogMessage(): string {
+    if (pieceCorrectionReason === "WRONG_SIDE") {
+      return "Foi detectado o lado errado da peça. Corrija a peça no blister e confirme quando a inspeção estiver correta.";
+    }
+    if (pieceCorrectionReason === "NON_CONFORMING") {
+      return "Foi detectada uma peça não conforme. Corrija a peça no blister e confirme quando a inspeção estiver correta.";
+    }
+    return "Foi detectada uma peça incorreta na inspeção. Corrija e confirme quando estiver pronto para continuar.";
   }
 
   function setVisorMessage(message: string, color: DisplayColors) {
@@ -530,6 +613,7 @@ export default function PackagingInspection({
           quantity: blisters[targetBlister!].quantity,
           itemId: data?.productType.name,
           fileName,
+          model: data?.productType.name,
         });
         break;
     }
@@ -755,6 +839,17 @@ export default function PackagingInspection({
                     <>
                       <div>
                         <div className="flex justify-end gap-6 mt-8">
+                          {pendingQuantityValidation && !openPieceCorrectionDialog ? (
+                            <Button
+                              className="bg-yellow-600 hover:bg-yellow-500"
+                              onClick={() => {
+                                pieceCorrectionDialogOpenRef.current = true;
+                                setOpenPieceCorrectionDialog(true);
+                              }}
+                            >
+                              Confirmar correção da peça
+                            </Button>
+                          ) : null}
                           <Button
                             className="bg-red-700 hover:bg-red-600"
                             variant={"destructive"}
@@ -820,6 +915,21 @@ export default function PackagingInspection({
           </>
         )}
 
+        <ConfirmationDialog
+          title="Peça incorreta na inspeção"
+          message={pieceCorrectionDialogMessage()}
+          cancelLabel="Ainda não"
+          confirmLabel="Já corrigi, continuar"
+          open={openPieceCorrectionDialog}
+          onOpenChange={(open) => {
+            if (!open && pieceCorrectionDialogOpenRef.current) {
+              pieceCorrectionDialogOpenRef.current = false;
+              setOpenPieceCorrectionDialog(false);
+            }
+          }}
+          confirmationAction={handlePieceCorrectionConfirmed}
+        />
+
         <ManagerAuthFormDialog
           title={"Autorizar quebra de Caixa"}
           message={
@@ -845,11 +955,12 @@ export default function PackagingInspection({
             pieceName={data.productType.name}
             blisterTypeId={data.blisterType?.id}
             externalOpId={Number(opId)}
-            initialSlots={data.blisterType?.slots}
-            initialLimitPerBox={data.blisterType?.limitPerBox}
+            initialSlots={data.blisterType?.slots || undefined}
+            initialLimitPerBox={data.blisterType?.limitPerBox || undefined}
             isNewOp={data.isNewOp}
             availableBlisters={data.availableBlisters}
             preferredBlisterPackagingId={data.preferredBlisterPackagingId}
+            supervisorConfigReason={data.supervisorConfigReason}
             onConfirmed={() => {
               setSupervisorConfigured(true);
               setOpenSupervisorConfigDialog(false);

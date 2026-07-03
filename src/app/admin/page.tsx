@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Database, BarChart3, ArrowRight, ArrowLeft } from "lucide-react";
+import { Database, BarChart3, ArrowRight, ArrowLeft, Users } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,7 @@ export default async function AdminPage() {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Banco de Dados Card */}
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
@@ -111,8 +111,39 @@ export default async function AdminPage() {
                 </Link>
               </div>
               <p className="text-xs text-green-600 dark:text-green-400 pt-2">
-                ✓ Acesso exclusivo para administradores
+                ✓ Acesso exclusivo para supervisores
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Gerenciar Usuários Card */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Users className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                <div>
+                  <CardTitle>Usuários</CardTitle>
+                  <CardDescription>Gerenciar contas do sistema</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Visualize, edite e gerencie os usuários cadastrados no sistema local.
+              </p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4">
+                <li>✓ Listar usuários</li>
+                <li>✓ Editar perfil e senha</li>
+                <li>✓ Atribuir roles SUPERVISOR ou OPERADOR</li>
+              </ul>
+              <div className="pt-4">
+                <Link href="/users" className="w-full">
+                  <Button className="w-full gap-2 bg-purple-600 hover:bg-purple-700">
+                    Gerenciar Usuários
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>

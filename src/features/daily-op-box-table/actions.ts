@@ -1,5 +1,7 @@
 "use server";
 
+import { buildJerpBlisterApontamento } from "@/usecases/op-jerp/build-jerp-blister-apontamento";
+import { getPackedBlistersByBox } from "@/usecases/op-jerp/get-packed-blisters-by-box";
 import db from "@/providers/database";
 import { generateBarcode } from "@/shared/services/jerp";
 import { ApiResponseError } from "@/shared/utils/errorHandler";
@@ -102,16 +104,6 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
           code: true,
         },
       },
-      OpBoxBlister: {
-        select: {
-          quantity: true,
-        },
-        where: {
-          quantity: {
-            gt: 0,
-          },
-        },
-      },
     },
   });
   
@@ -123,8 +115,27 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
     },
   } as ApiResponseError;
 
-  const quantity = box.OpBoxBlister.reduce((acc, i) => acc + i.quantity, 0);
-  const tagDataReq = await generateBarcode(opId, `${boxId}`, quantity, userName);
+  const packedBlisters = await getPackedBlistersByBox(boxId);
+  const quantity = packedBlisters.reduce((acc, blister) => acc + blister.quantity, 0);
+
+  if (quantity <= 0) {
+    return {
+      status: 400,
+      error: "Falha ao gerar etiqueta",
+      errorData: {
+        message: "Nenhum blister embalado nesta caixa.",
+      },
+    } as ApiResponseError;
+  }
+
+  const jerpBlisters = buildJerpBlisterApontamento(opId, boxId, packedBlisters);
+  const tagDataReq = await generateBarcode(
+    opId,
+    `${boxId}`,
+    quantity,
+    userName,
+    jerpBlisters
+  );
 
   if (tagDataReq.isRight()) {
     return tagDataReq.get()

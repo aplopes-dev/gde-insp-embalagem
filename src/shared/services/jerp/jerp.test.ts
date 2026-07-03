@@ -3,7 +3,8 @@ jest.mock('@/app/op/[opId]/actions', () => ({
 }));
 
 import axios from 'axios';
-import { getOpFromCode, getOpFromId, getOpFromRef } from '.';
+import { getOpFromCode, getOpFromId, getOpFromRef, generateBarcode } from '.';
+import { saveTagId } from '@/app/op/[opId]/actions';
 
 const JERP_API = process.env.JERP_API;
 
@@ -170,5 +171,50 @@ describe('getOpFromRef', () => {
     expect(result.isRight()).toBe(true);
     expect(result.get()?.numero).toBe(78322);
     expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('generateBarcode', () => {
+  it('envia quantidadeApontada e array de blisters ao JERP', async () => {
+    jest.resetAllMocks();
+    const blisters = [
+      {
+        codigo: '07809900614',
+        quantidade: 6,
+        fileName: 'OP_438999_BOX_box-1_BL_07809900614',
+      },
+    ];
+    const mockTag = {
+      message: 'OK',
+      id: 438999,
+      quantidadeApontada: 6,
+      idBarras: 432424,
+      quantidadePendente: 0,
+      descricao: null,
+      pdfBase64: null,
+    };
+
+    mockedAxios.post.mockResolvedValueOnce({ data: mockTag });
+
+    const result = await generateBarcode(
+      438999,
+      'box-1',
+      6,
+      'operador@teste.com',
+      blisters
+    );
+
+    expect(result.isRight()).toBe(true);
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      `${JERP_API}/ordemproducao`,
+      {
+        id: 438999,
+        quantidadeApontada: 6,
+        userName: 'operador@teste.com',
+        blisters,
+      },
+      expect.any(Object)
+    );
+    expect(saveTagId).toHaveBeenCalledWith('box-1', '432424');
   });
 });

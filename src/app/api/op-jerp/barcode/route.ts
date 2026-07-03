@@ -1,4 +1,6 @@
 import { generateBarcode, getOpFromId } from "@/shared/services/jerp";
+import { buildJerpBlisterApontamento } from "@/usecases/op-jerp/build-jerp-blister-apontamento";
+import { getPackedBlistersByBox } from "@/usecases/op-jerp/get-packed-blisters-by-box";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
@@ -113,13 +115,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Apontamento no JERP usando a quantidade do banco. O retorno do JERP
-    //    (quantidadeApontada / idBarras) é a fonte de verdade da etiqueta.
+    // 3. Apontamento no JERP usando quantidade e detalhe por blister do banco.
+    const packedBlisters = await getPackedBlistersByBox(boxId);
+    const jerpBlisters = buildJerpBlisterApontamento(opId, boxId, packedBlisters);
+
     const tagDataReq = await generateBarcode(
       opId,
       boxId,
       authoritativeQuantity,
-      userName
+      userName,
+      jerpBlisters
     );
 
     if (!tagDataReq.isRight()) {
@@ -155,6 +160,7 @@ export async function POST(req: NextRequest) {
               jerpRemaining,
               quantidadeApontada: tag.quantidadeApontada,
               idBarras: tag.idBarras,
+              blisters: jerpBlisters,
             },
           },
         });

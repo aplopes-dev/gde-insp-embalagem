@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { authorizeBreakWithJerp } from "../actions";
@@ -38,6 +38,10 @@ type ManagerAuthFormDialogProps = {
   title: string;
   message: string;
   initialQuantity?: number;
+  // Soma dos blisters já embalados na caixa (não inclui o último em conferência).
+  packedQuantity?: number;
+  // Quantidade planejada para a caixa cheia (usada para detectar caixa incompleta).
+  expectedQuantity?: number;
   onOpenChange: (open: boolean) => void;
   onManagerAuth: (quantity: number, managerId: string) => void;
 };
@@ -47,6 +51,8 @@ const ManagerAuthFormDialog = ({
   message,
   isOpen,
   initialQuantity,
+  packedQuantity = 0,
+  expectedQuantity,
   onOpenChange,
   onManagerAuth,
 }: ManagerAuthFormDialogProps) => {
@@ -64,10 +70,30 @@ const ManagerAuthFormDialog = ({
     formState: { errors },
     reset,
     register,
+    watch,
   } = form;
+
+  const [confirmUnderfill, setConfirmUnderfill] = useState(false);
+
+  const watchedQuantity = Number(watch("quantity")) || 0;
+  // Total consolidado da caixa: já embalado + o último blister em conferência.
+  const boxTotal = packedQuantity + watchedQuantity;
+  const isUnderfilled =
+    expectedQuantity != null && boxTotal < expectedQuantity;
 
   const onSubmit = form.handleSubmit(async (data) => {
     const { quantity, email, password } = data as any;
+
+    if (isUnderfilled && !confirmUnderfill) {
+      toast({
+        title: "Confirmação necessária",
+        description:
+          "A caixa está abaixo do total esperado. Confirme a finalização com quebra.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     await authorizeBreakWithJerp(email, password)
       .then((id) => {
         toast({
@@ -89,6 +115,7 @@ const ManagerAuthFormDialog = ({
   useEffect(() => {
     if (isOpen) {
       reset({ quantity: initialQuantity, email: "", password: "" });
+      setConfirmUnderfill(false);
     }
   }, [isOpen]);
 
@@ -120,6 +147,47 @@ const ManagerAuthFormDialog = ({
                   </FormItem>
                 )}
               />
+
+              <div className="rounded-md border p-3 text-sm bg-muted/40">
+                <div className="flex justify-between">
+                  <span>Já embalado na caixa:</span>
+                  <strong>{packedQuantity} peças</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Último blister (conferência):</span>
+                  <strong>{watchedQuantity} peças</strong>
+                </div>
+                <div className="mt-1 flex justify-between border-t pt-1">
+                  <span>Total da caixa:</span>
+                  <strong>{boxTotal} peças</strong>
+                </div>
+                {expectedQuantity != null && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Esperado (caixa cheia):</span>
+                    <span>{expectedQuantity} peças</span>
+                  </div>
+                )}
+              </div>
+
+              {isUnderfilled && (
+                <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                  <p className="font-semibold">
+                    Atenção: a caixa está abaixo do total esperado (
+                    {boxTotal} de {expectedQuantity}).
+                  </p>
+                  <label className="mt-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={confirmUnderfill}
+                      onChange={(e) => setConfirmUnderfill(e.target.checked)}
+                    />
+                    <span>
+                      Confirmo que a caixa será finalizada com quebra abaixo do
+                      esperado.
+                    </span>
+                  </label>
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="email"
@@ -165,7 +233,8 @@ const ManagerAuthFormDialog = ({
                   disabled={
                     !form.formState.isDirty ||
                     !form.formState.isValid ||
-                    form.formState.isSubmitting
+                    form.formState.isSubmitting ||
+                    (isUnderfilled && !confirmUnderfill)
                   }
                 >
                   Confirmar

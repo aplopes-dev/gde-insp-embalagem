@@ -589,7 +589,9 @@ export default function PackagingInspection({
   };
 
   async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
-    const productQuantity = currentBlisters
+    // A quantidade da etiqueta é calculada e conferida no servidor (banco + JERP).
+    // Este valor é enviado apenas como conferência/auditoria e é ignorado no apontamento.
+    const clientQuantity = currentBlisters
       .filter((bl) => bl.status == 1)
       .reduce((acc, i) => acc + i.quantity, 0);
 
@@ -604,7 +606,7 @@ export default function PackagingInspection({
         body: JSON.stringify({
           opId: data!.opId,
           boxId: box!.id,
-          quantity: productQuantity,
+          clientQuantity,
         }),
       });
 
@@ -825,6 +827,10 @@ export default function PackagingInspection({
           }
           isOpen={openForceFinalizationDialog}
           initialQuantity={inspection?.count}
+          packedQuantity={blisters
+            .filter((bl) => bl.packedAt)
+            .reduce((total, bl) => total + bl.quantity, 0)}
+          expectedQuantity={quantityInBox}
           onOpenChange={setOpenForceFinalizationDialog}
           onManagerAuth={(quantity, managerId) =>
             configLastBlisterQuantity(quantity, managerId)

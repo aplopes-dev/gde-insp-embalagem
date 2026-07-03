@@ -4,6 +4,7 @@ import { findFirstBlisterTypeInIds } from "@/entities/blister-type";
 import { findFirstBoxTypeInIds } from "@/entities/box-type";
 import { findProductTypeById } from "@/entities/product-type";
 import db from "@/providers/database";
+import logger from "@/libs/logger";
 import { getOpFromId } from "@/shared/services/jerp";
 import { handleError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
@@ -380,6 +381,49 @@ export async function persistBoxStatusWithBlisters(
   return { userId };
 }
 
+/**
+ * Restante a produzir segundo o JERP (fonte de verdade).
+ * Retorna null quando o JERP está indisponível, para permitir fallback local.
+ */
+async function getJerpRemainingQuantity(opId: number): Promise<number | null> {
+  const red = await getOpFromId(String(opId));
+  if (red.isLeft()) {
+    handleError(
+      red.getLeft(),
+      `Falha ao obter quantidade restante do JERP para OP ${opId}`
+    );
+    return null;
+  }
+  return red.get().quantidadeAProduzir ?? null;
+}
+
+/** Registra divergência entre pendente interno e restante do JERP (item 8). */
+async function logJerpDivergence(
+  opId: number,
+  boxId: string | null,
+  userId: string | null,
+  details: Record<string, unknown>
+) {
+  if (!userId) return;
+  try {
+    await db.opActivityLog.create({
+      data: {
+        opId,
+        userId,
+        actionType: "STATUS_CHANGED",
+        description: `Divergência JERP x interno detectada (JERP restante: ${details.jerpRemaining}, interno: ${details.localPending}).`,
+        boxId: boxId ?? undefined,
+        details: details as any,
+      },
+    });
+  } catch (error) {
+    logger.error({
+      message: "Falha ao registrar divergência JERP x interno no log.",
+      error,
+    });
+  }
+}
+
 export async function persistWithOpBreak(
   boxDto: OpBoxInspectionDto,
   blisters: OpBoxBlisterInspection[],
@@ -432,6 +476,7 @@ export async function persistWithOpBreak(
   try {
     // Persist blister and boxes after packeging
     await db.$transaction(queryCollection);
+
     const initialQuantity = await db.op.findUnique({
       select: {
         quantityToProduce: true,
@@ -441,25 +486,55 @@ export async function persistWithOpBreak(
       },
     });
     const countPackageItems = await db.opBoxBlister.aggregate({
-      _sum: {
-        quantity: true,
-      },
-      where: {
-        packedAt: {
-          not: null,
-        },
-        opBox: {
-          opId,
-        },
-      },
+      _sum: { quantity: true },
+      where: { packedAt: { not: null }, opBox: { opId } },
     });
-    if (initialQuantity?.quantityToProduce && countPackageItems._sum.quantity) {
-      const quantityPending =
-        initialQuantity.quantityToProduce - countPackageItems._sum.quantity;
-      await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
-    } else {
-      throw new Error(`Fail to calculate pending quantity by op ID: ${id}`);
+    const currentBoxAgg = await db.opBoxBlister.aggregate({
+      _sum: { quantity: true },
+      where: { packedAt: { not: null }, opBoxId: id },
+    });
+
+    const totalToProduce = initialQuantity?.quantityToProduce ?? 0;
+    const allPackedLocal = countPackageItems._sum.quantity ?? 0;
+    const currentBoxPacked = currentBoxAgg._sum.quantity ?? 0;
+
+    // Pendente local (fonte antiga): total planejado − tudo já embalado.
+    const localPending = totalToProduce - allPackedLocal;
+
+    // Item 3: pendente derivado do JERP (fonte de verdade). No momento da quebra
+    // a caixa atual ainda não foi apontada no JERP, então subtraímos o que
+    // acabou de ser embalado nela para obter o restante após esta caixa.
+    const jerpRemaining = await getJerpRemainingQuantity(opId);
+    let quantityPending = localPending;
+
+    if (jerpRemaining != null) {
+      quantityPending = jerpRemaining - currentBoxPacked;
+
+      if (quantityPending !== localPending) {
+        logger.warn({
+          message:
+            "Pendente interno diverge do restante do JERP na quebra (usando JERP).",
+          opId,
+          boxId: id,
+          localPending,
+          jerpRemaining,
+          currentBoxPacked,
+          quantityPending,
+        });
+        await logJerpDivergence(opId, id, authorizerUserId, {
+          event: "BREAK_PENDING_DIVERGENCE",
+          localPending,
+          jerpRemaining,
+          currentBoxPacked,
+          quantityPending,
+        });
+      }
     }
+
+    await recalculateBoxesFromOpAndItemQuantity(
+      opId,
+      Math.max(0, quantityPending)
+    );
 
     if (authorizerUserId) {
       try {
@@ -502,13 +577,7 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     throw new Error(`Not found OP with ID: ${opId}`);
   }
 
-  const boxes = createOpBoxesData({
-    quantityToProduce,
-    blisterSlots: op.blister?.slots,
-    blisterPerBox: op.blister?.limitPerBox,
-    boxGap: op.OpBox.length,
-  });
-
+  // Sempre remove as caixas/blisters pendentes (não embalados) antes de recriar.
   await db.$transaction([
     db.opBoxBlister.deleteMany({
       where: {
@@ -525,6 +594,25 @@ export async function recalculateBoxesFromOpAndItemQuantity(
       },
     }),
   ]);
+
+  // Nada pendente: não há caixas a recriar (ex.: OP já concluída no JERP).
+  if (quantityToProduce <= 0) {
+    return db.op.findUnique({ where: { id: opId } });
+  }
+
+  // Item 4: numeração sem duplicidade. Continua a partir do maior `code` já
+  // existente (inclusive de caixas embaladas), evitando reuso após deleções.
+  const maxCode = op.OpBox.reduce(
+    (max, b) => Math.max(max, Number(b.code) || 0),
+    0
+  );
+
+  const boxes = createOpBoxesData({
+    quantityToProduce,
+    blisterSlots: op.blister?.slots,
+    blisterPerBox: op.blister?.limitPerBox,
+    boxGap: maxCode,
+  });
 
   return db.op.update({
     data: {

@@ -60,6 +60,20 @@ describe("createOpBoxesData", () => {
       })
     ).toThrow("Quantidade a produzir deve ser maior que zero.");
   });
+
+  it("continua a numeração a partir do boxGap para evitar códigos duplicados", () => {
+    // Simula recriação de pendentes após deleção: maior code existente = 24.
+    const boxes = createOpBoxesData({
+      quantityToProduce: 100,
+      blisterSlots: 10,
+      blisterPerBox: 5,
+      boxGap: 24,
+    });
+
+    expect(boxes.length).toBe(2);
+    expect(boxes[0].code).toBe("25");
+    expect(boxes[1].code).toBe("26");
+  });
 });
 
 describe("createOpBoxBlistersData", () => {

@@ -1,11 +1,12 @@
-"use server"
-
 import { saveTagId } from "@/app/op/[opId]/actions";
 import logger from "@/libs/logger";
 import { ApiResponseError, handleApiResponseError } from "@/shared/utils/errorHandler";
-import { JerpEmbalagemApontamentoDto } from "@/types/dtos/jerp-embalagem-apontamento-dto";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
+import {
+  buildJerpApontamentoPayload,
+} from "@/usecases/op-jerp/build-jerp-apontamento-payload";
+import { BlisterApontamentoSource } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
 import axios from "axios";
 import { Either, makeLeft, makeRight } from '@/shared/utils/either';
 
@@ -59,18 +60,36 @@ export async function generateBarcode(
   opBoxId: string,
   quantity: number,
   userName: string,
-  embalagens: JerpEmbalagemApontamentoDto[]
+  packedBlisters: ReadonlyArray<BlisterApontamentoSource>
 ): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
   try {
+    const { embalagens, blisters } = buildJerpApontamentoPayload(
+      id,
+      opBoxId,
+      packedBlisters
+    );
+
     const payload = {
       id,
       quantidadeApontada: quantity,
       userName,
       embalagens,
+      // Compatibilidade: versões do JERP que ainda leem blisters[].codigo.
+      blisters,
     };
+
+    logger.info({
+      message: "Enviando apontamento ao JERP",
+      opId: id,
+      boxId: opBoxId,
+      quantidadeApontada: quantity,
+      embalagemCount: embalagens.length,
+      embalagens,
+      blisters,
+    });
 
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,

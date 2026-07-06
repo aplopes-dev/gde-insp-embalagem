@@ -175,11 +175,11 @@ describe('getOpFromRef', () => {
 });
 
 describe('generateBarcode', () => {
-  it('envia quantidadeApontada e array de embalagens ao JERP', async () => {
+  it('envia quantidadeApontada e arrays embalagens e blisters ao JERP', async () => {
     jest.resetAllMocks();
-    const embalagens = [
-      { barcode: '70856001' },
-      { barcode: '70856002' },
+    const packedBlisters = [
+      { code: '70856001', quantity: 3 },
+      { code: '70856002', quantity: 3 },
     ];
     const mockTag = {
       message: 'OK',
@@ -198,7 +198,7 @@ describe('generateBarcode', () => {
       'box-1',
       6,
       'operador@teste.com',
-      embalagens
+      packedBlisters
     );
 
     expect(result.isRight()).toBe(true);
@@ -208,7 +208,22 @@ describe('generateBarcode', () => {
         id: 438999,
         quantidadeApontada: 6,
         userName: 'operador@teste.com',
-        embalagens,
+        embalagens: [
+          { barcode: '70856001' },
+          { barcode: '70856002' },
+        ],
+        blisters: [
+          {
+            codigo: '70856001',
+            quantidade: 3,
+            fileName: 'OP_438999_BOX_box-1_BL_70856001',
+          },
+          {
+            codigo: '70856002',
+            quantidade: 3,
+            fileName: 'OP_438999_BOX_box-1_BL_70856002',
+          },
+        ],
       },
       expect.any(Object)
     );

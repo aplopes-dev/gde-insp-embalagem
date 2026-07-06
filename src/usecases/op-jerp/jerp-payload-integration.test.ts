@@ -20,7 +20,6 @@ jest.mock("@/providers/database", () => ({
 
 import axios from "axios";
 import { generateBarcode } from "@/shared/services/jerp";
-import { buildJerpEmbalagemApontamento } from "./build-jerp-embalagem-apontamento";
 import { getPackedBlistersByBox } from "./get-packed-blisters-by-box";
 
 jest.mock("axios");
@@ -57,14 +56,13 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
 
     const packed = await getPackedBlistersByBox(boxId);
     const quantity = packed.reduce((acc, b) => acc + b.quantity, 0);
-    const embalagens = buildJerpEmbalagemApontamento(packed);
 
     const result = await generateBarcode(
       opId,
       boxId,
       quantity,
       "joaobarreto@gde.com.br",
-      embalagens
+      packed
     );
 
     expect(result.isRight()).toBe(true);
@@ -87,6 +85,18 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
           { barcode: "07285300651" },
           { barcode: "07285300652" },
         ],
+        blisters: [
+          {
+            codigo: "07285300651",
+            quantidade: 6,
+            fileName: `OP_${opId}_BOX_${boxId}_BL_07285300651`,
+          },
+          {
+            codigo: "07285300652",
+            quantidade: 6,
+            fileName: `OP_${opId}_BOX_${boxId}_BL_07285300652`,
+          },
+        ],
       },
       expect.any(Object)
     );
@@ -106,13 +116,13 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
 
     const packed = await getPackedBlistersByBox("box-72741");
     const quantity = packed.reduce((acc, b) => acc + b.quantity, 0);
-    const embalagens = buildJerpEmbalagemApontamento(packed);
 
-    await generateBarcode(404537, "box-72741", quantity, "op@gde.com.br", embalagens);
+    await generateBarcode(404537, "box-72741", quantity, "op@gde.com.br", packed);
 
     const sentPayload = mockedAxios.post.mock.calls[0][1] as {
       quantidadeApontada: number;
       embalagens: Array<{ barcode: string }>;
+      blisters: Array<{ codigo: string }>;
     };
 
     expect(sentPayload.quantidadeApontada).toBe(49);
@@ -122,20 +132,25 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
       { barcode: "07274100168" },
       { barcode: "07274100218" },
     ]);
+    expect(sentPayload.blisters.map((b) => b.codigo)).toEqual([
+      "07274100217",
+      "07274100169",
+      "07274100168",
+      "07274100218",
+    ]);
   });
 
-  it("envia embalagens vazio quando a caixa não tem blisters embalados", async () => {
+  it("envia embalagens e blisters vazios quando a caixa não tem blisters embalados", async () => {
     findManyMock.mockResolvedValueOnce([]);
     mockedAxios.post.mockResolvedValueOnce({ data: { idBarras: 0 } });
 
     const packed = await getPackedBlistersByBox("box-empty");
-    const embalagens = buildJerpEmbalagemApontamento(packed);
 
-    await generateBarcode(1, "box-empty", 0, "op@gde.com.br", embalagens);
+    await generateBarcode(1, "box-empty", 0, "op@gde.com.br", packed);
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
       `${JERP_API}/ordemproducao`,
-      expect.objectContaining({ embalagens: [] }),
+      expect.objectContaining({ embalagens: [], blisters: [] }),
       expect.any(Object)
     );
   });

@@ -31,16 +31,19 @@ export type ResolvePieceRegistrationInput = {
   historyBlisterConfig?: BlisterConfig | null;
 };
 
-export function isValidBlisterConfig(
+export function resolveBlisterConfig(
   slots?: number,
   limitPerBox?: number
-): slots is number {
-  return (
+): BlisterConfig | null {
+  if (
     slots != null &&
     limitPerBox != null &&
     slots > 0 &&
     limitPerBox > 0
-  );
+  ) {
+    return { slots, limitPerBox };
+  }
+  return null;
 }
 
 export function resolvePieceRegistration(
@@ -55,42 +58,44 @@ export function resolvePieceRegistration(
     };
   }
 
-  if (
+  const localBlisterConfig =
     existingBlisterType &&
-    isValidBlisterConfig(existingBlisterType.slots, existingBlisterType.limitPerBox)
-  ) {
+    resolveBlisterConfig(
+      existingBlisterType.slots,
+      existingBlisterType.limitPerBox
+    );
+  if (localBlisterConfig) {
     return {
       mode: "auto",
-      slots: existingBlisterType.slots,
-      limitPerBox: existingBlisterType.limitPerBox,
+      ...localBlisterConfig,
       blisterPackagingId: blisterPackaging.id,
       source: "local_db",
     };
   }
 
-  if (
-    isValidBlisterConfig(blisterPackaging.slots, blisterPackaging.limitePorCaixa)
-  ) {
+  const jerpBlisterConfig = resolveBlisterConfig(
+    blisterPackaging.slots,
+    blisterPackaging.limitePorCaixa
+  );
+  if (jerpBlisterConfig) {
     return {
       mode: "auto",
-      slots: blisterPackaging.slots,
-      limitPerBox: blisterPackaging.limitePorCaixa,
+      ...jerpBlisterConfig,
       blisterPackagingId: blisterPackaging.id,
       source: "jerp_op",
     };
   }
 
-  if (
+  const historyConfig =
     historyBlisterConfig &&
-    isValidBlisterConfig(
+    resolveBlisterConfig(
       historyBlisterConfig.slots,
       historyBlisterConfig.limitPerBox
-    )
-  ) {
+    );
+  if (historyConfig) {
     return {
       mode: "auto",
-      slots: historyBlisterConfig.slots,
-      limitPerBox: historyBlisterConfig.limitPerBox,
+      ...historyConfig,
       blisterPackagingId: blisterPackaging.id,
       source: "history",
     };

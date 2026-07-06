@@ -1,6 +1,6 @@
 "use server";
 
-import { buildJerpBlisterApontamento } from "@/usecases/op-jerp/build-jerp-blister-apontamento";
+import { buildJerpEmbalagemApontamento } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
 import { getPackedBlistersByBox } from "@/usecases/op-jerp/get-packed-blisters-by-box";
 import db from "@/providers/database";
 import { generateBarcode } from "@/shared/services/jerp";
@@ -128,13 +128,13 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
     } as ApiResponseError;
   }
 
-  const jerpBlisters = buildJerpBlisterApontamento(opId, boxId, packedBlisters);
+  const embalagens = buildJerpEmbalagemApontamento(packedBlisters);
   const tagDataReq = await generateBarcode(
     opId,
     `${boxId}`,
     quantity,
     userName,
-    jerpBlisters
+    embalagens
   );
 
   if (tagDataReq.isRight()) {

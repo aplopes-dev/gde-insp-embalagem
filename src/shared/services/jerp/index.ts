@@ -3,7 +3,7 @@
 import { saveTagId } from "@/app/op/[opId]/actions";
 import logger from "@/libs/logger";
 import { ApiResponseError, handleApiResponseError } from "@/shared/utils/errorHandler";
-import { JerpBlisterApontamentoDto } from "@/types/dtos/jerp-blister-apontamento-dto";
+import { JerpEmbalagemApontamentoDto } from "@/types/dtos/jerp-embalagem-apontamento-dto";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import axios from "axios";
@@ -59,7 +59,7 @@ export async function generateBarcode(
   opBoxId: string,
   quantity: number,
   userName: string,
-  blisters: JerpBlisterApontamentoDto[]
+  embalagens: JerpEmbalagemApontamentoDto[]
 ): Promise<Either<ApiResponseError, PrintTagJerpDto>> {
   if (!id) throw new Error("ID da OP é obrigatório para gerar etiqueta")
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
@@ -69,7 +69,7 @@ export async function generateBarcode(
       id,
       quantidadeApontada: quantity,
       userName,
-      blisters,
+      embalagens,
     };
 
     const response = await axios.post(

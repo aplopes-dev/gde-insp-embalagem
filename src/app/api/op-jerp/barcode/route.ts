@@ -1,5 +1,5 @@
-import { generateBarcode, getOpFromId } from "@/shared/services/jerp";
-import { buildJerpBlisterApontamento } from "@/usecases/op-jerp/build-jerp-blister-apontamento";
+import { generateBarcode } from "@/shared/services/jerp";
+import { buildJerpEmbalagemApontamento } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
 import { getPackedBlistersByBox } from "@/usecases/op-jerp/get-packed-blisters-by-box";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -90,41 +90,19 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Conferência contra o JERP (quantidade restante a produzir).
-    let jerpRemaining: number | null = null;
-    const jerpOpRed = await getOpFromId(String(opId));
-    if (jerpOpRed.isRight()) {
-      jerpRemaining = jerpOpRed.get().quantidadeAProduzir ?? null;
-      if (jerpRemaining != null && authoritativeQuantity > jerpRemaining) {
-        logger.warn({
-          message:
-            "Quantidade embalada excede o restante informado pelo JERP.",
-          opId,
-          boxId,
-          authoritativeQuantity,
-          jerpRemaining,
-        });
-      }
-    } else {
-      logger.warn({
-        message:
-          "Não foi possível conferir a quantidade restante no JERP antes de apontar.",
-        opId,
-        boxId,
-        error: jerpOpRed.getLeft()?.error,
-      });
-    }
-
-    // 3. Apontamento no JERP usando quantidade e detalhe por blister do banco.
+    // 2. Apontamento no JERP usando quantidade e embalagens (blisters) do banco.
+    //    A resposta deste apontamento já traz todas as informações da OP
+    //    (quantidade apontada, código de barras, pendente etc.). Por isso NÃO
+    //    fazemos nenhuma requisição adicional ao JERP para reconsultar a OP.
     const packedBlisters = await getPackedBlistersByBox(boxId);
-    const jerpBlisters = buildJerpBlisterApontamento(opId, boxId, packedBlisters);
+    const embalagens = buildJerpEmbalagemApontamento(packedBlisters);
 
     const tagDataReq = await generateBarcode(
       opId,
       boxId,
       authoritativeQuantity,
       userName,
-      jerpBlisters
+      embalagens
     );
 
     if (!tagDataReq.isRight()) {
@@ -134,33 +112,34 @@ export async function POST(req: NextRequest) {
 
     const tag = tagDataReq.get();
 
-    // 4. Auditoria (item 8): registra a geração da etiqueta e eventuais alertas.
+    // 3. Auditoria: registra a geração da etiqueta e armazena o payload completo
+    //    devolvido pela integração (JERP). O `pdfBase64` fica de fora por ser o
+    //    binário da etiqueta (não é informação da OP) e evitar inflar o log.
     try {
       const userId = await resolveUserId(userName);
       if (userId) {
         const divergenceNote = clientDivergence
           ? ` [ALERTA: cliente informou ${clientQuantity}, banco registrou ${authoritativeQuantity}]`
           : "";
-        const jerpNote =
-          jerpRemaining != null && authoritativeQuantity > jerpRemaining
-            ? ` [ALERTA: excede restante do JERP (${jerpRemaining})]`
-            : "";
+
+        const { pdfBase64: _pdfBase64, ...jerpResponse } = tag;
 
         await db.opActivityLog.create({
           data: {
             opId,
             userId,
             actionType: "STATUS_CHANGED",
-            description: `Etiqueta gerada: ${tag.quantidadeApontada} peças, código ${tag.idBarras}.${divergenceNote}${jerpNote}`,
+            description: `Etiqueta gerada: ${tag.quantidadeApontada} peças, código ${tag.idBarras}.${divergenceNote}`,
             boxId,
             details: {
               event: "BARCODE_GENERATED",
               authoritativeQuantity,
               clientQuantity,
-              jerpRemaining,
               quantidadeApontada: tag.quantidadeApontada,
               idBarras: tag.idBarras,
-              blisters: jerpBlisters,
+              quantidadePendente: tag.quantidadePendente,
+              embalagens,
+              jerpResponse,
             },
           },
         });

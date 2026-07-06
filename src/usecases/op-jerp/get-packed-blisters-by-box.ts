@@ -1,5 +1,5 @@
 import db from "@/providers/database";
-import { BlisterApontamentoSource } from "./build-jerp-blister-apontamento";
+import { BlisterApontamentoSource } from "./build-jerp-embalagem-apontamento";
 
 /** Blisters efetivamente embalados na caixa (fonte autoritativa para apontamento JERP). */
 export async function getPackedBlistersByBox(

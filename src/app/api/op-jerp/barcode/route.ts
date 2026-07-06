@@ -1,6 +1,6 @@
 import { generateBarcode } from "@/shared/services/jerp";
+import { getAuthoritativeBoxPackedSummary } from "@/usecases/op-jerp/get-authoritative-box-packed-summary";
 import { buildJerpEmbalagemApontamento } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
-import { getPackedBlistersByBox } from "@/usecases/op-jerp/get-packed-blisters-by-box";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
@@ -16,15 +16,6 @@ type GenerateBarcodeBody = {
   // Compatibilidade com clientes antigos que enviavam `quantity`.
   quantity?: number;
 };
-
-/** Soma autoritativa: blisters efetivamente embalados (packedAt) da caixa. */
-async function sumPackedQuantityByBox(boxId: string): Promise<number> {
-  const agg = await db.opBoxBlister.aggregate({
-    _sum: { quantity: true },
-    where: { packedAt: { not: null }, opBoxId: boxId },
-  });
-  return agg._sum.quantity ?? 0;
-}
 
 async function resolveUserId(email: string): Promise<string | null> {
   const user = await db.user.findUnique({
@@ -63,10 +54,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Quantidade autoritativa: sempre a partir do banco, nunca do cliente.
-    const authoritativeQuantity = await sumPackedQuantityByBox(boxId);
+    // 1. Quantidade e blisters: sempre a partir do banco (packedAt), nunca do cliente.
+    const packedSummary = await getAuthoritativeBoxPackedSummary(boxId);
 
-    if (authoritativeQuantity <= 0) {
+    if (!packedSummary || packedSummary.quantity <= 0) {
       return NextResponse.json(
         {
           error:
@@ -75,6 +66,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const authoritativeQuantity = packedSummary.quantity;
+    const embalagens = buildJerpEmbalagemApontamento(packedSummary.blisters);
 
     // Conferência: a quantidade calculada no cliente diverge da persistida?
     const clientDivergence =
@@ -90,13 +84,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Apontamento no JERP usando quantidade e embalagens (blisters) do banco.
-    //    A resposta deste apontamento já traz todas as informações da OP
-    //    (quantidade apontada, código de barras, pendente etc.). Por isso NÃO
-    //    fazemos nenhuma requisição adicional ao JERP para reconsultar a OP.
-    const packedBlisters = await getPackedBlistersByBox(boxId);
-    const embalagens = buildJerpEmbalagemApontamento(packedBlisters);
-
+    // 2. Apontamento no JERP usando quantidade e embalagens persistidas.
     const tagDataReq = await generateBarcode(
       opId,
       boxId,
@@ -112,7 +100,27 @@ export async function POST(req: NextRequest) {
 
     const tag = tagDataReq.get();
 
-    // 3. Auditoria: registra a geração da etiqueta e armazena o payload completo
+    if (tag.quantidadeApontada !== authoritativeQuantity) {
+      logger.error({
+        message:
+          "JERP retornou quantidade diferente da persistida no banco.",
+        opId,
+        boxId,
+        authoritativeQuantity,
+        quantidadeApontada: tag.quantidadeApontada,
+      });
+      return NextResponse.json(
+        {
+          error: "Divergência entre quantidade apontada no JERP e a inspecionada.",
+          errorData: {
+            message: `Esperado ${authoritativeQuantity} peças (banco), JERP retornou ${tag.quantidadeApontada}.`,
+          },
+        },
+        { status: 502 }
+      );
+    }
+
+    // 3. Auditoria: registra a geração da etiqueta
     //    devolvido pela integração (JERP). O `pdfBase64` fica de fora por ser o
     //    binário da etiqueta (não é informação da OP) e evitar inflar o log.
     try {

@@ -22,6 +22,7 @@ import {
   objectInspection,
 } from "@/shared/services/object-inspection";
 import { blisterQrMatchesOp } from "@/shared/services/blister-qr-code";
+import { sumPlannedBoxQuantity } from "@/usecases/op/find-next-pending-op-box";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
@@ -36,6 +37,7 @@ import {
   opCompletionNowHandler,
   persistBoxStatusWithBlisters,
   persistWithOpBreak,
+  fetchAuthoritativePackedBoxSummary,
   syncAndGetOpToProduceById,
 } from "./actions";
 
@@ -181,8 +183,16 @@ export default function PackagingInspection({
       const itemId: string | undefined = opData?.boxType.name;
       const model: string | undefined = opData?.productType.name;
       const quantity: number = 1;
+      const boxQty = sumPlannedBoxQuantity(opData.nextBox!.OpBoxBlister ?? []);
+      const fullBoxQty =
+        opData.blisterType.slots * opData.blisterType.limitPerBox;
+      const isPartialBox = boxQty < fullBoxQty;
+      const partialNote = isPartialBox ? " — ÚLTIMA CAIXA PARCIAL" : "";
 
-      setVisorMessage("AGUARDANDO CAIXA...", "blue");
+      setVisorMessage(
+        `CAIXA ${opData.nextBox!.code} DE ${opData.totalBoxes} — ${boxQty} PEÇAS NA ETIQUETA${partialNote}. AGUARDANDO CAIXA...`,
+        "blue"
+      );
       sendValidation({ itemId, quantity, model }, { opId: opData.opId });
     }
   };
@@ -652,11 +662,12 @@ export default function PackagingInspection({
 
   async function persistBoxInspection(currentBlisters: OpBoxBlisterInspection[]) {
     if (box) {
-      await persistBoxStatusWithBlisters(box.id, currentBlisters)
+      const boxId = box.id;
+      await persistBoxStatusWithBlisters(boxId, currentBlisters)
         .then((result) => {
           setVisorMessage("Inspeção de caixa finalizada com sucesso!", "green");
           setTimeout(async () => {
-            printTag(currentBlisters);
+            printTag(boxId);
           }, 2000);
         })
         .catch((err) => {
@@ -672,16 +683,23 @@ export default function PackagingInspection({
     }
   };
 
-  async function printTag(currentBlisters: OpBoxBlisterInspection[]) {
-    // A quantidade da etiqueta é calculada e conferida no servidor (banco + JERP).
-    // Este valor é enviado apenas como conferência/auditoria e é ignorado no apontamento.
-    const clientQuantity = currentBlisters
-      .filter((bl) => bl.status == 1)
-      .reduce((acc, i) => acc + i.quantity, 0);
-
-    setVisorMessage("IMPRIMINDO ETIQUETA...", "black");
+  async function printTag(boxId: string) {
+    setVisorMessage("CONFERINDO QUANTIDADE INSPECIONADA...", "black");
 
     try {
+      const packedSummary = await fetchAuthoritativePackedBoxSummary(boxId);
+
+      if (!packedSummary || packedSummary.quantity <= 0) {
+        throw new Error(
+          "Nenhum blister embalado encontrado no banco. A etiqueta não pode ser gerada."
+        );
+      }
+
+      setVisorMessage(
+        `IMPRIMINDO ETIQUETA — ${packedSummary.quantity} PEÇAS (${packedSummary.blisterCount} BLISTERS)...`,
+        "black"
+      );
+
       const response = await fetch("/api/op-jerp/barcode", {
         method: "POST",
         headers: {
@@ -689,8 +707,8 @@ export default function PackagingInspection({
         },
         body: JSON.stringify({
           opId: data!.opId,
-          boxId: box!.id,
-          clientQuantity,
+          boxId,
+          clientQuantity: packedSummary.quantity,
         }),
       });
 
@@ -725,7 +743,7 @@ export default function PackagingInspection({
         .then((_) => {
           setVisorMessage("Caixa finalizada com sucesso!", "green");
           setTimeout(async () => {
-            printTag(currentBlisters);
+            printTag(box!.id);
           }, 2000);
         })
         .catch((err) => {
@@ -861,6 +879,22 @@ export default function PackagingInspection({
 
                         <div className="mt-2">
                           <h3 className="font-bold uppercase">Caixa</h3>
+                          <div className="mb-2 text-sm xl:text-base">
+                            <strong>Sequência:</strong> Caixa {box?.code} de{" "}
+                            {data.totalBoxes}
+                            {quantityInBox <
+                            data.blisterType.slots *
+                              data.blisterType.limitPerBox ? (
+                              <span className="ml-2 font-semibold text-amber-700">
+                                (última caixa parcial — {quantityInBox} peças na
+                                etiqueta)
+                              </span>
+                            ) : (
+                              <span className="ml-2 text-muted-foreground">
+                                ({quantityInBox} peças na etiqueta)
+                              </span>
+                            )}
+                          </div>
                           <BoxDisplay
                             name={data.boxType.name}
                             isTarget={step == 0}

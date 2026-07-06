@@ -23,6 +23,11 @@ import {
   resolvePendingQuantity,
 } from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
 import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
+import { findNextPendingOpBox } from "@/usecases/op/find-next-pending-op-box";
+import {
+  getAuthoritativeBoxPackedSummary,
+  type AuthoritativeBoxPackedSummary,
+} from "@/usecases/op-jerp/get-authoritative-box-packed-summary";
 import {
   BlisterType,
   BoxType,
@@ -362,25 +367,23 @@ async function createBoxTypeFromJerp(embalagem: { id: number; nome: string }): P
 
 
 async function fetchOpDetails(internalOp: Op) {
-  const transaction = await db.$transaction([
-    db.opBox.count({ where: { opId: internalOp.id } }),
-    db.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
-    db.opBox.findFirst({
-      where: { opId: internalOp.id, packedAt: null },
-      orderBy: { createdAt: "asc" },
-      include: { OpBoxBlister: true },
-    }),
-    db.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
-    db.boxType.findFirst({ where: { id: internalOp.boxTypeId } }),
-    db.productType.findFirst({ where: { id: internalOp.productTypeId } }),
-    db.opBoxBlister.aggregate({
-      _sum: { quantity: true },
-      where: { packedAt: { not: null }, opBox: { opId: internalOp.id } },
-    }),
-    db.opBoxBlister.findMany({
-      select: { code: true },
-      where: { opBox: { opId: internalOp.id } },
-    }),
+  const [transaction, nextBox] = await Promise.all([
+    db.$transaction([
+      db.opBox.count({ where: { opId: internalOp.id } }),
+      db.opBox.count({ where: { opId: internalOp.id, packedAt: null } }),
+      db.blisterType.findFirst({ where: { id: internalOp.blisterTypeId } }),
+      db.boxType.findFirst({ where: { id: internalOp.boxTypeId } }),
+      db.productType.findFirst({ where: { id: internalOp.productTypeId } }),
+      db.opBoxBlister.aggregate({
+        _sum: { quantity: true },
+        where: { packedAt: { not: null }, opBox: { opId: internalOp.id } },
+      }),
+      db.opBoxBlister.findMany({
+        select: { code: true },
+        where: { opBox: { opId: internalOp.id } },
+      }),
+    ]),
+    findNextPendingOpBox(internalOp.id),
   ]);
 
   const {
@@ -399,14 +402,14 @@ async function fetchOpDetails(internalOp: Op) {
     createdAt,
     finishedAt,
     quantityToProduce,
-    blisterCodes: transaction[7]?.map((bl) => bl.code) || [],
-    itemsPacked: transaction[6]._sum.quantity,
-    productType: transaction[5],
-    blisterType: transaction[3],
-    boxType: transaction[4],
+    blisterCodes: transaction[6]?.map((bl) => bl.code) || [],
+    itemsPacked: transaction[5]._sum.quantity,
+    productType: transaction[4],
+    blisterType: transaction[2],
+    boxType: transaction[3],
     totalBoxes: transaction[0],
     pendingBoxes: transaction[1],
-    nextBox: transaction[2] || undefined,
+    nextBox: nextBox || undefined,
   } as OpInspectionDto;
 }
 
@@ -898,4 +901,11 @@ export async function opCompletionNowHandler(opId: number) {
     }
   }
   return false;
+}
+
+/** Quantidade embalada na caixa — lida do banco após persistir a inspeção. */
+export async function fetchAuthoritativePackedBoxSummary(
+  boxId: string
+): Promise<AuthoritativeBoxPackedSummary | null> {
+  return getAuthoritativeBoxPackedSummary(boxId);
 }

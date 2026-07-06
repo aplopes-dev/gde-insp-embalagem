@@ -1,7 +1,7 @@
 "use server";
 
 import { buildJerpEmbalagemApontamento } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
-import { getPackedBlistersByBox } from "@/usecases/op-jerp/get-packed-blisters-by-box";
+import { getAuthoritativeBoxPackedSummary } from "@/usecases/op-jerp/get-authoritative-box-packed-summary";
 import db from "@/providers/database";
 import { generateBarcode } from "@/shared/services/jerp";
 import { ApiResponseError } from "@/shared/utils/errorHandler";
@@ -115,10 +115,9 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
     },
   } as ApiResponseError;
 
-  const packedBlisters = await getPackedBlistersByBox(boxId);
-  const quantity = packedBlisters.reduce((acc, blister) => acc + blister.quantity, 0);
+  const packedSummary = await getAuthoritativeBoxPackedSummary(boxId);
 
-  if (quantity <= 0) {
+  if (!packedSummary || packedSummary.quantity <= 0) {
     return {
       status: 400,
       error: "Falha ao gerar etiqueta",
@@ -128,11 +127,11 @@ export async function generateBarcodeByBoxId(opId: number, boxId: string): Promi
     } as ApiResponseError;
   }
 
-  const embalagens = buildJerpEmbalagemApontamento(packedBlisters);
+  const embalagens = buildJerpEmbalagemApontamento(packedSummary.blisters);
   const tagDataReq = await generateBarcode(
     opId,
     `${boxId}`,
-    quantity,
+    packedSummary.quantity,
     userName,
     embalagens
   );

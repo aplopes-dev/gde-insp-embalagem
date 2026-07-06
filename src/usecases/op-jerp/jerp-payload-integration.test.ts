@@ -32,7 +32,7 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
     jest.clearAllMocks();
   });
 
-  it("envia ao JERP o payload com embalagens no formato { barcode } a partir dos blisters embalados no banco", async () => {
+  it("envia ao JERP blisters com barcode a partir dos blisters embalados no banco", async () => {
     // Blisters embalados como estão no banco (formato real: 0 + OP + sequencial).
     findManyMock.mockResolvedValueOnce([
       { code: "07285300651", quantity: 6 },
@@ -81,28 +81,16 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
         id: 416436,
         quantidadeApontada: 12,
         userName: "joaobarreto@gde.com.br",
-        embalagens: [
+        blisters: [
           { barcode: "07285300651" },
           { barcode: "07285300652" },
-        ],
-        blisters: [
-          {
-            codigo: "07285300651",
-            quantidade: 6,
-            fileName: `OP_${opId}_BOX_${boxId}_BL_07285300651`,
-          },
-          {
-            codigo: "07285300652",
-            quantidade: 6,
-            fileName: `OP_${opId}_BOX_${boxId}_BL_07285300652`,
-          },
         ],
       },
       expect.any(Object)
     );
   });
 
-  it("envia um barcode por blister preservando a ordem de embalagem do banco", async () => {
+  it("envia um blister por código preservando a ordem de embalagem do banco", async () => {
     findManyMock.mockResolvedValueOnce([
       { code: "07274100217", quantity: 12 },
       { code: "07274100169", quantity: 12 },
@@ -121,26 +109,19 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
 
     const sentPayload = mockedAxios.post.mock.calls[0][1] as {
       quantidadeApontada: number;
-      embalagens: Array<{ barcode: string }>;
-      blisters: Array<{ codigo: string }>;
+      blisters: Array<{ barcode: string }>;
     };
 
     expect(sentPayload.quantidadeApontada).toBe(49);
-    expect(sentPayload.embalagens).toEqual([
+    expect(sentPayload.blisters).toEqual([
       { barcode: "07274100217" },
       { barcode: "07274100169" },
       { barcode: "07274100168" },
       { barcode: "07274100218" },
     ]);
-    expect(sentPayload.blisters.map((b) => b.codigo)).toEqual([
-      "07274100217",
-      "07274100169",
-      "07274100168",
-      "07274100218",
-    ]);
   });
 
-  it("envia embalagens e blisters vazios quando a caixa não tem blisters embalados", async () => {
+  it("envia blisters vazio quando a caixa não tem blisters embalados", async () => {
     findManyMock.mockResolvedValueOnce([]);
     mockedAxios.post.mockResolvedValueOnce({ data: { idBarras: 0 } });
 
@@ -150,7 +131,7 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
       `${JERP_API}/ordemproducao`,
-      expect.objectContaining({ embalagens: [], blisters: [] }),
+      expect.objectContaining({ blisters: [] }),
       expect.any(Object)
     );
   });

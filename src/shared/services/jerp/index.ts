@@ -66,18 +66,12 @@ export async function generateBarcode(
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
   try {
-    const { embalagens, blisters } = buildJerpApontamentoPayload(
-      id,
-      opBoxId,
-      packedBlisters
-    );
+    const blisters = buildJerpApontamentoPayload(packedBlisters);
 
     const payload = {
       id,
       quantidadeApontada: quantity,
       userName,
-      embalagens,
-      // Compatibilidade: versões do JERP que ainda leem blisters[].codigo.
       blisters,
     };
 
@@ -86,8 +80,7 @@ export async function generateBarcode(
       opId: id,
       boxId: opBoxId,
       quantidadeApontada: quantity,
-      embalagemCount: embalagens.length,
-      embalagens,
+      blisterCount: blisters.length,
       blisters,
     });
 

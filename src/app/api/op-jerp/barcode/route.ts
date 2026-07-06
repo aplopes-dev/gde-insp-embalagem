@@ -68,11 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     const authoritativeQuantity = packedSummary.quantity;
-    const apontamentoPayload = buildJerpApontamentoPayload(
-      opId,
-      boxId,
-      packedSummary.blisters
-    );
+    const apontamentoBlisters = buildJerpApontamentoPayload(packedSummary.blisters);
 
     // Conferência: a quantidade calculada no cliente diverge da persistida?
     const clientDivergence =
@@ -88,7 +84,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Apontamento no JERP usando quantidade e embalagens persistidas.
+    // 2. Apontamento no JERP usando quantidade e blisters persistidos.
     const tagDataReq = await generateBarcode(
       opId,
       boxId,
@@ -150,8 +146,7 @@ export async function POST(req: NextRequest) {
               quantidadeApontada: tag.quantidadeApontada,
               idBarras: tag.idBarras,
               quantidadePendente: tag.quantidadePendente,
-              embalagens: apontamentoPayload.embalagens,
-              blisters: apontamentoPayload.blisters,
+              blisters: apontamentoBlisters,
               jerpResponse,
             },
           },

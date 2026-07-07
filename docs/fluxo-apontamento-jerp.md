@@ -253,7 +253,7 @@ Montado em `generateBarcode()`:
   "id": 430505,
   "quantidadeApontada": 48,
   "userName": "operador@gde.com.br",
-  "blisters": [
+  "embalagens": [
     { "barcode": "07285300651" },
     { "barcode": "07285300652" },
     { "barcode": "07285300653" }
@@ -266,19 +266,19 @@ Montado em `generateBarcode()`:
 | `id` | `Op.id` (ID interno JERP) | Identificador da ordem de produção no ERP |
 | `quantidadeApontada` | Soma das quantidades dos blisters com `packedAt` | Total de **peças** apontadas nesta caixa |
 | `userName` | E-mail do usuário logado (sessão NextAuth) | Operador responsável pelo apontamento |
-| `blisters` | `OpBoxBlister.code` dos blisters embalados | Um item por blister; apenas o código de barras/QR |
-| `blisters[].barcode` | Código QR lido na inspeção | **Não** inclui quantidade por blister no payload JERP |
+| `embalagens` | `OpBoxBlister.code` dos blisters embalados | Um item por blister; apenas o código de barras/QR |
+| `embalagens[].barcode` | Código QR lido na inspeção | **Não** inclui quantidade por blister no payload JERP |
 
-Montagem do array `blisters`:
+Montagem do array `embalagens`:
 
 ```typescript
-// buildJerpApontamentoPayload — um { barcode } por blister embalado
+// buildJerpEmbalagemApontamento — um { barcode } por blister embalado
 blisters.map((blister) => ({ barcode: blister.code }))
 ```
 
 Ordem: blisters ordenados por `packedAt ASC` (ordem de embalagem).
 
-**Nota:** existe `buildJerpEmbalagemApontamento` (formato `embalagens: [{ barcode }]`), mas o envio real usa o campo **`blisters`** via `buildJerpApontamentoPayload`.
+Implementação: `buildJerpEmbalagemApontamento` em `src/usecases/op-jerp/build-jerp-embalagem-apontamento.ts`.
 
 ### 5.4 O que **não** vai no payload de apontamento
 
@@ -403,7 +403,7 @@ flowchart LR
 |------------------|---------|
 | Cliente HTTP JERP | `src/shared/services/jerp/index.ts` |
 | API de etiqueta/apontamento | `src/app/api/op-jerp/barcode/route.ts` |
-| Montagem payload `blisters` | `src/usecases/op-jerp/build-jerp-apontamento-payload.ts` |
+| Montagem payload `embalagens` | `src/usecases/op-jerp/build-jerp-embalagem-apontamento.ts` |
 | Resumo embalado (fonte autoritativa) | `src/usecases/op-jerp/get-authoritative-box-packed-summary.ts` |
 | Tela de inspeção | `src/app/op/[opId]/page.tsx` |
 | Persistência e sync OP | `src/app/op/[opId]/actions.tsx` |
@@ -428,7 +428,7 @@ flowchart LR
   "id": 430505,
   "quantidadeApontada": 48,
   "userName": "operador@gde.com.br",
-  "blisters": [
+  "embalagens": [
     { "barcode": "0710380009" },
     { "barcode": "0710380006" },
     { "barcode": "0710380005" },

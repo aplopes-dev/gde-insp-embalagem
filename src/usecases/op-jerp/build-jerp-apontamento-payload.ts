@@ -1,11 +1,12 @@
-import { JerpBlisterApontamentoDto } from "@/types/dtos/jerp-blister-apontamento-dto";
-import { BlisterApontamentoSource } from "./build-jerp-embalagem-apontamento";
+import { JerpEmbalagemApontamentoDto } from "@/types/dtos/jerp-embalagem-apontamento-dto";
+import {
+  BlisterApontamentoSource,
+  buildJerpEmbalagemApontamento,
+} from "./build-jerp-embalagem-apontamento";
 
-/** Monta o array `blisters` no formato exigido pelo JERP: [{ barcode }]. */
+/** @deprecated Use `buildJerpEmbalagemApontamento` — o JERP espera o campo `embalagens`. */
 export function buildJerpApontamentoPayload(
   blisters: ReadonlyArray<BlisterApontamentoSource>
-): JerpBlisterApontamentoDto[] {
-  return blisters.map((blister) => ({
-    barcode: blister.code,
-  }));
+): JerpEmbalagemApontamentoDto[] {
+  return buildJerpEmbalagemApontamento(blisters);
 }

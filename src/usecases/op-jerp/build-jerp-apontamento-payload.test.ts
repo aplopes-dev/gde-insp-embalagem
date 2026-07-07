@@ -1,7 +1,7 @@
 import { buildJerpApontamentoPayload } from "./build-jerp-apontamento-payload";
 
 describe("buildJerpApontamentoPayload", () => {
-  it("monta blisters com barcode para o apontamento no JERP", () => {
+  it("monta embalagens com barcode para o apontamento no JERP", () => {
     const result = buildJerpApontamentoPayload([
       { code: "0710380009", quantity: 7 },
       { code: "0710380006", quantity: 7 },

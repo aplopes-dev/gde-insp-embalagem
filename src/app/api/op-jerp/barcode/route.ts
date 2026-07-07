@@ -1,6 +1,6 @@
 import { generateBarcode } from "@/shared/services/jerp";
 import { getAuthoritativeBoxPackedSummary } from "@/usecases/op-jerp/get-authoritative-box-packed-summary";
-import { buildJerpApontamentoPayload } from "@/usecases/op-jerp/build-jerp-apontamento-payload";
+import { buildJerpEmbalagemApontamento } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     const authoritativeQuantity = packedSummary.quantity;
-    const apontamentoBlisters = buildJerpApontamentoPayload(packedSummary.blisters);
+    const apontamentoEmbalagens = buildJerpEmbalagemApontamento(packedSummary.blisters);
 
     // Conferência: a quantidade calculada no cliente diverge da persistida?
     const clientDivergence =
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
               quantidadeApontada: tag.quantidadeApontada,
               idBarras: tag.idBarras,
               quantidadePendente: tag.quantidadePendente,
-              blisters: apontamentoBlisters,
+              embalagens: apontamentoEmbalagens,
               jerpResponse,
             },
           },

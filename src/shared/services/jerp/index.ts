@@ -4,9 +4,9 @@ import { ApiResponseError, handleApiResponseError } from "@/shared/utils/errorHa
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
 import { PrintTagJerpDto } from "@/types/dtos/print-tag-jerp-dto";
 import {
-  buildJerpApontamentoPayload,
-} from "@/usecases/op-jerp/build-jerp-apontamento-payload";
-import { BlisterApontamentoSource } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
+  BlisterApontamentoSource,
+  buildJerpEmbalagemApontamento,
+} from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
 import axios from "axios";
 import { Either, makeLeft, makeRight } from '@/shared/utils/either';
 
@@ -66,13 +66,13 @@ export async function generateBarcode(
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
   try {
-    const blisters = buildJerpApontamentoPayload(packedBlisters);
+    const embalagens = buildJerpEmbalagemApontamento(packedBlisters);
 
     const payload = {
       id,
       quantidadeApontada: quantity,
       userName,
-      blisters,
+      embalagens,
     };
 
     logger.info({
@@ -80,8 +80,8 @@ export async function generateBarcode(
       opId: id,
       boxId: opBoxId,
       quantidadeApontada: quantity,
-      blisterCount: blisters.length,
-      blisters,
+      embalagemCount: embalagens.length,
+      embalagens,
     });
 
     const response = await axios.post(

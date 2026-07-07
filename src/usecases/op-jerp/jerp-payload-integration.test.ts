@@ -32,7 +32,7 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
     jest.clearAllMocks();
   });
 
-  it("envia ao JERP blisters com barcode a partir dos blisters embalados no banco", async () => {
+  it("envia ao JERP embalagens com barcode a partir dos blisters embalados no banco", async () => {
     // Blisters embalados como estão no banco (formato real: 0 + OP + sequencial).
     findManyMock.mockResolvedValueOnce([
       { code: "07285300651", quantity: 6 },
@@ -81,7 +81,7 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
         id: 416436,
         quantidadeApontada: 12,
         userName: "joaobarreto@gde.com.br",
-        blisters: [
+        embalagens: [
           { barcode: "07285300651" },
           { barcode: "07285300652" },
         ],
@@ -109,11 +109,11 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
 
     const sentPayload = mockedAxios.post.mock.calls[0][1] as {
       quantidadeApontada: number;
-      blisters: Array<{ barcode: string }>;
+      embalagens: Array<{ barcode: string }>;
     };
 
     expect(sentPayload.quantidadeApontada).toBe(49);
-    expect(sentPayload.blisters).toEqual([
+    expect(sentPayload.embalagens).toEqual([
       { barcode: "07274100217" },
       { barcode: "07274100169" },
       { barcode: "07274100168" },
@@ -121,7 +121,7 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
     ]);
   });
 
-  it("envia blisters vazio quando a caixa não tem blisters embalados", async () => {
+  it("envia embalagens vazio quando a caixa não tem blisters embalados", async () => {
     findManyMock.mockResolvedValueOnce([]);
     mockedAxios.post.mockResolvedValueOnce({ data: { idBarras: 0 } });
 
@@ -131,7 +131,7 @@ describe("Integração do payload de apontamento JERP (banco → build → envio
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
       `${JERP_API}/ordemproducao`,
-      expect.objectContaining({ blisters: [] }),
+      expect.objectContaining({ embalagens: [] }),
       expect.any(Object)
     );
   });

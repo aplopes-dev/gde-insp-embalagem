@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { buildJerpApontamentoPayload } from "../src/usecases/op-jerp/build-jerp-apontamento-payload";
+import { buildJerpEmbalagemApontamento } from "../src/usecases/op-jerp/build-jerp-embalagem-apontamento";
 
 const db = new PrismaClient();
 
@@ -30,14 +30,14 @@ async function main() {
       code: b.code,
       quantity: b.quantity,
     }));
-    const blisters = buildJerpApontamentoPayload(packed);
+    const embalagens = buildJerpEmbalagemApontamento(packed);
     const quantidadeApontada = packed.reduce((acc, b) => acc + b.quantity, 0);
 
     const payload = {
       id: box.op.id,
       quantidadeApontada,
       userName: "<email-da-sessao>",
-      blisters,
+      embalagens,
     };
 
     console.log("═".repeat(70));
@@ -45,7 +45,7 @@ async function main() {
     console.log(`Caixa ${box.code} (id ${box.id})`);
     console.log(`barCode etiqueta (idBarras salvo): ${box.barCode ?? "—"}`);
     console.log(`Blisters embalados: ${packed.length}`);
-    console.log("Payload que seria enviado ao JERP (POST /ordemproducao) — blisters: [{ barcode }]:");
+    console.log("Payload que seria enviado ao JERP (POST /ordemproducao) — embalagens: [{ barcode }]:");
     console.log(JSON.stringify(payload, null, 2));
   }
 }

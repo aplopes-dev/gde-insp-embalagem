@@ -1,4 +1,4 @@
-/** Item do array `blisters` enviado ao JERP no apontamento de etiqueta. */
+/** @deprecated O JERP usa `embalagens` — ver `JerpEmbalagemApontamentoDto`. */
 export type JerpBlisterApontamentoDto = {
   barcode: string;
 };

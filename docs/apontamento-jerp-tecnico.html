@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Apontamento JERP — Fluxo, Variáveis e Códigos de Barra</title>
+  <style>
+    @page { margin: 18mm 16mm; size: A4; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #1a1a1a;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    h1 { font-size: 20pt; color: #0f3d5c; margin: 0 0 4px; border-bottom: 3px solid #0f3d5c; padding-bottom: 8px; }
+    h2 { font-size: 13pt; color: #0f3d5c; margin: 22px 0 8px; page-break-after: avoid; }
+    h3 { font-size: 11pt; color: #2c5282; margin: 14px 0 6px; page-break-after: avoid; }
+    .meta { color: #555; font-size: 9.5pt; margin-bottom: 18px; }
+    .meta span { display: inline-block; margin-right: 18px; }
+    p { margin: 6px 0; }
+    ul, ol { margin: 6px 0 10px 18px; padding: 0; }
+    li { margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 9.5pt; page-break-inside: avoid; }
+    th, td { border: 1px solid #c5cdd6; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #e8eef4; font-weight: 600; color: #0f3d5c; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    code, pre { font-family: "Consolas", "Courier New", monospace; font-size: 9pt; }
+    pre {
+      background: #f4f6f8;
+      border: 1px solid #d8dee6;
+      border-left: 4px solid #0f3d5c;
+      padding: 10px 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      page-break-inside: avoid;
+    }
+    .highlight { background: #fff8e6; border: 1px solid #f0d78c; padding: 10px 12px; border-radius: 4px; margin: 10px 0; }
+    .flow-box {
+      background: #f0f4f8;
+      border: 1px solid #b8c5d4;
+      padding: 12px 14px;
+      font-family: monospace;
+      font-size: 9pt;
+      white-space: pre;
+      line-height: 1.35;
+      page-break-inside: avoid;
+    }
+    .badge { display: inline-block; background: #0f3d5c; color: #fff; font-size: 8pt; padding: 2px 7px; border-radius: 3px; font-weight: 600; }
+    .badge-read { background: #2d6a4f; }
+    .badge-write { background: #9b2226; }
+    .page-break { page-break-before: always; }
+    .toc a { color: #0f3d5c; text-decoration: none; }
+    .toc li { margin: 4px 0; }
+    footer { margin-top: 24px; font-size: 8.5pt; color: #666; border-top: 1px solid #ccc; padding-top: 8px; }
+  </style>
+</head>
+<body>
+
+<h1>Apontamento JERP — Inspeção e Embalagem</h1>
+<div class="meta">
+  <span><strong>Sistema:</strong> gde-insp-embalagem</span>
+  <span><strong>Data:</strong> 07/07/2026</span>
+  <span><strong>Versão do código:</strong> implementação atual em <code>src/</code></span>
+</div>
+
+<div class="highlight">
+  <strong>Resumo:</strong> O apontamento de produção no JERP ocorre <em>uma vez por caixa embalada</em>, após a inspeção visual de todos os blisters. A modificação recente inclui o array <code>embalagens</code> no payload, com um objeto <code>{ barcode }</code> por blister embalado — código QR lido na inspeção. A quantidade oficial vem sempre do banco local, nunca do frontend.
+</div>
+
+<h2>Índice</h2>
+<ol class="toc">
+  <li><a href="#visao">Visão geral do ciclo</a></li>
+  <li><a href="#integracoes">Integrações com o JERP</a></li>
+  <li><a href="#preparacao">Preparação da OP</a></li>
+  <li><a href="#inspecao">Fluxo de inspeção por caixa</a></li>
+  <li><a href="#apontamento">Apontamento — payload e códigos de barra</a></li>
+  <li><a href="#variaveis">Variáveis de ambiente e tipos</a></li>
+  <li><a href="#banco">Dados no banco local</a></li>
+  <li><a href="#validacoes">Validações e auditoria</a></li>
+  <li><a href="#especiais">Fluxos especiais</a></li>
+  <li><a href="#arquivos">Referência de arquivos</a></li>
+  <li><a href="#exemplo">Exemplo completo</a></li>
+</ol>
+
+<h2 id="visao">1. Visão geral do ciclo</h2>
+<p>O sistema controla inspeção visual de caixas, blisters e peças (via worker de visão) e, ao final de cada caixa, realiza o <strong>apontamento de produção no JERP</strong> — único momento em que dados de produção são <strong>escritos</strong> no ERP.</p>
+
+<div class="flow-box">Sincronizar OP (JERP → local)
+  → Inspecionar caixa / blisters / peças
+  → Persistir no PostgreSQL (packedAt + code QR)
+  → Apontar no JERP (local → JERP) com embalagens[].barcode
+  → Salvar idBarras na caixa
+  → Imprimir etiqueta (pdfBase64)
+  → Próxima caixa</div>
+
+<p>O apontamento <strong>não</strong> acontece a cada blister. Ocorre quando a inspeção da caixa termina e a etiqueta é solicitada.</p>
+
+<h2 id="integracoes">2. Integrações com o JERP</h2>
+
+<h3>2.1 Leitura <span class="badge badge-read">GET</span></h3>
+<p>Usadas para sincronizar OP, validar quantidades e reconciliar pendências. Nenhum dado de produção é enviado.</p>
+<table>
+  <tr><th>Método</th><th>Endpoint</th><th>Função</th><th>Implementação</th></tr>
+  <tr><td>GET</td><td><code>{JERP_API}/ordemproducaoid/{id}</code></td><td>Busca OP pelo ID interno JERP</td><td><code>getOpFromId()</code></td></tr>
+  <tr><td>GET</td><td><code>{JERP_API}/ordemproducao/{numero}</code></td><td>Busca OP pelo número visível</td><td><code>getOpFromCode()</code></td></tr>
+  <tr><td>GET/POST</td><td><code>{JERP_API_AUTH}/users/emails/...</code></td><td>Autenticação de operador</td><td><code>jerp-auth.ts</code></td></tr>
+</table>
+<p><code>getOpFromRef(ref)</code> tenta primeiro por ID interno; se falhar, tenta por número da OP.</p>
+
+<h3>2.2 Escrita <span class="badge badge-write">POST</span></h3>
+<p>Única operação que registra produção no JERP:</p>
+<table>
+  <tr><th>Método</th><th>Endpoint</th><th>Função</th><th>Implementação</th></tr>
+  <tr><td>POST</td><td><code>{JERP_API}/ordemproducao</code></td><td>Apontamento de caixa + geração de etiqueta</td><td><code>generateBarcode()</code></td></tr>
+</table>
+
+<h2 id="preparacao">3. Preparação da OP (antes da inspeção)</h2>
+<p>Ao abrir <code>/op/{opId}</code>, o sistema chama <code>syncAndGetOpToProduceById</code>:</p>
+<ol>
+  <li>Consulta OP no JERP (<code>getOpFromRef</code>)</li>
+  <li>Se OP não existe localmente: valida (<code>validateOpJerpToProduce</code>), seleciona embalagens (<code>selectOpPackagings</code>), cria ProductType, BoxType, BlisterType, Op, OpBox e OpBoxBlister</li>
+  <li>Planeja caixas a partir de <code>quantidadeAProduzir</code> do JERP</li>
+  <li>Se não há caixas pendentes: reconcilia quantidade local com JERP</li>
+</ol>
+
+<h3>3.1 Fórmulas de planejamento</h3>
+<pre>blisters totais  = ceil(quantidadeAProduzir / slots)
+caixas totais    = ceil(blisters / limitPerBox)
+última caixa     = pode ter menos blisters; último blister pode ter menos peças</pre>
+<p>Exemplo: 1.080 peças, 6 slots, 8 blisters/caixa → 180 blisters → 23 caixas (última com 4 blisters × 6 = 24 peças).</p>
+
+<h3>3.2 Reconciliação de quantidade</h3>
+<pre>quantityToProduce (local) = peças já embaladas (banco) + quantidadeAProduzir (JERP)</pre>
+
+<div class="page-break"></div>
+
+<h2 id="inspecao">4. Fluxo de inspeção por caixa</h2>
+<p>Tela: <code>src/app/op/[opId]/page.tsx</code> — 4 etapas (<code>step</code>):</p>
+<table>
+  <tr><th>Step</th><th>Etapa</th><th>Validação</th></tr>
+  <tr><td>0</td><td>Caixa</td><td>Tipo e modelo corretos; exatamente 1 caixa</td></tr>
+  <tr><td>1</td><td>Blister</td><td>Tipo, QR do blister, OP correta, não duplicado</td></tr>
+  <tr><td>2</td><td>Quantidade</td><td>Contagem de peças (visão) vs. planejado</td></tr>
+  <tr><td>3</td><td>Etiqueta</td><td>Geração e impressão via JERP</td></tr>
+</ol>
+
+<h3>4.1 Finalização da caixa (gatilho do apontamento)</h3>
+<p>Quando todos os blisters da caixa foram inspecionados:</p>
+<ol>
+  <li><code>persistBoxStatusWithBlisters(boxId, blisters)</code> grava:
+    <ul>
+      <li><code>OpBoxBlister.packedAt</code> e <code>OpBoxBlister.code</code> (QR real)</li>
+      <li><code>OpBox.packedAt</code> e <code>OpBox.status = PACKAGED</code></li>
+    </ul>
+  </li>
+  <li>Após 2 segundos: <code>printTag(boxId)</code> → <code>POST /api/op-jerp/barcode</code></li>
+</ol>
+<p><strong>Até este ponto nada foi enviado ao JERP.</strong> Toda inspeção fica no banco local e no worker de visão.</p>
+
+<h3>4.2 Sequência do apontamento (fluxo normal)</h3>
+<div class="flow-box">Operador finaliza último blister da caixa
+  → persistBoxStatusWithBlisters (PostgreSQL)
+  → printTag (frontend)
+      → fetchAuthoritativePackedBoxSummary (server action)
+      → POST /api/op-jerp/barcode
+          → getAuthoritativeBoxPackedSummary (banco)
+          → buildJerpEmbalagemApontamento (monta embalagens[])
+          → generateBarcode → POST JERP /ordemproducao
+          → saveTagId (OpBox.barCode)
+          → OpActivityLog (auditoria)
+  → Diálogo de impressão (idBarras + pdfBase64)</div>
+
+<h2 id="apontamento">5. Apontamento — payload e códigos de barra</h2>
+
+<h3>5.1 Modificação principal: array <code>embalagens</code></h3>
+<p>Antes, o payload enviava apenas <code>id</code>, <code>quantidadeApontada</code> e <code>userName</code>. Agora inclui <code>embalagens</code>: um item por blister embalado, cada um com o código QR lido na inspeção.</p>
+
+<pre>{
+  "id": 430505,
+  "quantidadeApontada": 48,
+  "userName": "operador@gde.com.br",
+  "embalagens": [
+    { "barcode": "0710380009" },
+    { "barcode": "0710380006" },
+    { "barcode": "0710380005" }
+  ]
+}</pre>
+
+<h3>5.2 Montagem do payload</h3>
+<p>Função central: <code>buildJerpEmbalagemApontamento()</code> em <code>build-jerp-embalagem-apontamento.ts</code></p>
+<pre>blisters.map((blister) => ({ barcode: blister.code }))</pre>
+<ul>
+  <li><strong>Origem do barcode:</strong> <code>OpBoxBlister.code</code> — QR lido na etapa 1 da inspeção</li>
+  <li><strong>Ordem:</strong> <code>packedAt ASC</code> (ordem de embalagem)</li>
+  <li><strong>Quantidade por blister:</strong> usada apenas para calcular <code>quantidadeApontada</code>; <em>não</em> vai no payload JERP</li>
+  <li><strong>Filtro:</strong> apenas blisters com <code>packedAt IS NOT NULL</code></li>
+</ul>
+
+<h3>5.3 Campos do payload</h3>
+<table>
+  <tr><th>Campo</th><th>Tipo</th><th>Origem</th><th>Descrição</th></tr>
+  <tr><td><code>id</code></td><td>number</td><td><code>Op.id</code> (ID interno JERP)</td><td>Identificador da ordem de produção no ERP</td></tr>
+  <tr><td><code>quantidadeApontada</code></td><td>number</td><td>Soma de <code>OpBoxBlister.quantity</code> com <code>packedAt</code></td><td>Total de <strong>peças</strong> apontadas nesta caixa</td></tr>
+  <tr><td><code>userName</code></td><td>string</td><td>E-mail da sessão NextAuth</td><td>Operador responsável</td></tr>
+  <tr><td><code>embalagens</code></td><td>array</td><td><code>buildJerpEmbalagemApontamento()</code></td><td>Um objeto por blister embalado</td></tr>
+  <tr><td><code>embalagens[].barcode</code></td><td>string</td><td><code>OpBoxBlister.code</code></td><td>Código QR do blister (ex.: <code>07285300651</code>)</td></tr>
+</table>
+
+<h3>5.4 O que NÃO vai no payload</h3>
+<table>
+  <tr><th>Dado</th><th>Motivo</th></tr>
+  <tr><td><code>OpBox.id</code> (caixa local)</td><td>Uso interno apenas</td></tr>
+  <tr><td><code>clientQuantity</code> do frontend</td><td>Apenas auditoria; ignorado no apontamento</td></tr>
+  <tr><td>Quantidade por blister individual</td><td>JERP recebe só barcode; total em quantidadeApontada</td></tr>
+  <tr><td>Tipo caixa/blister/produto</td><td>Já conhecidos pelo JERP na OP</td></tr>
+  <tr><td>Imagens / status inspeção</td><td>Permanecem no worker e log local</td></tr>
+  <tr><td><code>pdfBase64</code></td><td>É <strong>retorno</strong> do JERP, não envio</td></tr>
+</table>
+
+<h3>5.5 Resposta do JERP (<code>PrintTagJerpDto</code>)</h3>
+<pre>{
+  "message": "...",
+  "id": 430505,
+  "quantidadeApontada": 48,
+  "idBarras": 7285300651,
+  "quantidadePendente": 1032,
+  "descricao": "TL-06-2-0007_02",
+  "pdfBase64": "&lt;PDF da etiqueta em Base64&gt;"
+}</pre>
+<p>Após sucesso: <code>saveTagId</code> grava <code>OpBox.barCode</code> e <code>OpBox.barCodeGeneratedAt</code>.</p>
+
+<h3>5.6 Fonte autoritativa dos dados</h3>
+<p>A quantidade e lista de blisters <strong>nunca</strong> vêm do cliente para o apontamento:</p>
+<pre>getAuthoritativeBoxPackedSummary(boxId)
+  → getPackedBlistersByBox(boxId)   // WHERE packedAt IS NOT NULL
+  → quantity = soma(blister.quantity)</pre>
+<p>O campo <code>clientQuantity</code> enviado pela UI serve apenas para detectar divergência cliente × banco. Se divergir, usa o banco e registra alerta no log.</p>
+
+<h3>5.7 Rotas e gatilhos</h3>
+<table>
+  <tr><th>Gatilho</th><th>Caminho</th><th>Auditoria OpActivityLog</th></tr>
+  <tr><td>Fluxo normal de inspeção</td><td><code>printTag()</code> → <code>POST /api/op-jerp/barcode</code></td><td>Sim (BARCODE_GENERATED)</td></tr>
+  <tr><td>Reimpressão painel diário</td><td><code>generateBarcodeByBoxId()</code> → <code>generateBarcode()</code> direto</td><td>Não</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2 id="variaveis">6. Variáveis de ambiente e tipos</h2>
+
+<h3>6.1 Variáveis de ambiente</h3>
+<table>
+  <tr><th>Variável</th><th>Obrigatória</th><th>Uso</th></tr>
+  <tr><td><code>JERP_API</code></td><td>Sim</td><td>Base URL da API JERP (GET OP, POST apontamento)</td></tr>
+  <tr><td><code>JERP_TOKEN</code></td><td>Sim</td><td>Bearer token para autenticação nas chamadas JERP</td></tr>
+  <tr><td><code>JERP_API_AUTH</code></td><td>Sim (login)</td><td>Base URL para autenticação de usuários</td></tr>
+</table>
+<p>Definidas em <code>.env</code> / <code>.env.example</code>. Validadas em <code>src/shared/services/jerp/index.ts</code> na inicialização.</p>
+
+<h3>6.2 Tipos TypeScript</h3>
+<table>
+  <tr><th>Tipo</th><th>Arquivo</th><th>Campos relevantes</th></tr>
+  <tr><td><code>JerpEmbalagemApontamentoDto</code></td><td><code>jerp-embalagem-apontamento-dto.ts</code></td><td><code>barcode: string</code></td></tr>
+  <tr><td><code>BlisterApontamentoSource</code></td><td><code>build-jerp-embalagem-apontamento.ts</code></td><td><code>code, quantity</code></td></tr>
+  <tr><td><code>PrintTagJerpDto</code></td><td><code>print-tag-jerp-dto.ts</code></td><td>Resposta JERP (idBarras, pdfBase64, etc.)</td></tr>
+  <tr><td><code>AuthoritativeBoxPackedSummary</code></td><td><code>get-authoritative-box-packed-summary.ts</code></td><td><code>boxId, quantity, blisterCount, blisters[]</code></td></tr>
+  <tr><td><code>GenerateBarcodeBody</code></td><td><code>api/op-jerp/barcode/route.ts</code></td><td><code>opId, boxId, clientQuantity?</code></td></tr>
+</table>
+<p><code>JerpBlisterApontamentoDto</code> e <code>buildJerpApontamentoPayload</code> estão deprecados — usar <code>JerpEmbalagemApontamentoDto</code> e <code>buildJerpEmbalagemApontamento</code>.</p>
+
+<h2 id="banco">7. Dados no banco local (PostgreSQL)</h2>
+<table>
+  <tr><th>Tabela / Campo</th><th>Momento</th><th>Valor</th></tr>
+  <tr><td><code>OpBoxBlister.code</code></td><td>Inspeção etapa 1</td><td>QR do blister lido pelo operador/visão</td></tr>
+  <tr><td><code>OpBoxBlister.packedAt</code></td><td>Inspeção etapa 2 (aprovação)</td><td>Timestamp de embalagem do blister</td></tr>
+  <tr><td><code>OpBoxBlister.quantity</code></td><td>Planejamento da OP</td><td>Peças neste blister (usado na soma)</td></tr>
+  <tr><td><code>OpBox.packedAt</code></td><td>Finalização da caixa</td><td>Timestamp de embalagem da caixa</td></tr>
+  <tr><td><code>OpBox.status</code></td><td>Finalização</td><td><code>PACKAGED</code> ou <code>PACKAGED_W_BREAK</code></td></tr>
+  <tr><td><code>OpBox.barCode</code></td><td>Após JERP</td><td><code>idBarras</code> retornado pelo JERP</td></tr>
+  <tr><td><code>OpBox.barCodeGeneratedAt</code></td><td>Após JERP</td><td>Timestamp da geração da etiqueta</td></tr>
+  <tr><td><code>OpActivityLog.details</code></td><td>Após apontamento (rota barcode)</td><td>Payload embalagens, resposta JERP (sem pdfBase64)</td></tr>
+</table>
+
+<h2 id="validacoes">8. Validações e auditoria</h2>
+<table>
+  <tr><th>Verificação</th><th>Onde</th><th>Ação se falhar</th></tr>
+  <tr><td>Sessão autenticada</td><td><code>/api/op-jerp/barcode</code></td><td>HTTP 401</td></tr>
+  <tr><td><code>opId</code> e <code>boxId</code> presentes</td><td>Rota barcode</td><td>HTTP 400</td></tr>
+  <tr><td><code>packedSummary.quantity &gt; 0</code></td><td>Rota barcode</td><td>HTTP 400 — nenhum blister embalado</td></tr>
+  <tr><td>JERP retorna erro</td><td><code>generateBarcode</code></td><td>HTTP com status da API JERP</td></tr>
+  <tr><td><code>tag.quantidadeApontada !== authoritativeQuantity</code></td><td>Rota barcode</td><td>HTTP 502 — divergência banco × JERP</td></tr>
+  <tr><td><code>clientQuantity !== authoritativeQuantity</code></td><td>Rota barcode</td><td>Log de alerta; usa banco</td></tr>
+</table>
+
+<h3>8.1 Log de auditoria (OpActivityLog)</h3>
+<p>Registrado na rota <code>/api/op-jerp/barcode</code> com:</p>
+<ul>
+  <li><code>event: "BARCODE_GENERATED"</code></li>
+  <li><code>embalagens</code> — array enviado ao JERP</li>
+  <li><code>authoritativeQuantity</code>, <code>clientQuantity</code></li>
+  <li><code>idBarras</code>, <code>quantidadePendente</code></li>
+  <li><code>jerpResponse</code> — sem <code>pdfBase64</code></li>
+</ul>
+
+<h2 id="especiais">9. Fluxos especiais</h2>
+
+<h3>9.1 Quebra de caixa (PACKAGED_W_BREAK)</h3>
+<p>Supervisor autoriza finalizar caixa antes de preencher todos os blisters planejados. Remove blisters não embalados, persiste os embalados, marca <code>PACKAGED_W_BREAK</code> e gera etiqueta normalmente — apontamento contém <strong>somente</strong> blisters efetivamente embalados.</p>
+
+<h3>9.2 Reimpressão de etiqueta</h3>
+<p>Pelo painel diário (<code>generateBarcodeByBoxId</code>): reutiliza <code>generateBarcode()</code> com dados do banco. Não passa pela rota <code>/api/op-jerp/barcode</code> (sem auditoria automática). Pode gerar novo apontamento no JERP se chamado novamente.</p>
+
+<h3>9.3 Conclusão da OP</h3>
+<p><code>opCompletionNowHandler</code> verifica localmente: todas <code>OpBox</code> com <code>packedAt</code> e <code>barCodeGeneratedAt</code> preenchidos → <code>Op.status = COMPLETED</code>. Não há chamada ao JERP para encerrar a OP.</p>
+
+<h2 id="arquivos">10. Referência de arquivos</h2>
+<table>
+  <tr><th>Responsabilidade</th><th>Arquivo</th></tr>
+  <tr><td>Cliente HTTP JERP + generateBarcode</td><td><code>src/shared/services/jerp/index.ts</code></td></tr>
+  <tr><td>API de etiqueta/apontamento</td><td><code>src/app/api/op-jerp/barcode/route.ts</code></td></tr>
+  <tr><td>Montagem array embalagens</td><td><code>src/usecases/op-jerp/build-jerp-embalagem-apontamento.ts</code></td></tr>
+  <tr><td>Resumo embalado (fonte autoritativa)</td><td><code>src/usecases/op-jerp/get-authoritative-box-packed-summary.ts</code></td></tr>
+  <tr><td>Query blisters embalados</td><td><code>src/usecases/op-jerp/get-packed-blisters-by-box.ts</code></td></tr>
+  <tr><td>Tela de inspeção + printTag</td><td><code>src/app/op/[opId]/page.tsx</code></td></tr>
+  <tr><td>Persistência caixa/blisters + saveTagId</td><td><code>src/app/op/[opId]/actions.tsx</code></td></tr>
+  <tr><td>Reimpressão painel diário</td><td><code>src/features/daily-op-box-table/actions.ts</code></td></tr>
+  <tr><td>DTO embalagem</td><td><code>src/types/dtos/jerp-embalagem-apontamento-dto.ts</code></td></tr>
+  <tr><td>Testes integração payload</td><td><code>src/usecases/op-jerp/jerp-payload-integration.test.ts</code></td></tr>
+  <tr><td>Script auditoria payload</td><td><code>scripts/trace-jerp-payload.ts</code></td></tr>
+</table>
+
+<h2 id="exemplo">11. Exemplo completo — OP 76691, caixa de 48 peças</h2>
+<p>Contexto: 8 blisters × 6 peças.</p>
+<ol>
+  <li>Operador inspeciona caixa → blister 1 (QR <code>0710380009</code>, 6 peças) → … → blister 8</li>
+  <li>Sistema grava 8 registros <code>OpBoxBlister</code> com <code>packedAt</code> e códigos QR</li>
+  <li><code>getAuthoritativeBoxPackedSummary</code> retorna <code>quantity: 48</code>, 8 blisters</li>
+  <li><code>POST /ordemproducao</code>:</li>
+</ol>
+<pre>{
+  "id": 430505,
+  "quantidadeApontada": 48,
+  "userName": "operador@gde.com.br",
+  "embalagens": [
+    { "barcode": "0710380009" },
+    { "barcode": "0710380006" },
+    { "barcode": "0710380005" },
+    { "barcode": "0710380010" },
+    { "barcode": "0710380007" },
+    { "barcode": "0710380008" },
+    { "barcode": "0710380004" },
+    { "barcode": "0710380003" }
+  ]
+}</pre>
+<ol start="5">
+  <li>JERP responde com <code>idBarras</code>, <code>quantidadePendente: 1032</code>, <code>pdfBase64</code></li>
+  <li>Sistema salva <code>barCode</code> na caixa e imprime etiqueta</li>
+  <li>Operador passa para a caixa 2</li>
+</ol>
+
+<footer>
+  Documento gerado a partir da implementação em gde-insp-embalagem — apontamento JERP com códigos de barra em embalagens[].
+  Para simular payloads reais: <code>npx ts-node scripts/trace-jerp-payload.ts</code>
+</footer>
+
+</body>
+</html>

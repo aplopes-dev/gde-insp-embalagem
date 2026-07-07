@@ -55,6 +55,23 @@
     .page-break { page-break-before: always; }
     .toc a { color: #0f3d5c; text-decoration: none; }
     .toc li { margin: 4px 0; }
+    .warn {
+      background: #fff4f4;
+      border: 1px solid #e8b4b4;
+      border-left: 4px solid #9b2226;
+      padding: 10px 12px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .evidence {
+      background: #f0faf4;
+      border: 1px solid #a7d7b8;
+      border-left: 4px solid #2d6a4f;
+      padding: 10px 12px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .ok { color: #2d6a4f; font-weight: 600; }
     footer { margin-top: 24px; font-size: 8.5pt; color: #666; border-top: 1px solid #ccc; padding-top: 8px; }
   </style>
 </head>
@@ -84,6 +101,7 @@
   <li><a href="#especiais">Fluxos especiais</a></li>
   <li><a href="#arquivos">Referência de arquivos</a></li>
   <li><a href="#exemplo">Exemplo completo</a></li>
+  <li><a href="#evidencias-jerp">Evidências para o time JERP (campo <code>embalagens</code>)</a></li>
 </ol>
 
 <h2 id="visao">1. Visão geral do ciclo</h2>
@@ -146,7 +164,7 @@ caixas totais    = ceil(blisters / limitPerBox)
   <tr><td>1</td><td>Blister</td><td>Tipo, QR do blister, OP correta, não duplicado</td></tr>
   <tr><td>2</td><td>Quantidade</td><td>Contagem de peças (visão) vs. planejado</td></tr>
   <tr><td>3</td><td>Etiqueta</td><td>Geração e impressão via JERP</td></tr>
-</ol>
+</table>
 
 <h3>4.1 Finalização da caixa (gatilho do apontamento)</h3>
 <p>Quando todos os blisters da caixa foram inspecionados:</p>
@@ -360,6 +378,154 @@ caixas totais    = ceil(blisters / limitPerBox)
   <li>Sistema salva <code>barCode</code> na caixa e imprime etiqueta</li>
   <li>Operador passa para a caixa 2</li>
 </ol>
+
+<div class="page-break"></div>
+
+<h2 id="evidencias-jerp">12. Evidências para o time JERP — campo <code>embalagens</code></h2>
+
+<div class="highlight">
+  <strong>Objetivo desta seção:</strong> Documentar que o sistema GDE <strong>já envia</strong> o array <code>embalagens</code> no <code>POST {JERP_API}/ordemproducao</code>, com um <code>{ barcode }</code> por blister embalado. Se o JERP visualiza apenas <code>id</code>, <code>quantidadeApontada</code> e <code>userName</code>, a divergência está na leitura/persistência/exibição do lado JERP — não na ausência do campo no request HTTP.
+</div>
+
+<h3>12.1 Payload atual (desde 03/07/2026)</h3>
+<p>A partir do deploy que incluiu <code>buildJerpEmbalagemApontamento()</code>, todo apontamento via <code>generateBarcode()</code> envia:</p>
+<pre>{
+  "id": 434911,
+  "quantidadeApontada": 12,
+  "userName": "danielvictor@gde.com.br",
+  "embalagens": [
+    { "barcode": "07743400290" },
+    { "barcode": "07743400289" }
+  ]
+}</pre>
+<p>Endpoint: <code>POST https://jerpapiprod.azurewebsites.net/api/ordemproducao</code><br />
+Implementação: <code>src/shared/services/jerp/index.ts</code> → função <code>generateBarcode()</code>.</p>
+
+<h3>12.2 Caso real para rastreio no JERP</h3>
+<table>
+  <tr><th>Campo</th><th>Valor</th></tr>
+  <tr><td>Data/hora (UTC)</td><td>2026-07-07T16:41:22Z</td></tr>
+  <tr><td>OP (id interno JERP)</td><td><code>434911</code></td></tr>
+  <tr><td>Produto</td><td>MODULO de DRL / POS / TI VW216 - LADO ESQUERDO - GM-00147</td></tr>
+  <tr><td>Caixa local (referência GDE)</td><td>código <code>101</code></td></tr>
+  <tr><td><code>quantidadeApontada</code></td><td>12</td></tr>
+  <tr><td><code>idBarras</code> retornado</td><td><code>1825484</code></td></tr>
+  <tr><td><code>userName</code></td><td><code>danielvictor@gde.com.br</code></td></tr>
+  <tr><td><code>embalagens[].barcode</code></td><td><code>07743400290</code>, <code>07743400289</code></td></tr>
+  <tr><td>Resposta JERP</td><td><code>"Apontamento realizado!!!"</code></td></tr>
+</table>
+<p>Pedimos ao time JERP que localize este apontamento pelo <strong><code>idBarras = 1825484</code></strong> e compare o <strong>body bruto do HTTP request</strong> com o que aparece no painel interno.</p>
+
+<h3>12.3 Evidência 1 — log da aplicação GDE (request enviado)</h3>
+<p>Registro do container <code>gde_frontend-arquitetura</code> imediatamente antes do <code>axios.post</code>:</p>
+<pre>[2026-07-07T16:41:22.094Z] info: Enviando apontamento ao JERP
+{
+  "opId": 434911,
+  "boxId": "cmr8xnckn00gif5hvmh83f1gk",
+  "quantidadeApontada": 12,
+  "embalagemCount": 2,
+  "embalagens": [
+    { "barcode": "07743400290" },
+    { "barcode": "07743400289" }
+  ]
+}</pre>
+<div class="evidence">
+  Este log é gerado em <code>generateBarcode()</code> com o objeto <code>payload</code> já montado — ou seja, reflete exatamente o JSON enviado ao JERP (exceto <code>userName</code>, que está no payload mas não neste log estruturado).
+</div>
+
+<h3>12.4 Evidência 2 — auditoria local (<code>OpActivityLog</code>)</h3>
+<p>Após cada etiqueta pelo fluxo normal (<code>POST /api/op-jerp/barcode</code>), o GDE grava em <code>OpActivityLog.details</code>:</p>
+<pre>{
+  "event": "BARCODE_GENERATED",
+  "authoritativeQuantity": 12,
+  "clientQuantity": 12,
+  "quantidadeApontada": 12,
+  "idBarras": 1825484,
+  "quantidadePendente": 834,
+  "embalagens": [
+    { "barcode": "07743400290" },
+    { "barcode": "07743400289" }
+  ],
+  "jerpResponse": {
+    "id": 434911,
+    "message": "Apontamento realizado!!!",
+    "idBarras": 1825484,
+    "quantidadeApontada": 12,
+    "quantidadePendente": 834,
+    "descricao": "MODULO de DRL / POS / TI VW216 - LADO ESQUERDO - GM-00147"
+  }
+}</pre>
+<p>Os códigos em <code>embalagens</code> coincidem com <code>OpBoxBlister.code</code> dos blisters com <code>packedAt</code> preenchido na caixa.</p>
+
+<h3>12.5 Evidência 3 — verificação das últimas 10 caixas embaladas (07/07/2026)</h3>
+<p>Auditoria cruzando banco local × log × payload reconstruído:</p>
+<table>
+  <tr><th>OP</th><th>Caixa</th><th>Blisters</th><th>Qtd</th><th>idBarras</th><th>embalagens OK</th></tr>
+  <tr><td>434911</td><td>101</td><td>2</td><td>12</td><td>1825484</td><td class="ok">Sim</td></tr>
+  <tr><td>434911</td><td>100</td><td>2</td><td>12</td><td>1825481</td><td class="ok">Sim</td></tr>
+  <tr><td>434911</td><td>99</td><td>2</td><td>12</td><td>1825480</td><td class="ok">Sim</td></tr>
+  <tr><td>434911</td><td>98</td><td>2</td><td>12</td><td>1825470</td><td class="ok">Sim</td></tr>
+  <tr><td>434911</td><td>97</td><td>2</td><td>12</td><td>1825469</td><td class="ok">Sim</td></tr>
+  <tr><td>434911</td><td>96</td><td>2</td><td>12</td><td>1825468</td><td class="ok">Sim</td></tr>
+  <tr><td>435055</td><td>466</td><td>2</td><td>12</td><td>1825466</td><td class="ok">Sim</td></tr>
+  <tr><td>435055</td><td>465</td><td>2</td><td>12</td><td>1825465</td><td class="ok">Sim</td></tr>
+  <tr><td>435055</td><td>464</td><td>2</td><td>12</td><td>1825464</td><td class="ok">Sim</td></tr>
+  <tr><td>415065</td><td>31</td><td>11</td><td>132</td><td>1825463</td><td class="ok">Sim</td></tr>
+</table>
+<p><strong>Resultado: 10/10</strong> com <code>embalagens</code> corretas no log e coerentes com os blisters embalados no banco.</p>
+
+<h3>12.6 Histórico no banco GDE</h3>
+<table>
+  <tr><th>Período</th><th>Comportamento</th></tr>
+  <tr><td>Antes de ~03/07/2026 18:55 UTC</td><td>Payload com apenas <code>id</code>, <code>quantidadeApontada</code>, <code>userName</code> (64 apontamentos auditados sem <code>embalagens</code> no log)</td></tr>
+  <tr><td>Desde ~03/07/2026 18:55 UTC</td><td>Payload inclui <code>embalagens[]</code> (374+ apontamentos com array preenchido)</td></tr>
+</table>
+<p>Apontamentos antigos no JERP naturalmente não terão códigos de blister — apenas os posteriores ao deploy.</p>
+
+<h3>12.7 Por que o JERP pode ver só o payload antigo</h3>
+<div class="warn">
+  <strong>Hipóteses técnicas (lado JERP):</strong>
+  <ol>
+    <li><strong>DTO/controller sem propriedade <code>embalagens</code></strong> — APIs ASP.NET frequentemente ignoram campos JSON não mapeados na desserialização. O apontamento de quantidade continua funcionando, mas os barcodes são descartados.</li>
+    <li><strong>Visualização da resposta, não do request</strong> — a resposta do JERP (<code>PrintTagJerpDto</code>) <em>não</em> devolve <code>embalagens</code>; só <code>idBarras</code>, <code>quantidadeApontada</code>, <code>quantidadePendente</code>, etc. Se o painel mostra a resposta ou o registro persistido sem os barcodes, o campo não aparecerá.</li>
+    <li><strong>Logs internos mostram só o DTO desserializado</strong> — Application Insights / logs de API podem exibir apenas as 3 propriedades conhecidas, omitindo o body HTTP completo.</li>
+    <li><strong>Divergência de contrato</strong> — o JERP pode esperar outro nome de campo ou estrutura (ex.: <code>Embalagens</code>, <code>codigoBarras</code>, array de strings). Necessário confirmar o contrato oficial.</li>
+  </ol>
+</div>
+
+<h3>12.8 Comparação request × response</h3>
+<table>
+  <tr><th>Campo</th><th>Enviado no POST (GDE)</th><th>Retornado na resposta (JERP)</th></tr>
+  <tr><td><code>id</code></td><td>Sim</td><td>Sim</td></tr>
+  <tr><td><code>quantidadeApontada</code></td><td>Sim</td><td>Sim</td></tr>
+  <tr><td><code>userName</code></td><td>Sim</td><td>Não</td></tr>
+  <tr><td><code>embalagens[]</code></td><td><strong>Sim</strong></td><td><strong>Não</strong></td></tr>
+  <tr><td><code>idBarras</code></td><td>Não</td><td>Sim</td></tr>
+  <tr><td><code>pdfBase64</code></td><td>Não</td><td>Sim</td></tr>
+</table>
+
+<h3>12.9 O que precisamos do time JERP</h3>
+<ol>
+  <li><strong>Body HTTP bruto</strong> do <code>POST /ordemproducao</code> para o apontamento <code>idBarras = 1825484</code> (ou qualquer um da tabela acima) — capturado no servidor/gateway, não apenas o DTO após desserialização.</li>
+  <li><strong>Contrato oficial</strong> do endpoint: nome exato do array e dos campos internos (<code>embalagens</code> + <code>barcode</code> ou outro formato).</li>
+  <li><strong>Confirmação</strong> se o controller/modelo da API foi atualizado para receber e persistir os códigos de blister.</li>
+  <li><strong>Confirmação</strong> se a tela onde consultam apontamentos foi atualizada para exibir os barcodes (mesmo que já estejam no request).</li>
+</ol>
+<p>Assim que o JERP informar o formato esperado, o GDE ajusta o payload em <code>buildJerpEmbalagemApontamento()</code> se necessário.</p>
+
+<h3>12.10 Formato que o GDE envia hoje (referência)</h3>
+<pre>POST /api/ordemproducao
+Content-Type: application/json
+Authorization: Bearer &lt;JERP_TOKEN&gt;
+
+{
+  "id": number,              // ID interno da OP no JERP
+  "quantidadeApontada": number,  // total de peças (soma dos blisters embalados)
+  "userName": string,        // e-mail do operador
+  "embalagens": [
+    { "barcode": string }    // um por blister; código QR lido na inspeção
+  ]
+}</pre>
 
 <footer>
   Documento gerado a partir da implementação em gde-insp-embalagem — apontamento JERP com códigos de barra em embalagens[].

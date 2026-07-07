@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Relatório — Apontamento JERP e Payload de Embalagens</title>
+  <style>
+    @page { margin: 18mm 16mm; size: A4; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #1a1a1a;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    h1 { font-size: 20pt; color: #0f3d5c; margin: 0 0 4px; border-bottom: 3px solid #0f3d5c; padding-bottom: 8px; }
+    h2 { font-size: 13pt; color: #0f3d5c; margin: 22px 0 8px; page-break-after: avoid; }
+    h3 { font-size: 11pt; color: #2c5282; margin: 14px 0 6px; page-break-after: avoid; }
+    .meta { color: #555; font-size: 9.5pt; margin-bottom: 18px; }
+    .meta span { display: inline-block; margin-right: 18px; }
+    p { margin: 6px 0; }
+    ul, ol { margin: 6px 0 10px 18px; padding: 0; }
+    li { margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 9.5pt; page-break-inside: avoid; }
+    th, td { border: 1px solid #c5cdd6; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #e8eef4; font-weight: 600; color: #0f3d5c; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    code, pre { font-family: "Consolas", "Courier New", monospace; font-size: 9pt; }
+    pre {
+      background: #f4f6f8;
+      border: 1px solid #d8dee6;
+      border-left: 4px solid #0f3d5c;
+      padding: 10px 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      page-break-inside: avoid;
+    }
+    .highlight { background: #fff8e6; border: 1px solid #f0d78c; padding: 10px 12px; border-radius: 4px; margin: 10px 0; }
+    .flow-box {
+      background: #f0f4f8;
+      border: 1px solid #b8c5d4;
+      padding: 12px 14px;
+      font-family: monospace;
+      font-size: 9pt;
+      white-space: pre;
+      line-height: 1.35;
+      page-break-inside: avoid;
+    }
+    .badge { display: inline-block; background: #0f3d5c; color: #fff; font-size: 8pt; padding: 2px 7px; border-radius: 3px; font-weight: 600; }
+    .badge-new { background: #2d6a4f; }
+    .page-break { page-break-before: always; }
+    .box-card {
+      border: 1px solid #c5cdd6;
+      border-radius: 4px;
+      margin: 14px 0;
+      page-break-inside: avoid;
+    }
+    .box-card-header {
+      background: #e8eef4;
+      padding: 8px 12px;
+      font-weight: 600;
+      color: #0f3d5c;
+      border-bottom: 1px solid #c5cdd6;
+    }
+    .box-card-body { padding: 10px 12px; }
+    .two-col { display: flex; gap: 12px; }
+    .two-col > div { flex: 1; }
+    footer { margin-top: 24px; font-size: 8.5pt; color: #666; border-top: 1px solid #ccc; padding-top: 8px; }
+  </style>
+</head>
+<body>
+
+<h1>Relatório — Apontamento JERP e Payload de Embalagens</h1>
+<div class="meta">
+  <span><strong>Sistema:</strong> gde-insp-embalagem</span>
+  <span><strong>Data:</strong> 07/07/2026</span>
+  <span><strong>Fonte:</strong> PostgreSQL (gdeembalagem) + OpActivityLog</span>
+</div>
+
+<div class="highlight">
+  <strong>Objetivo:</strong> Documentar a modificação do apontamento de produção no JERP (inclusão do array <code>embalagens</code>)
+  e apresentar os payloads reais enviados nas últimas 5 caixas embaladas, com as respostas do JERP após finalização e impressão da etiqueta.
+</div>
+
+<h2>1. Resumo da modificação</h2>
+
+<h3>1.1 Payload anterior</h3>
+<pre>{
+  "id": 430505,
+  "quantidadeApontada": 48,
+  "userName": "operador@gde.com.br"
+}</pre>
+
+<h3>1.2 Payload atual <span class="badge badge-new">NOVO</span></h3>
+<pre>{
+  "id": 430505,
+  "quantidadeApontada": 48,
+  "userName": "operador@gde.com.br",
+  "embalagens": [
+    { "barcode": "07669100068" },
+    { "barcode": "07669100067" }
+  ]
+}</pre>
+
+<p>O array <code>embalagens</code> contém um objeto <code>{ barcode }</code> por blister embalado na caixa.
+O código vem do QR lido na inspeção (<code>OpBoxBlister.code</code>), ordenado por <code>packedAt ASC</code>.</p>
+
+<h2>2. Regras do apontamento</h2>
+<table>
+  <tr><th>Aspecto</th><th>Comportamento</th></tr>
+  <tr><td>Quando ocorre</td><td>Uma vez por caixa, após todos os blisters inspecionados</td></tr>
+  <tr><td>Endpoint</td><td><code>POST {JERP_API}/ordemproducao</code></td></tr>
+  <tr><td>Origem dos dados</td><td>Banco PostgreSQL — nunca do frontend</td></tr>
+  <tr><td><code>quantidadeApontada</code></td><td>Soma de <code>OpBoxBlister.quantity</code> dos blisters com <code>packedAt</code></td></tr>
+  <tr><td><code>embalagens[].barcode</code></td><td>QR do blister (<code>OpBoxBlister.code</code>)</td></tr>
+  <tr><td>O que não vai</td><td>ID da caixa local, quantidade por blister, tipos de embalagem, imagens, PDF</td></tr>
+</table>
+
+<h2>3. Fluxo completo</h2>
+<div class="flow-box">Inspeção dos blisters
+  → persistBoxStatusWithBlisters (banco local)
+  → printTag() → POST /api/op-jerp/barcode
+      → getAuthoritativeBoxPackedSummary (banco)
+      → buildJerpEmbalagemApontamento (monta embalagens[])
+      → generateBarcode → POST JERP /ordemproducao
+      → saveTagId (OpBox.barCode)
+      → OpActivityLog (auditoria BARCODE_GENERATED)
+  → Diálogo de impressão (idBarras + pdfBase64)</div>
+
+<h2>4. Resposta do JERP (impressão da etiqueta)</h2>
+<p>Após o apontamento, o JERP retorna <code>PrintTagJerpDto</code>:</p>
+<pre>{
+  "message": "Apontamento realizado!!!",
+  "id": 435055,
+  "quantidadeApontada": 12,
+  "idBarras": 1825522,
+  "quantidadePendente": 1129,
+  "descricao": "MODULO de DRL / POS / TI - LADO DIREITO - GM-00147",
+  "pdfBase64": "&lt;PDF da etiqueta em Base64&gt;"
+}</pre>
+<p>O <code>pdfBase64</code> é usado para impressão; o <code>idBarras</code> é gravado em <code>OpBox.barCode</code>.</p>
+
+<div class="page-break"></div>
+
+<h2>5. Últimas 5 caixas embaladas — payloads reais</h2>
+<p>Consulta ao banco em 07/07/2026, ordenadas por <code>barCodeGeneratedAt</code> decrescente.
+Todos os registros possuem auditoria em <code>OpActivityLog</code> com evento <code>BARCODE_GENERATED</code>.</p>
+
+<!-- Caixa 1 -->
+<div class="box-card">
+  <div class="box-card-header">#1 — OP 77482, Caixa 471 — Etiqueta 1825522 — 14:14 BRT</div>
+  <div class="box-card-body">
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>ID interno JERP</td><td>435055</td></tr>
+      <tr><td>Operador</td><td>carlos.andre@gde.com.br</td></tr>
+      <tr><td>Peças apontadas</td><td>12 (2 blisters × 6)</td></tr>
+      <tr><td>Produto</td><td>MODULO de DRL / POS / TI - LADO DIREITO - GM-00147</td></tr>
+      <tr><td>Restante JERP</td><td>1.129 peças</td></tr>
+    </table>
+    <h3>Payload enviado ao JERP</h3>
+    <pre>{
+  "id": 435055,
+  "quantidadeApontada": 12,
+  "userName": "carlos.andre@gde.com.br",
+  "embalagens": [
+    { "barcode": "07748200234" },
+    { "barcode": "07748200233" }
+  ]
+}</pre>
+  </div>
+</div>
+
+<!-- Caixa 2 -->
+<div class="box-card">
+  <div class="box-card-header">#2 — OP 77482, Caixa 470 — Etiqueta 1825515 — 14:11 BRT</div>
+  <div class="box-card-body">
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>ID interno JERP</td><td>435055</td></tr>
+      <tr><td>Operador</td><td>carlos.andre@gde.com.br</td></tr>
+      <tr><td>Peças apontadas</td><td>12 (2 blisters × 6)</td></tr>
+      <tr><td>Restante JERP</td><td>1.141 peças</td></tr>
+    </table>
+    <h3>Payload enviado ao JERP</h3>
+    <pre>{
+  "id": 435055,
+  "quantidadeApontada": 12,
+  "userName": "carlos.andre@gde.com.br",
+  "embalagens": [
+    { "barcode": "07748200236" },
+    { "barcode": "07748200235" }
+  ]
+}</pre>
+  </div>
+</div>
+
+<!-- Caixa 3 -->
+<div class="box-card">
+  <div class="box-card-header">#3 — OP 77482, Caixa 469 — Etiqueta 1825511 — 14:08 BRT</div>
+  <div class="box-card-body">
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>ID interno JERP</td><td>435055</td></tr>
+      <tr><td>Operador</td><td>carlos.andre@gde.com.br</td></tr>
+      <tr><td>Peças apontadas</td><td>12 (2 blisters × 6)</td></tr>
+      <tr><td>Restante JERP</td><td>1.153 peças</td></tr>
+    </table>
+    <h3>Payload enviado ao JERP</h3>
+    <pre>{
+  "id": 435055,
+  "quantidadeApontada": 12,
+  "userName": "carlos.andre@gde.com.br",
+  "embalagens": [
+    { "barcode": "07748200232" },
+    { "barcode": "07748200231" }
+  ]
+}</pre>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- Caixa 4 -->
+<div class="box-card">
+  <div class="box-card-header">#4 — OP 77482, Caixa 468 — Etiqueta 1825502 — 14:05 BRT</div>
+  <div class="box-card-body">
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>ID interno JERP</td><td>435055</td></tr>
+      <tr><td>Operador</td><td>carlos.andre@gde.com.br</td></tr>
+      <tr><td>Peças apontadas</td><td>12 (2 blisters × 6)</td></tr>
+      <tr><td>Restante JERP</td><td>1.165 peças</td></tr>
+    </table>
+    <h3>Payload enviado ao JERP</h3>
+    <pre>{
+  "id": 435055,
+  "quantidadeApontada": 12,
+  "userName": "carlos.andre@gde.com.br",
+  "embalagens": [
+    { "barcode": "07748200240" },
+    { "barcode": "07748200239" }
+  ]
+}</pre>
+  </div>
+</div>
+
+<!-- Caixa 5 -->
+<div class="box-card">
+  <div class="box-card-header">#5 — OP 74489, Caixa 29 — Etiqueta 1825500 — 14:04 BRT</div>
+  <div class="box-card-body">
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>ID interno JERP</td><td>414918</td></tr>
+      <tr><td>Operador</td><td>danielvictor@gde.com.br</td></tr>
+      <tr><td>Peças apontadas</td><td>132 (11 blisters × 12)</td></tr>
+      <tr><td>Produto</td><td>ICS: 0343650000 - Rear Lamp MCA226 Lado esquerdo - S-18967</td></tr>
+      <tr><td>Restante JERP</td><td>1.775 peças</td></tr>
+    </table>
+    <h3>Payload enviado ao JERP</h3>
+    <pre>{
+  "id": 414918,
+  "quantidadeApontada": 132,
+  "userName": "danielvictor@gde.com.br",
+  "embalagens": [
+    { "barcode": "07448900135" },
+    { "barcode": "07448900134" },
+    { "barcode": "07448900133" },
+    { "barcode": "07448900132" },
+    { "barcode": "07448900131" },
+    { "barcode": "07448900130" },
+    { "barcode": "07448900129" },
+    { "barcode": "07448900128" },
+    { "barcode": "07448900127" },
+    { "barcode": "07448900126" },
+    { "barcode": "07448900125" }
+  ]
+}</pre>
+  </div>
+</div>
+
+<h2>6. Visão consolidada</h2>
+<table>
+  <tr>
+    <th>#</th><th>OP</th><th>Caixa</th><th>Etiqueta</th><th>Peças</th>
+    <th>Blisters</th><th>Operador</th><th>Restante JERP</th><th>Horário (BRT)</th>
+  </tr>
+  <tr><td>1</td><td>77482</td><td>471</td><td>1825522</td><td>12</td><td>2</td><td>carlos.andre</td><td>1.129</td><td>14:14</td></tr>
+  <tr><td>2</td><td>77482</td><td>470</td><td>1825515</td><td>12</td><td>2</td><td>carlos.andre</td><td>1.141</td><td>14:11</td></tr>
+  <tr><td>3</td><td>77482</td><td>469</td><td>1825511</td><td>12</td><td>2</td><td>carlos.andre</td><td>1.153</td><td>14:08</td></tr>
+  <tr><td>4</td><td>77482</td><td>468</td><td>1825502</td><td>12</td><td>2</td><td>carlos.andre</td><td>1.165</td><td>14:05</td></tr>
+  <tr><td>5</td><td>74489</td><td>29</td><td>1825500</td><td>132</td><td>11</td><td>danielvictor</td><td>1.775</td><td>14:04</td></tr>
+</table>
+
+<h2>7. Arquivos de referência</h2>
+<table>
+  <tr><th>Responsabilidade</th><th>Arquivo</th></tr>
+  <tr><td>Cliente HTTP JERP + generateBarcode</td><td><code>src/shared/services/jerp/index.ts</code></td></tr>
+  <tr><td>API de etiqueta/apontamento</td><td><code>src/app/api/op-jerp/barcode/route.ts</code></td></tr>
+  <tr><td>Montagem array embalagens</td><td><code>src/usecases/op-jerp/build-jerp-embalagem-apontamento.ts</code></td></tr>
+  <tr><td>Resumo embalado (fonte autoritativa)</td><td><code>src/usecases/op-jerp/get-authoritative-box-packed-summary.ts</code></td></tr>
+  <tr><td>Documentação técnica completa</td><td><code>docs/apontamento-jerp-tecnico.pdf</code></td></tr>
+</table>
+
+<footer>
+  Relatório gerado em 07/07/2026 — gde-insp-embalagem — Dados extraídos do PostgreSQL (gdeembalagem) e logs de auditoria (OpActivityLog).
+</footer>
+
+</body>
+</html>

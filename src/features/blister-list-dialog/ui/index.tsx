@@ -101,14 +101,14 @@ const BlisterListDialog = ({
                   {data.OpBoxBlister.map((item: any, index: number) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        {data.packedAt && (
+                        {item.packedAt && (
                           <Image
                             width={100}
                             height={50}
                             src={`/api/images/OP_${opId}_BOX_${
                               data.id
                             }_BL_${item.code}.jpg?path=${formatDateISO(
-                              data.packedAt!
+                              item.packedAt
                             )}`}
                             alt="GDE"
                             className="cursor-pointer"
@@ -116,7 +116,7 @@ const BlisterListDialog = ({
                               handleImageClick(
                                 `/api/images/OP_${opId}_BOX_${data.id}_BL_${
                                   item.code
-                                }.jpg?path=${formatDateISO(data.packedAt!)}`
+                                }.jpg?path=${formatDateISO(item.packedAt)}`
                               )
                             }
                           />

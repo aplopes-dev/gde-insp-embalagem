@@ -10,6 +10,7 @@ import { OpStatisticsCards } from "@/app/admin/_components/op-statistics-cards";
 import { OpActivityTimeline } from "@/app/admin/_components/op-activity-timeline";
 import { OpActivityFilters } from "@/app/admin/_components/op-activity-filters";
 import { OperatorsStatsTable } from "@/app/admin/_components/operators-stats-table";
+import { OpBoxesManager } from "@/app/admin/_components/op-boxes-manager";
 
 interface Statistics {
   totalBoxesInspected: number;
@@ -263,6 +264,24 @@ export default function OpDashboardPage({
       <div>
         <h2 className="text-xl font-semibold mb-4">📊 Estatísticas da OP</h2>
         <OpStatisticsCards statistics={statistics} />
+      </div>
+
+      {/* Caixas */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Caixas da OP</h2>
+        <OpBoxesManager
+          opId={params.id}
+          onChanged={async () => {
+            const logsRes = await fetch(
+              `/api/admin/ops/${params.id}/activity-log`
+            );
+            if (logsRes.ok) {
+              const logsData = await logsRes.json();
+              setActivities(logsData);
+              setFilteredActivities(logsData);
+            }
+          }}
+        />
       </div>
 
       {/* Filtros */}

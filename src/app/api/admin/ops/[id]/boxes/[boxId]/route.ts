@@ -24,46 +24,21 @@ function errorResponse(error: unknown) {
   return new Response(JSON.stringify({ error: message }), { status: 500 });
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as { role?: string } | undefined)?.role;
-
-  if (role !== "SUPERVISOR") return forbidden();
-
-  try {
-    const { opId, code, status } = await req.json();
-
-    if (!opId || !code) {
-      return new Response(
-        JSON.stringify({ error: "OP ID e código são obrigatórios" }),
-        { status: 400 }
-      );
-    }
-
-    const opBox = await db.opBox.update({
-      where: { id: params.id },
-      data: { opId, code, status },
-    });
-
-    return Response.json(opBox);
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Erro ao atualizar caixa";
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
-  }
-}
-
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string; boxId: string } }
 ) {
   const session = await getServerSession(authOptions);
   const user = session?.user as { role?: string; email?: string } | undefined;
 
   if (user?.role !== "SUPERVISOR") return forbidden();
+
+  const opId = parseInt(params.id, 10);
+  if (Number.isNaN(opId)) {
+    return new Response(JSON.stringify({ error: "OP ID inválido" }), {
+      status: 400,
+    });
+  }
 
   try {
     let confirmJerpReversal = false;
@@ -71,7 +46,15 @@ export async function DELETE(
       const body = await req.json();
       confirmJerpReversal = Boolean(body?.confirmJerpReversal);
     } catch {
-      // DELETE sem body: permitido para caixas sem barcode
+      // sem body
+    }
+
+    const box = await db.opBox.findUnique({ where: { id: params.boxId } });
+    if (!box || box.opId !== opId) {
+      return new Response(
+        JSON.stringify({ error: "Caixa não encontrada nesta OP" }),
+        { status: 404 }
+      );
     }
 
     const dbUser = await db.user.findUnique({
@@ -84,7 +67,7 @@ export async function DELETE(
     }
 
     const result = await deleteOpBoxAndReconcile({
-      boxId: params.id,
+      boxId: params.boxId,
       userId: dbUser.id,
       confirmJerpReversal,
     });

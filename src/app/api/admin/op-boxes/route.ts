@@ -1,23 +1,49 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { createOpBoxFromJerp } from "@/usecases/op/create-op-box-from-jerp";
+import { AdminBoxError } from "@/usecases/op/admin-box-errors";
 
 function forbidden() {
   return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
 }
 
-export async function GET() {
+function errorResponse(error: unknown) {
+  if (error instanceof AdminBoxError) {
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        code: error.code,
+        details: error.details,
+      }),
+      { status: error.status }
+    );
+  }
+  const message =
+    error instanceof Error ? error.message : "Erro ao processar caixas";
+  return new Response(JSON.stringify({ error: message }), { status: 500 });
+}
+
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
+  const role = (session?.user as { role?: string } | undefined)?.role;
 
   if (role !== "SUPERVISOR") return forbidden();
 
   try {
+    const { searchParams } = new URL(req.url);
+    const opIdParam = searchParams.get("opId");
+    const opId = opIdParam ? parseInt(opIdParam, 10) : null;
+
     const opBoxes = await db.opBox.findMany({
-      orderBy: { createdAt: "desc" },
+      where: opId && !Number.isNaN(opId) ? { opId } : undefined,
+      include: {
+        OpBoxBlister: { select: { id: true, quantity: true, code: true } },
+      },
+      orderBy: [{ opId: "asc" }, { code: "asc" }],
     });
     return Response.json(opBoxes);
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: "Erro ao carregar caixas" }), {
       status: 500,
     });
@@ -26,30 +52,42 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
+  const user = session?.user as { role?: string; email?: string } | undefined;
 
-  if (role !== "SUPERVISOR") return forbidden();
+  if (user?.role !== "SUPERVISOR") return forbidden();
 
   try {
-    const { id, opId, code, status } = await req.json();
+    const body = await req.json();
+    const opId = Number(body.opId);
+    const pieces =
+      body.pieces != null && body.pieces !== ""
+        ? Number(body.pieces)
+        : undefined;
 
-    if (!id || !opId || !code) {
+    if (!opId || Number.isNaN(opId)) {
       return new Response(
-        JSON.stringify({ error: "ID, OP ID e código são obrigatórios" }),
+        JSON.stringify({ error: "opId é obrigatório" }),
         { status: 400 }
       );
     }
 
-    const opBox = await db.opBox.create({
-      data: { id, opId, code, status: status || "PENDING" },
+    const dbUser = await db.user.findUnique({
+      where: { email: user.email! },
+    });
+    if (!dbUser) {
+      return new Response(JSON.stringify({ error: "Usuário não encontrado" }), {
+        status: 404,
+      });
+    }
+
+    const result = await createOpBoxFromJerp({
+      opId,
+      userId: dbUser.id,
+      pieces: pieces != null && !Number.isNaN(pieces) ? pieces : undefined,
     });
 
-    return Response.json(opBox);
-  } catch (error: any) {
-    return new Response(
-      JSON.stringify({ error: error.message || "Erro ao criar caixa" }),
-      { status: 500 }
-    );
+    return Response.json(result, { status: 201 });
+  } catch (error) {
+    return errorResponse(error);
   }
 }
-

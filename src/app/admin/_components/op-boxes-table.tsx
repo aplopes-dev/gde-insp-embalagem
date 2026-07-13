@@ -45,17 +45,23 @@ interface OpBox {
 export function OpBoxesTable() {
   const filterFields: FilterField[] = [
     { key: "code", label: "Código", type: "text" },
-    { key: "status", label: "Status", type: "select", options: [
-      { value: "PENDING", label: "Pendente" },
-      { value: "PACKAGED", label: "Embalado" },
-      { value: "PACKAGED_W_BREAK", label: "Embalado com Quebra" },
-    ]},
+    {
+      key: "status",
+      label: "Status",
+      type: "select",
+      options: [
+        { value: "PENDING", label: "Pendente" },
+        { value: "PACKAGED", label: "Embalado" },
+        { value: "PACKAGED_W_BREAK", label: "Embalado com Quebra" },
+      ],
+    },
     { key: "opId", label: "OP ID", type: "number" },
   ];
   const [opBoxes, setOpBoxes] = useState<OpBox[]>([]);
   const [filteredOpBoxes, setFilteredOpBoxes] = useState<OpBox[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OpBox | null>(null);
+  const [confirmEstorno, setConfirmEstorno] = useState(false);
   const [filters, setFilters] = useState<Record<string, string | number>>({
     search: "",
     code: "",
@@ -64,7 +70,12 @@ export function OpBoxesTable() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: "", opId: 0, code: "", status: "PENDING" });
+  const [formData, setFormData] = useState({
+    opId: 0,
+    code: "",
+    status: "PENDING",
+    pieces: "",
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -108,17 +119,38 @@ export function OpBoxesTable() {
     }
   }
 
-  async function handleDelete(id: string) {
-    try {
-      const response = await fetch(`/api/admin/op-boxes/${id}`, {
-        method: "DELETE",
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    const needsEstorno = Boolean(deleteTarget.barCode);
+    if (needsEstorno && !confirmEstorno) {
+      toast({
+        title: "Confirmação necessária",
+        description:
+          "Marque que o estorno já foi efetuado no JERP antes de excluir.",
+        variant: "destructive",
       });
-      if (!response.ok) throw new Error("Erro ao deletar caixa");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/op-boxes/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmJerpReversal: needsEstorno ? confirmEstorno : false,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error || "Erro ao deletar caixa");
+      }
       toast({
         title: "Sucesso",
-        description: "Caixa deletada com sucesso",
+        description:
+          "Caixa excluída. Pendentes recriadas a partir do restante JERP.",
       });
-      setDeleteId(null);
+      setDeleteTarget(null);
+      setConfirmEstorno(false);
       fetchOpBoxes();
     } catch (error: any) {
       toast({
@@ -130,37 +162,65 @@ export function OpBoxesTable() {
   }
 
   async function handleSave() {
-    if (!formData.code || formData.opId <= 0 || (!editingId && !formData.id)) {
+    if (formData.opId <= 0) {
       toast({
         title: "Erro",
-        description: editingId ? "Código e ID da OP são obrigatórios" : "ID, código e ID da OP são obrigatórios",
+        description: "ID da OP é obrigatório",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const method = editingId ? "PUT" : "POST";
-      const url = editingId
-        ? `/api/admin/op-boxes/${editingId}`
-        : "/api/admin/op-boxes";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error("Erro ao salvar caixa");
-
-      toast({
-        title: "Sucesso",
-        description: editingId ? "Caixa atualizada com sucesso" : "Caixa criada com sucesso",
-      });
+      if (editingId) {
+        if (!formData.code) {
+          toast({
+            title: "Erro",
+            description: "Código é obrigatório para editar",
+            variant: "destructive",
+          });
+          return;
+        }
+        const response = await fetch(`/api/admin/op-boxes/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            opId: formData.opId,
+            code: formData.code,
+            status: formData.status,
+          }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body.error || "Erro ao atualizar caixa");
+        }
+        toast({ title: "Sucesso", description: "Caixa atualizada com sucesso" });
+      } else {
+        const pieces =
+          formData.pieces.trim() === ""
+            ? undefined
+            : Number(formData.pieces);
+        if (pieces != null && (Number.isNaN(pieces) || pieces <= 0)) {
+          throw new Error("Informe uma quantidade de peças válida");
+        }
+        const response = await fetch("/api/admin/op-boxes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ opId: formData.opId, pieces }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body.error || "Erro ao criar caixa");
+        }
+        toast({
+          title: "Sucesso",
+          description: `Caixa ${body.code} criada com ${body.pieces} peças`,
+        });
+      }
 
       setIsCreateDialogOpen(false);
       setEditingId(null);
-      setFormData({ id: "", opId: 0, code: "", status: "PENDING" });
+      setFormData({ opId: 0, code: "", status: "PENDING", pieces: "" });
       fetchOpBoxes();
     } catch (error: any) {
       toast({
@@ -173,17 +233,17 @@ export function OpBoxesTable() {
 
   function handleEdit(opBox: OpBox) {
     setFormData({
-      id: opBox.id,
       opId: opBox.opId,
       code: opBox.code,
       status: opBox.status,
+      pieces: "",
     });
     setEditingId(opBox.id);
     setIsCreateDialogOpen(true);
   }
 
   function handleCreateNew() {
-    setFormData({ id: "", opId: 0, code: "", status: "PENDING" });
+    setFormData({ opId: 0, code: "", status: "PENDING", pieces: "" });
     setEditingId(null);
     setIsCreateDialogOpen(true);
   }
@@ -191,7 +251,7 @@ export function OpBoxesTable() {
   function handleCloseDialog() {
     setIsCreateDialogOpen(false);
     setEditingId(null);
-    setFormData({ id: "", opId: 0, code: "", status: "PENDING" });
+    setFormData({ opId: 0, code: "", status: "PENDING", pieces: "" });
   }
 
   function handleFilterChange(key: string, value: string | number) {
@@ -217,6 +277,10 @@ export function OpBoxesTable() {
         <CardTitle>Caixas (OpBox)</CardTitle>
       </CardHeader>
       <CardContent>
+        <p className="text-sm text-muted-foreground mb-4">
+          Criação e exclusão validam o restante da OP no JERP. Caixas apontadas
+          só podem ser excluídas após estorno refletido no JERP.
+        </p>
         <AdvancedFilter
           fields={filterFields}
           filters={filters}
@@ -252,26 +316,34 @@ export function OpBoxesTable() {
               ) : (
                 filteredOpBoxes.map((opBox) => (
                   <TableRow key={opBox.id}>
-                    <TableCell className="font-mono text-xs">{opBox.id}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {opBox.id}
+                    </TableCell>
                     <TableCell>{opBox.opId}</TableCell>
                     <TableCell className="font-mono">{opBox.code}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        opBox.status === "PACKAGED"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : opBox.status === "PACKAGED_W_BREAK"
-                          ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          opBox.status === "PACKAGED"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : opBox.status === "PACKAGED_W_BREAK"
+                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                        }`}
+                      >
                         {opBox.status}
                       </span>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{opBox.barCode || "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {opBox.barCode || "-"}
+                    </TableCell>
                     <TableCell className="text-sm">
                       {new Date(opBox.createdAt).toLocaleDateString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {opBox.packedAt ? new Date(opBox.packedAt).toLocaleDateString("pt-BR") : "-"}
+                      {opBox.packedAt
+                        ? new Date(opBox.packedAt).toLocaleDateString("pt-BR")
+                        : "-"}
                     </TableCell>
                     <TableCell className="text-right flex gap-2 justify-end">
                       <Button
@@ -284,7 +356,10 @@ export function OpBoxesTable() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => setDeleteId(opBox.id)}
+                        onClick={() => {
+                          setConfirmEstorno(false);
+                          setDeleteTarget(opBox);
+                        }}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -297,18 +372,59 @@ export function OpBoxesTable() {
         </div>
       </CardContent>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setConfirmEstorno(false);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja deletar esta caixa? Todos os blisters associados também serão deletados. Esta ação não poderá ser desfeita.
+            <AlertDialogTitle>
+              Excluir caixa {deleteTarget?.code}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  A caixa e os blisters serão removidos. As caixas pendentes
+                  serão recriadas automaticamente a partir do restante do JERP.
+                </p>
+                {deleteTarget?.barCode ? (
+                  <div className="rounded border border-amber-300 bg-amber-50 p-3 text-amber-900 space-y-2">
+                    <p className="font-medium">
+                      Caixa apontada (barcode {deleteTarget.barCode}). Efetue o
+                      estorno no JERP antes de confirmar.
+                    </p>
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={confirmEstorno}
+                        onChange={(e) => setConfirmEstorno(e.target.checked)}
+                      />
+                      <span>
+                        Confirmo que o estorno desta caixa já foi efetuado no
+                        JERP.
+                      </span>
+                    </label>
+                  </div>
+                ) : null}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-2 justify-end">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteId && handleDelete(deleteId)}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={
+                Boolean(deleteTarget?.barCode) && !confirmEstorno
+              }
               className="bg-red-600 hover:bg-red-700"
             >
               Deletar
@@ -325,51 +441,83 @@ export function OpBoxesTable() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {!editingId && (
-              <div>
-                <label className="block text-sm font-medium mb-1">ID *</label>
-                <Input
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  placeholder="ID único"
-                />
-              </div>
-            )}
             <div>
               <label className="block text-sm font-medium mb-1">OP ID *</label>
               <Input
                 type="number"
-                value={formData.opId}
-                onChange={(e) => setFormData({ ...formData, opId: parseInt(e.target.value) || 0 })}
+                value={formData.opId || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    opId: parseInt(e.target.value) || 0,
+                  })
+                }
                 placeholder="ID da OP"
+                disabled={Boolean(editingId)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Código *</label>
-              <Input
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="Código da caixa"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
-              >
-                <option value="PENDING">Pendente</option>
-                <option value="PACKAGED">Embalado</option>
-                <option value="PACKAGED_W_BREAK">Embalado com Quebra</option>
-              </select>
-            </div>
+            {editingId ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Código *
+                  </label>
+                  <Input
+                    value={formData.code}
+                    onChange={(e) =>
+                      setFormData({ ...formData, code: e.target.value })
+                    }
+                    placeholder="Código da caixa"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
+                  >
+                    <option value="PENDING">Pendente</option>
+                    <option value="PACKAGED">Embalado</option>
+                    <option value="PACKAGED_W_BREAK">
+                      Embalado com Quebra
+                    </option>
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Peças (opcional)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.pieces}
+                  onChange={(e) =>
+                    setFormData({ ...formData, pieces: e.target.value })
+                  }
+                  placeholder="Vazio = 1 caixa cheia (limitada ao JERP)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Código e blisters são gerados automaticamente a partir da
+                  configuração da OP e do restante JERP.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseDialog}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+            <Button
+              onClick={handleSave}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               {editingId ? "Atualizar" : "Criar"}
             </Button>
           </DialogFooter>
@@ -378,4 +526,3 @@ export function OpBoxesTable() {
     </Card>
   );
 }
-

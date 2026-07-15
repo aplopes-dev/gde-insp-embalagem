@@ -80,17 +80,17 @@ const BlisterListDialog = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] max-w-lg flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Caixa</DialogTitle>
             <DialogDescription>
               Código: <strong>{data?.code}</strong>
             </DialogDescription>
           </DialogHeader>
           {data && (
-            <>
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow className="h-8">
                     <TableHead className="w-[50%]">Imagem</TableHead>
                     <TableHead className="w-[50%]">Blister</TableHead>
@@ -128,7 +128,7 @@ const BlisterListDialog = ({
                   ))}
                 </TableBody>
               </Table>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>

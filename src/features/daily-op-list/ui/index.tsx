@@ -47,7 +47,7 @@ export default function DailyOpList() {
     getAction: fetchPaginatedOp,
   });
 
-  const pageCount = Math.round((count as number) / limit);
+  const pageCount = Math.ceil((count as number) / limit) || 1;
 
   return (
     <ServerDataTable

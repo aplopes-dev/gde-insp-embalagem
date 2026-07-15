@@ -84,7 +84,7 @@ export default function DailyOpBoxTable({
     ],
   });
 
-  const pageCount = Math.round((count as number) / limit);
+  const pageCount = Math.ceil((count as number) / limit) || 1;
 
   return (
     <div>

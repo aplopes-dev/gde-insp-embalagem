@@ -1,7 +1,7 @@
 import db from "@/providers/database";
 import logger from "@/libs/logger";
 import { getOpFromId } from "@/shared/services/jerp";
-import { recalculateBoxesFromOpAndItemQuantity } from "@/app/op/[opId]/actions";
+import { recalculateBoxesFromOpAndItemQuantity } from "@/usecases/op/recalculate-boxes-from-quantity";
 import {
   assertEstornoReflectedInJerp,
   sumBoxPieces,

@@ -1,7 +1,12 @@
 import db from "@/providers/database";
 import logger from "@/libs/logger";
 import { getOpFromId } from "@/shared/services/jerp";
-import { recalculateBoxesFromOpAndItemQuantity } from "@/app/op/[opId]/actions";
+import { recalculateBoxesFromOpAndItemQuantity } from "@/usecases/op/recalculate-boxes-from-quantity";
+import {
+  decideAlignPendingWithJerp,
+  sumInternalPendingPieces,
+} from "@/usecases/op/align-pending-with-jerp";
+import { getPackedQuantityForOp } from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
 
 export type OpReconciliationResult = {
   opId: number;
@@ -10,20 +15,58 @@ export type OpReconciliationResult = {
   internalPending: number;
   diverged: boolean;
   corrected: boolean;
+  skippedInProgress?: boolean;
   error?: string;
 };
+
+async function logReconciliation(params: {
+  opId: number;
+  userId: string | null;
+  description: string;
+  details: Record<string, unknown>;
+}) {
+  if (!params.userId) return;
+  try {
+    await db.opActivityLog.create({
+      data: {
+        opId: params.opId,
+        userId: params.userId,
+        actionType: "STATUS_CHANGED",
+        description: params.description,
+        details: { event: "JERP_RECONCILIATION", ...params.details } as object,
+      },
+    });
+  } catch (error) {
+    logger.error({
+      message: "Falha ao registrar reconciliação no log.",
+      error,
+    });
+  }
+}
 
 /**
  * Compara o pendente interno de uma OP com o restante informado pelo JERP
  * (fonte de verdade) e, opcionalmente, corrige o interno recriando as caixas
- * pendentes. Toda divergência é registrada em OpActivityLog (item 8).
+ * pendentes. Toda divergência é registrada em OpActivityLog.
+ *
+ * `jerpRemaining` opcional evita uma segunda chamada ao JERP (ex.: abertura da OP).
+ * Com `protectInProgress` (default true), não apaga caixa pendente com blister
+ * já conferido.
  */
 export async function reconcileOpWithJerp(
   opId: number,
   userId: string | null,
-  options: { autoCorrect?: boolean } = {}
+  options: {
+    autoCorrect?: boolean;
+    jerpRemaining?: number;
+    protectInProgress?: boolean;
+  } = {}
 ): Promise<OpReconciliationResult> {
-  const { autoCorrect = true } = options;
+  const {
+    autoCorrect = true,
+    protectInProgress = true,
+    jerpRemaining: jerpRemainingOption,
+  } = options;
 
   const op = await db.op.findUnique({
     where: { id: opId },
@@ -42,92 +85,144 @@ export async function reconcileOpWithJerp(
     };
   }
 
-  // Pendente interno: soma planejada dos blisters das caixas ainda não embaladas.
-  const internalPending = op.OpBox
-    .filter((box) => box.packedAt == null)
-    .reduce(
-      (total, box) =>
-        total + box.OpBoxBlister.reduce((sum, bl) => sum + bl.quantity, 0),
-      0
-    );
+  const internalPending = sumInternalPendingPieces(op.OpBox);
 
-  const red = await getOpFromId(String(opId));
-  if (red.isLeft()) {
+  let jerpRemaining: number;
+  if (jerpRemainingOption != null) {
+    jerpRemaining = Math.max(0, jerpRemainingOption);
+  } else {
+    const red = await getOpFromId(String(opId));
+    if (red.isLeft()) {
+      return {
+        opId,
+        opCode: op.code,
+        jerpRemaining: null,
+        internalPending,
+        diverged: false,
+        corrected: false,
+        error: red.getLeft().error,
+      };
+    }
+    jerpRemaining = red.get().quantidadeAProduzir ?? 0;
+  }
+
+  const decision = decideAlignPendingWithJerp({
+    boxes: op.OpBox,
+    jerpRemaining,
+  });
+
+  if (decision.action === "noop") {
+    // Mantém quantityToProduce alinhado mesmo sem recriar caixas.
+    const itemsPacked = await getPackedQuantityForOp(opId);
+    const correctQuantity = itemsPacked + jerpRemaining;
+    if (op.quantityToProduce !== correctQuantity) {
+      await db.op.update({
+        where: { id: opId },
+        data: { quantityToProduce: correctQuantity },
+      });
+    }
     return {
       opId,
       opCode: op.code,
-      jerpRemaining: null,
+      jerpRemaining,
       internalPending,
       diverged: false,
       corrected: false,
-      error: red.getLeft().error,
     };
   }
 
-  const jerpRemaining = red.get().quantidadeAProduzir ?? 0;
-  const diverged = jerpRemaining !== internalPending;
+  const diverged = true;
 
-  let corrected = false;
+  logger.warn({
+    message: "Reconciliação: pendente interno diverge do restante do JERP.",
+    opId,
+    opCode: op.code,
+    internalPending: decision.internalPending,
+    jerpRemaining: decision.jerpRemaining,
+    decision: decision.action,
+    autoCorrect,
+  });
 
-  if (diverged) {
-    logger.warn({
-      message: "Reconciliação: pendente interno diverge do restante do JERP.",
+  if (decision.action === "skip_in_progress" && protectInProgress) {
+    await logReconciliation({
       opId,
-      opCode: op.code,
-      internalPending,
-      jerpRemaining,
-      autoCorrect,
+      userId,
+      description: `Reconciliação JERP adiada: inspeção em andamento (pendente interno ${decision.internalPending} vs JERP ${decision.jerpRemaining}).`,
+      details: {
+        internalPending: decision.internalPending,
+        jerpRemaining: decision.jerpRemaining,
+        autoCorrect: false,
+        skippedInProgress: true,
+      },
     });
 
-    if (userId) {
-      try {
-        await db.opActivityLog.create({
-          data: {
-            opId,
-            userId,
-            actionType: "STATUS_CHANGED",
-            description: `Reconciliação JERP: pendente interno ${internalPending} vs JERP ${jerpRemaining}.${
-              autoCorrect ? " Interno ajustado ao JERP." : ""
-            }`,
-            details: {
-              event: "JERP_RECONCILIATION",
-              internalPending,
-              jerpRemaining,
-              autoCorrect,
-            } as any,
-          },
-        });
-      } catch (error) {
-        logger.error({
-          message: "Falha ao registrar reconciliação no log.",
-          error,
-        });
-      }
+    // Atualiza só o total da OP para o painel; não mexe nas caixas a meio.
+    const itemsPacked = await getPackedQuantityForOp(opId);
+    const correctQuantity = itemsPacked + jerpRemaining;
+    if (op.quantityToProduce !== correctQuantity) {
+      await db.op.update({
+        where: { id: opId },
+        data: { quantityToProduce: correctQuantity },
+      });
     }
 
-    if (autoCorrect) {
-      await recalculateBoxesFromOpAndItemQuantity(
-        opId,
-        Math.max(0, jerpRemaining)
-      );
-      corrected = true;
-    }
+    return {
+      opId,
+      opCode: op.code,
+      jerpRemaining,
+      internalPending: decision.internalPending,
+      diverged,
+      corrected: false,
+      skippedInProgress: true,
+    };
   }
+
+  if (!autoCorrect) {
+    await logReconciliation({
+      opId,
+      userId,
+      description: `Reconciliação JERP: pendente interno ${decision.internalPending} vs JERP ${decision.jerpRemaining}.`,
+      details: {
+        internalPending: decision.internalPending,
+        jerpRemaining: decision.jerpRemaining,
+        autoCorrect: false,
+      },
+    });
+    return {
+      opId,
+      opCode: op.code,
+      jerpRemaining,
+      internalPending: decision.internalPending,
+      diverged,
+      corrected: false,
+    };
+  }
+
+  await recalculateBoxesFromOpAndItemQuantity(opId, Math.max(0, jerpRemaining));
+
+  await logReconciliation({
+    opId,
+    userId,
+    description: `Reconciliação JERP: pendente interno ${decision.internalPending} vs JERP ${decision.jerpRemaining}. Interno ajustado ao JERP.`,
+    details: {
+      internalPending: decision.internalPending,
+      jerpRemaining: decision.jerpRemaining,
+      autoCorrect: true,
+    },
+  });
 
   return {
     opId,
     opCode: op.code,
     jerpRemaining,
-    internalPending,
+    internalPending: decision.internalPending,
     diverged,
-    corrected,
+    corrected: true,
   };
 }
 
 /**
  * Reconcilia todas as OPs abertas (não finalizadas) com o JERP.
- * Ideal para execução periódica (cron/rotina) antes que divergências
- * virem erro de produção.
  */
 export async function reconcileOpenOpsWithJerp(
   userId: string | null,

@@ -19,11 +19,12 @@ import {
 } from "@/usecases/op-jerp/resolve-piece-registration";
 import {
   getPackedQuantityForOp,
-  reconcileOpQuantityWithJerp,
   resolvePendingQuantity,
 } from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
-import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
+import { createOpData } from "@/usecases/op/create-op-data";
 import { findNextPendingOpBox } from "@/usecases/op/find-next-pending-op-box";
+import { recalculateBoxesFromOpAndItemQuantity } from "@/usecases/op/recalculate-boxes-from-quantity";
+import { reconcileOpWithJerp } from "@/usecases/op/reconcile-op-with-jerp";
 import {
   getAuthoritativeBoxPackedSummary,
   type AuthoritativeBoxPackedSummary,
@@ -111,11 +112,47 @@ export async function syncAndGetOpToProduceById(id: string) {
     }
 
     if (internalOp) {
-      const pendingBoxCount = await db.opBox.count({
-        where: { opId: internalOp.id, packedAt: null },
-      });
-      if (pendingBoxCount === 0) {
-        internalOp = await reconcileOpQuantityWithJerp(internalOp, externalOp);
+      // Alinha caixas pendentes ao restante do JERP sempre que a OP é aberta
+      // (não só quando pending=0). Protege inspeção a meio (blister já conferido).
+      try {
+        const session = await getServerSession(authOptions);
+        const userId =
+          (session?.user as { id?: string } | undefined)?.id ?? null;
+        const jerpRemaining = externalOp!.quantidadeAProduzir ?? 0;
+
+        const reconciliation = await reconcileOpWithJerp(
+          internalOp.id,
+          userId,
+          {
+            autoCorrect: true,
+            jerpRemaining,
+            protectInProgress: true,
+          }
+        );
+
+        if (reconciliation.corrected || reconciliation.diverged) {
+          logger.info({
+            message: "Pendentes alinhados ao JERP na abertura da OP",
+            opId: internalOp.id,
+            opCode: internalOp.code,
+            jerpRemaining: reconciliation.jerpRemaining,
+            internalPendingBefore: reconciliation.internalPending,
+            corrected: reconciliation.corrected,
+            skippedInProgress: reconciliation.skippedInProgress ?? false,
+          });
+        }
+
+        const refreshed = await db.op.findUnique({
+          where: { id: internalOp.id },
+        });
+        if (refreshed) internalOp = refreshed;
+      } catch (error) {
+        logger.error({
+          message:
+            "Falha ao reconciliar pendentes com JERP na abertura da OP (seguindo com estado local)",
+          opId: internalOp.id,
+          error,
+        });
       }
     }
 
@@ -652,83 +689,6 @@ export async function persistWithOpBreak(
   } catch (error) {
     handleError(error, "Falha ao persistir caixa com quebra");
   }
-}
-
-export async function recalculateBoxesFromOpAndItemQuantity(
-  opId: number,
-  quantityToProduce: number
-) {
-  const op = await db.op.findUnique({
-    where: {
-      id: opId,
-    },
-    include: { blister: true, OpBox: true },
-  });
-
-  if (!op) {
-    throw new Error(`Not found OP with ID: ${opId}`);
-  }
-
-  // Sempre remove as caixas/blisters pendentes (não embalados) antes de recriar.
-  await db.$transaction([
-    db.opBoxBlister.deleteMany({
-      where: {
-        packedAt: null,
-        opBox: {
-          opId,
-        },
-      },
-    }),
-    db.opBox.deleteMany({
-      where: {
-        opId,
-        packedAt: null,
-      },
-    }),
-  ]);
-
-  // Nada pendente: não há caixas a recriar (ex.: OP já concluída no JERP).
-  if (quantityToProduce <= 0) {
-    return db.op.findUnique({ where: { id: opId } });
-  }
-
-  // Numeração sem duplicidade. Continua a partir do maior `code` já
-  // existente (inclusive de caixas embaladas), evitando reuso após deleções.
-  const maxCode = op.OpBox.reduce(
-    (max, b) => Math.max(max, Number(b.code) || 0),
-    0
-  );
-
-  const boxes = createOpBoxesData({
-    quantityToProduce,
-    blisterSlots: op.blister?.slots,
-    blisterPerBox: op.blister?.limitPerBox,
-    boxGap: maxCode,
-  });
-
-  const itemsPacked = await getPackedQuantityForOp(opId);
-
-
-  return db.op.update({
-    data: {
-      quantityToProduce: itemsPacked + quantityToProduce,
-      OpBox: {
-        create: boxes?.map((box) => {
-          const blisters = [...(box.blisters || [])];
-          delete box["blisters"];
-          return {
-            ...box,
-            OpBoxBlister: {
-              create: blisters,
-            },
-          };
-        }),
-      },
-    },
-    where: {
-      id: opId,
-    },
-  });
 }
 
 export async function getOpById(id: number) {

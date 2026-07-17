@@ -1,4 +1,5 @@
 import { authOptions } from "@/libs/auth";
+import { APP_ROLES, isAppRole } from "@/lib/rbac";
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from "@/libs/password";
 import db from "@/providers/database";
 import { getServerSession } from "next-auth";
@@ -15,7 +16,15 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const data: any = {};
   if (name) data.name = name;
   if (email) data.email = email;
-  if (userRole) data.role = userRole;
+  if (userRole) {
+    if (!isAppRole(userRole)) {
+      return new Response(
+        JSON.stringify({ error: `Perfil inválido. Use: ${APP_ROLES.join(", ")}` }),
+        { status: 400 }
+      );
+    }
+    data.role = userRole;
+  }
   if (password) {
     if (!isStrongPassword(password)) {
       return new Response(JSON.stringify({ error: PASSWORD_POLICY_MESSAGE }), { status: 400 });

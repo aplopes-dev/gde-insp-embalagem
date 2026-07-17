@@ -34,7 +34,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Passo 3: Mapear role do JERP para o sistema
-          const role = mapJerpRoleToSystemRole(jerpUser.isLideranca);
+          // AUDITOR é atribuição local manual — JERP não possui equivalente e não deve sobrescrever.
+          const jerpMappedRole = mapJerpRoleToSystemRole(jerpUser.isLideranca);
 
           // Passo 4: Persistir/atualizar usuário localmente
           let user = await db.user.findUnique({ where: { email: credentials.email } });
@@ -45,21 +46,25 @@ export const authOptions: NextAuthOptions = {
               data: {
                 email: credentials.email,
                 name: jerpUser.nome,
-                role: role,
+                role: jerpMappedRole,
                 password: "", // Não armazenamos senha localmente
               },
             });
             console.log("[Auth] Novo usuário criado:", credentials.email);
           } else {
-            // Atualizar dados do usuário (nome e role podem ter mudado no JERP)
+            const preserveAuditor = user.role === "AUDITOR";
             user = await db.user.update({
               where: { email: credentials.email },
               data: {
                 name: jerpUser.nome,
-                role: role,
+                ...(preserveAuditor ? {} : { role: jerpMappedRole }),
               },
             });
-            console.log("[Auth] Usuário atualizado:", credentials.email);
+            console.log(
+              "[Auth] Usuário atualizado:",
+              credentials.email,
+              preserveAuditor ? "(AUDITOR preservado)" : ""
+            );
           }
 
           return { id: user.id, name: user.name, email: user.email, role: user.role } as any;
@@ -78,6 +83,28 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         // @ts-ignore
         token.role = user.role;
+        token.roleCheckedAt = Date.now();
+      } else if (token.email) {
+        // Revalida role no banco periodicamente (revogação de AUDITOR/SUPERVISOR).
+        const ROLE_REFRESH_MS = 5 * 60 * 1000;
+        const lastChecked = Number(token.roleCheckedAt || 0);
+        if (Date.now() - lastChecked >= ROLE_REFRESH_MS) {
+          try {
+            const fresh = await db.user.findUnique({
+              where: { email: token.email as string },
+              select: { id: true, role: true, name: true },
+            });
+            if (fresh) {
+              token.id = fresh.id;
+              token.name = fresh.name;
+              // @ts-ignore
+              token.role = fresh.role;
+            }
+          } catch (error) {
+            console.error("[Auth] Falha ao revalidar role:", error);
+          }
+          token.roleCheckedAt = Date.now();
+        }
       }
       return token;
     },
@@ -99,6 +126,6 @@ export type SessionUser = {
   id: string;
   name: string;
   email: string;
-  role: "SUPERVISOR" | "OPERADOR";
+  role: "SUPERVISOR" | "OPERADOR" | "AUDITOR";
 };
 

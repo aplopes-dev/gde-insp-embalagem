@@ -1,25 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/libs/auth";
 import db from "@/providers/database";
+import { requireRole } from "@/lib/rbac";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const gate = await requireRole(["OPERADOR", "SUPERVISOR"]);
+    if (!gate.ok) return gate.response;
 
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Não autenticado" },
-        { status: 401 }
-      );
-    }
-
-    const user = await db.user.findUnique({
-      where: { email: session.user.email! },
-    });
+    const user = gate.email
+      ? await db.user.findUnique({ where: { email: gate.email } })
+      : gate.userId
+        ? await db.user.findUnique({ where: { id: gate.userId } })
+        : null;
 
     if (!user) {
       return NextResponse.json(
@@ -28,12 +23,27 @@ export async function POST(
       );
     }
 
-    const opId = parseInt(params.id);
+    const opId = parseInt(params.id, 10);
+    if (Number.isNaN(opId)) {
+      return NextResponse.json({ error: "OP inválida" }, { status: 400 });
+    }
+
     const body = await req.json();
 
-    const { actionType, description, details, boxId, productId } = body;
+    const {
+      actionType,
+      description,
+      details,
+      boxId,
+      productId,
+      occurrenceId,
+      detectionStatus,
+      imageFilename,
+      storagePath,
+      confidence,
+      deviceId,
+    } = body;
 
-    // Validar campos obrigatórios
     if (!actionType || !description) {
       return NextResponse.json(
         { error: "actionType e description são obrigatórios" },
@@ -41,7 +51,6 @@ export async function POST(
       );
     }
 
-    // Verificar se a OP existe
     const op = await db.op.findUnique({
       where: { id: opId },
     });
@@ -53,7 +62,6 @@ export async function POST(
       );
     }
 
-    // Criar log de atividade
     const activityLog = await db.opActivityLog.create({
       data: {
         opId,
@@ -63,6 +71,12 @@ export async function POST(
         details: details || null,
         boxId: boxId || null,
         productId: productId || null,
+        occurrenceId: occurrenceId || null,
+        detectionStatus: detectionStatus || null,
+        imageFilename: imageFilename || null,
+        storagePath: storagePath || null,
+        confidence: confidence ?? null,
+        deviceId: deviceId || null,
       },
       include: {
         user: {
@@ -85,4 +99,3 @@ export async function POST(
     );
   }
 }
-

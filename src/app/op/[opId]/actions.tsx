@@ -909,3 +909,58 @@ export async function fetchAuthoritativePackedBoxSummary(
 ): Promise<AuthoritativeBoxPackedSummary | null> {
   return getAuthoritativeBoxPackedSummary(boxId);
 }
+
+/**
+ * Persiste INVALID/TIMEOUT no histórico (OpActivityLog + InspectionImage).
+ * Chamado pelo frontend ao receber detectionUpdate — fire-and-forget no cliente.
+ */
+export async function persistInspectionDetectionEvent(input: {
+  opId: number;
+  boxId?: string | null;
+  step: string;
+  status: "INVALID" | "TIMEOUT";
+  reason?: string | null;
+  confidence?: number | null;
+  defectLabels?: string[];
+  deviceId?: string | null;
+  workerId?: string | null;
+  imageFilename?: string | null;
+  storagePath?: string | null;
+  capturedAt?: string | null;
+  extraDetails?: Record<string, unknown>;
+}) {
+  const session = await getServerSession(authOptions);
+  const email = session?.user?.email;
+  if (!email) {
+    return { ok: false as const, error: "Não autenticado" };
+  }
+
+  const user = await db.user.findUnique({
+    where: { email },
+    select: { id: true, role: true },
+  });
+  if (!user || (user.role !== "OPERADOR" && user.role !== "SUPERVISOR")) {
+    return { ok: false as const, error: "Sem permissão" };
+  }
+
+  const { persistDetectionEvent } = await import(
+    "@/usecases/detection/persist-detection-event"
+  );
+
+  try {
+    const result = await persistDetectionEvent({
+      ...input,
+      userId: user.id,
+      capturedAt: input.capturedAt ?? undefined,
+    });
+    return { ok: true as const, result };
+  } catch (error) {
+    logger.error({
+      message: "persistInspectionDetectionEvent failed",
+      error,
+      input,
+    });
+    return { ok: false as const, error: "Falha ao persistir detecção" };
+  }
+}
+

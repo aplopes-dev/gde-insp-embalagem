@@ -56,6 +56,7 @@ export async function FormWrapper({
           <option value="">Selecione...</option>
           <option value="SUPERVISOR">SUPERVISOR</option>
           <option value="OPERADOR">OPERADOR</option>
+          <option value="AUDITOR">AUDITOR</option>
         </select>
       </div>
 

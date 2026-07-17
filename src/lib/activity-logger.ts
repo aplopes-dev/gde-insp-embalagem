@@ -10,39 +10,52 @@ export type ActivityActionType =
   | "PRODUCT_AUTHORIZED"
   | "STATUS_CHANGED"
   | "OP_STARTED"
-  | "OP_COMPLETED";
+  | "OP_COMPLETED"
+  | "DETECTION_INVALID"
+  | "DETECTION_TIMEOUT"
+  | "OCCURRENCE_OPENED"
+  | "OCCURRENCE_CLOSED";
 
 interface LogActivityParams {
   opId: number;
   userId: string;
   actionType: ActivityActionType;
   description: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   boxId?: string;
   productId?: number;
+  occurrenceId?: string;
+  detectionStatus?: "VALID" | "INVALID" | "TIMEOUT" | "ERROR";
+  imageFilename?: string;
+  storagePath?: string;
+  confidence?: number;
+  deviceId?: string;
 }
 
 /**
- * Registra uma ação no activity log
+ * Registra uma ação no activity log (via API admin).
  */
 export async function logActivity(params: LogActivityParams) {
   try {
-    const response = await fetch(
-      `/api/admin/ops/${params.opId}/log-action`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          actionType: params.actionType,
-          description: params.description,
-          details: params.details || null,
-          boxId: params.boxId || null,
-          productId: params.productId || null,
-        }),
-      }
-    );
+    const response = await fetch(`/api/admin/ops/${params.opId}/log-action`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        actionType: params.actionType,
+        description: params.description,
+        details: params.details || null,
+        boxId: params.boxId || null,
+        productId: params.productId || null,
+        occurrenceId: params.occurrenceId || null,
+        detectionStatus: params.detectionStatus || null,
+        imageFilename: params.imageFilename || null,
+        storagePath: params.storagePath || null,
+        confidence: params.confidence ?? null,
+        deviceId: params.deviceId || null,
+      }),
+    });
 
     if (!response.ok) {
       console.error("Erro ao registrar atividade:", response.statusText);
@@ -187,4 +200,3 @@ export async function logOpCompleted(opId: number, userId: string) {
     description: "OP concluída",
   });
 }
-

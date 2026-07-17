@@ -39,6 +39,7 @@ import {
   persistWithOpBreak,
   fetchAuthoritativePackedBoxSummary,
   syncAndGetOpToProduceById,
+  persistInspectionDetectionEvent,
 } from "./actions";
 
 // Types
@@ -241,6 +242,10 @@ export default function PackagingInspection({
     const receivedCode = detection.payload?.code;
     const { status, reason } = detection.payload ?? {};
 
+    if (status === "INVALID" || status === "TIMEOUT") {
+      void persistDetectionAlert(detection);
+    }
+
     if (status === "INVALID" && reason?.startsWith("QR_") && step === 1) {
       const qrOp = detection.payload?.qr_op as string | undefined;
       if (reason === "QR_OP_MISMATCH" && qrOp) {
@@ -302,6 +307,54 @@ export default function PackagingInspection({
       itemId: receivedItemId,
       count: Number(receivedCount),
       code: receivedCode,
+    });
+  }
+
+  function resolveDetectionImageFilename(detection: DetectionDto): string | undefined {
+    const code =
+      detection.payload?.code ||
+      (targetBlister !== undefined ? blisterCodes[targetBlister] : undefined);
+    if (!data?.opId || !box?.id || !code) return undefined;
+    return `OP_${data.opId}_BOX_${box.id}_BL_${code}`;
+  }
+
+  function resolveDetectionStep(detection: DetectionDto): string {
+    if (detection.step) return detection.step;
+    if (step === 0) return "box";
+    if (step === 1) return "blister";
+    if (step === 2) return "quantity";
+    return "quantity";
+  }
+
+  function persistDetectionAlert(detection: DetectionDto) {
+    const status = detection.payload?.status;
+    if (status !== "INVALID" && status !== "TIMEOUT") return;
+    if (!data?.opId) return;
+
+    const capturedAt = detection.timestamp || new Date().toISOString();
+    const storagePath = capturedAt.slice(0, 10);
+
+    void persistInspectionDetectionEvent({
+      opId: data.opId,
+      boxId: box?.id ?? null,
+      step: resolveDetectionStep(detection),
+      status,
+      reason: detection.payload?.reason ?? null,
+      confidence: detection.payload?.confidence ?? null,
+      defectLabels: detection.payload?.defect_labels ?? [],
+      deviceId: detection.device_id || deviceId || null,
+      workerId: detection.worker_id || null,
+      imageFilename: resolveDetectionImageFilename(detection),
+      storagePath,
+      capturedAt,
+      extraDetails: {
+        message_id: detection.message_id,
+        item_id: detection.payload?.item_id,
+        count: detection.payload?.count,
+        wrong_side_labels: detection.payload?.wrong_side_labels,
+      },
+    }).catch((err) => {
+      console.error("[historico] falha ao persistir detecção", err);
     });
   }
 

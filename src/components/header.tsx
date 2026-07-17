@@ -21,7 +21,9 @@ function HeaderInner() {
   // Prefer data.user; fallback to data.session.user (safety)
   const sessionUser = (data as any)?.user ?? (data as any)?.session?.user ?? null;
   const user = status === "authenticated" ? (sessionUser as any) : null;
-  const isSupervisor = (user as any)?.role === "SUPERVISOR";
+  const role = (user as { role?: string } | null)?.role;
+  const isSupervisor = role === "SUPERVISOR";
+  const isAuditor = role === "AUDITOR";
 
   useEffect(() => {
     console.log("[Header] Session status:", status);
@@ -49,6 +51,15 @@ function HeaderInner() {
           <span className="text-sm text-gray-500">Carregando...</span>
         )}
         <ThemeModeToggle />
+        {isAuditor && (
+          <Link
+            href="/historico"
+            className="border px-3 py-1 rounded text-sm bg-slate-700 text-white hover:bg-slate-800 transition-colors"
+            title="Histórico de ocorrências"
+          >
+            Histórico
+          </Link>
+        )}
         {isSupervisor && (
           <Link
             href="/admin"

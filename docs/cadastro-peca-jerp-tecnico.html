@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cadastro de Peças — Integração GDE × JERP</title>
+  <style>
+    @page { margin: 16mm 14mm; size: A4; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 10pt;
+      line-height: 1.4;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    h1 { font-size: 18pt; color: #0f3d5c; margin: 0 0 4px; border-bottom: 3px solid #0f3d5c; padding-bottom: 6px; }
+    h2 { font-size: 12pt; color: #0f3d5c; margin: 16px 0 6px; page-break-after: avoid; }
+    h3 { font-size: 10.5pt; color: #2c5282; margin: 12px 0 4px; page-break-after: avoid; }
+    .meta { color: #555; font-size: 9pt; margin-bottom: 12px; }
+    .meta span { display: inline-block; margin-right: 14px; }
+    p { margin: 5px 0; }
+    ul, ol { margin: 4px 0 8px 16px; padding: 0; }
+    li { margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 10px; font-size: 9pt; page-break-inside: avoid; }
+    th, td { border: 1px solid #c5cdd6; padding: 5px 7px; text-align: left; vertical-align: top; }
+    th { background: #e8eef4; font-weight: 600; color: #0f3d5c; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    code, pre { font-family: "Consolas", "Courier New", monospace; font-size: 8.5pt; }
+    pre {
+      background: #f4f6f8;
+      border: 1px solid #d8dee6;
+      border-left: 4px solid #0f3d5c;
+      padding: 8px 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      page-break-inside: avoid;
+      margin: 6px 0 10px;
+    }
+    .highlight { background: #fff8e6; border: 1px solid #f0d78c; padding: 8px 10px; border-radius: 4px; margin: 8px 0; }
+    .flow-box {
+      background: #f0f4f8;
+      border: 1px solid #b8c5d4;
+      padding: 10px 12px;
+      font-family: monospace;
+      font-size: 8pt;
+      white-space: pre;
+      line-height: 1.3;
+      page-break-inside: avoid;
+    }
+    .badge { display: inline-block; background: #0f3d5c; color: #fff; font-size: 7.5pt; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+    .badge-ok { background: #2d6a4f; }
+    .badge-alta { background: #9b2226; }
+    .badge-media { background: #b45309; }
+    .page-break { page-break-before: always; }
+    .warn {
+      background: #fff4f4;
+      border: 1px solid #e8b4b4;
+      border-left: 4px solid #9b2226;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+    .ok-box {
+      background: #f0faf4;
+      border: 1px solid #a7d7b8;
+      border-left: 4px solid #2d6a4f;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+    .info {
+      background: #f0f4f8;
+      border: 1px solid #b8c5d4;
+      border-left: 4px solid #2c5282;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+    footer { margin-top: 16px; font-size: 8pt; color: #666; border-top: 1px solid #ccc; padding-top: 6px; }
+    .req { color: #9b2226; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<h1>Cadastro de Peças — Integração GDE × JERP</h1>
+<div class="meta">
+  <span><strong>Sistema:</strong> gde-insp-embalagem</span>
+  <span><strong>Assunto:</strong> Fluxo, payloads e requisitos para automatização</span>
+  <span><strong>Data:</strong> 17/07/2026</span>
+  <span><strong>Versão:</strong> 1.1</span>
+</div>
+
+<div class="highlight">
+  <strong>Em resumo:</strong> “Cadastro de peça” no GDE é o registro de dados mestres de embalagem
+  (produto, blister e caixa) na abertura de uma OP nova. Produto e caixa já são criados sozinhos.
+  O que falta para automação plena é o JERP enviar sempre <code>slots</code> e <code>limitePorCaixa</code>
+  na embalagem blister. Sem isso, a linha depende do diálogo de supervisão.
+</div>
+
+<!-- ============================================================ -->
+<h2>1. O que é o cadastro de peça</h2>
+
+<p>
+  Não é o registro de cada peça física inspecionada. É o cadastro local necessário para executar uma OP nova:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Conceito</th><th>Entidade GDE</th><th>Origem JERP</th><th>Função</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Peça / Produto</td>
+      <td>ProductType</td>
+      <td><code>produto</code></td>
+      <td>Item a embalar (ID = ID JERP)</td>
+    </tr>
+    <tr>
+      <td>Blister / Cartela</td>
+      <td>BlisterType</td>
+      <td>Embalagem com “blister” ou “cartela” no nome</td>
+      <td>Define <code>slots</code> e <code>limitPerBox</code></td>
+    </tr>
+    <tr>
+      <td>Caixa</td>
+      <td>BoxType</td>
+      <td>Embalagem com “caixa” ou “box” no nome</td>
+      <td>Embalagem final; vinculada ao blister</td>
+    </tr>
+    <tr>
+      <td>Ordem de Produção</td>
+      <td>Op + caixas/blisters</td>
+      <td>OP do JERP</td>
+      <td>Planejamento operacional</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="info">
+  IDs locais = IDs do JERP. Códigos gerados pelo GDE: <code>PROD_{id}</code>, <code>BLISTER_{id}</code>, <code>BOX_{id}</code>.
+  O GDE <strong>não escreve</strong> esses dados mestres de volta no JERP.
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Fluxo atual</h2>
+
+<div class="flow-box">Operador abre /op/{id}
+  → GET JERP /ordemproducaoid/{id}  (fallback: /ordemproducao/{numero})
+  → Valida OP (id, número, produto, qtd > 0, ≥ 2 embalagens)
+  → OP já existe local?
+       SIM → carrega / reconcilia → inspeção
+       NÃO → seleciona blister + caixa pelo nome
+            → resolve slots e limitePorCaixa
+                 1) banco local  2) campos JERP  3) histórico do produto
+            → AUTO: cria ProductType, BoxType, BlisterType e Op
+            → SUPERVISOR: diálogo (slots, limitPerBox, auth liderança)</div>
+
+<p>
+  <strong>Produto e caixa</strong> são sempre criados automaticamente a partir do JERP.
+  O único bloqueio da automação é a <strong>capacidade do blister</strong> (<code>slots</code> / <code>limitePorCaixa</code>).
+</p>
+
+<h3>2.1 Prioridade de resolução</h3>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Fonte</th><th>Condição</th><th>Resultado</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td><code>local_db</code></td><td>Blister já existe no GDE com slots e limitPerBox &gt; 0</td><td><span class="badge badge-ok">AUTO</span></td></tr>
+    <tr><td>2</td><td><code>jerp_op</code></td><td>JERP envia slots e limitePorCaixa &gt; 0</td><td><span class="badge badge-ok">AUTO</span></td></tr>
+    <tr><td>3</td><td><code>history</code></td><td>OP anterior do mesmo produto.id com blister válido</td><td><span class="badge badge-ok">AUTO</span></td></tr>
+    <tr><td>4</td><td>—</td><td>Nenhuma das anteriores</td><td><span class="badge badge-alta">SUPERVISOR</span></td></tr>
+  </tbody>
+</table>
+
+<p>
+  Planejamento: <code>peças por caixa = slots × limitPerBox</code>.
+  Blisters = <code>ceil(quantidadeAProduzir / slots)</code>;
+  caixas = <code>ceil(blisters / limitPerBox)</code>.
+</p>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>3. Integrações e variáveis</h2>
+
+<table>
+  <thead>
+    <tr><th>Variável</th><th>Uso</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>JERP_API</code></td><td>Base URL da API de OP (leitura)</td></tr>
+    <tr><td><code>JERP_TOKEN</code></td><td>Bearer Token nas chamadas</td></tr>
+    <tr><td><code>JERP_API_AUTH</code></td><td>Auth de liderança (caminho supervisor)</td></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>Persistência local (PostgreSQL)</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead>
+    <tr><th>Método</th><th>Endpoint</th><th>Função</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GET</td><td><code>{JERP_API}/ordemproducaoid/{id}</code></td><td>Busca OP por ID (principal)</td></tr>
+    <tr><td>GET</td><td><code>{JERP_API}/ordemproducao/{numero}</code></td><td>Fallback por número</td></tr>
+    <tr><td>GET</td><td><code>{JERP_API_AUTH}/users/emails/{email}</code></td><td>Exige <code>isLideranca === true</code></td></tr>
+    <tr><td>POST</td><td><code>.../verify-password</code></td><td>Corpo <code>{"password":"..."}</code> · sucesso HTTP 204</td></tr>
+  </tbody>
+</table>
+
+<p>Header de leitura: <code>Authorization: Bearer {JERP_TOKEN}</code>.</p>
+
+<!-- ============================================================ -->
+<h2>4. Payload da OP (contrato de leitura)</h2>
+
+<pre>{
+  "id": 430505,
+  "numero": 76691,
+  "quantidadeAProduzir": 1080,
+  "produto": { "id": 46252, "nome": "TL-06-2-0007_02" },
+  "embalagens": [
+    {
+      "id": 47087,
+      "nome": "BLISTER-TL-06-2-0007_02",
+      "quantidadeAlocada": 180,
+      "slots": 6,
+      "limitePorCaixa": 8
+    },
+    {
+      "id": 3457,
+      "nome": "CAIXA 520X320X170 TRIPLEX",
+      "quantidadeAlocada": 23
+    }
+  ]
+}</pre>
+
+<h3>4.1 Campos — abrir OP vs. auto-cadastro</h3>
+
+<table>
+  <thead>
+    <tr><th>Campo</th><th>Abrir OP</th><th>Auto 100%</th><th>Descrição</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code>, <code>numero</code></td><td class="req">Sim</td><td class="req">Sim</td><td>ID e número da OP</td></tr>
+    <tr><td><code>quantidadeAProduzir</code></td><td class="req">&gt; 0</td><td class="req">Sim</td><td>Fonte de verdade da quantidade</td></tr>
+    <tr><td><code>produto.id</code></td><td class="req">Sim</td><td class="req">Sim</td><td>Vira ProductType.id</td></tr>
+    <tr><td><code>produto.nome</code></td><td>Recomendado</td><td>Recomendado</td><td>UI e seleção do blister</td></tr>
+    <tr><td><code>embalagens[]</code></td><td class="req">≥ 2</td><td class="req">Sim</td><td>Pelo menos 1 blister + 1 caixa</td></tr>
+    <tr><td><code>embalagens[].id</code>, <code>nome</code></td><td class="req">Sim</td><td class="req">Sim</td><td>ID estável + classificação por nome</td></tr>
+    <tr><td><code>embalagens[].quantidadeAlocada</code></td><td class="req">≥ 1</td><td class="req">Sim</td><td>Unidades alocadas</td></tr>
+    <tr><td><code>embalagens[].slots</code></td><td>Não</td><td class="req">Sim*</td><td>Peças por blister</td></tr>
+    <tr><td><code>embalagens[].limitePorCaixa</code></td><td>Não</td><td class="req">Sim*</td><td>Blisters por caixa</td></tr>
+  </tbody>
+</table>
+
+<p style="font-size:8.5pt;color:#555;">
+  * Obrigatórios para automatização plena quando o blister ainda não existe no GDE e não há histórico válido do produto.
+</p>
+
+<h3>4.2 Classificação de embalagens</h3>
+
+<table>
+  <thead>
+    <tr><th>Tipo</th><th>Critério no nome</th><th>Exemplo</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Blister</td><td>Contém <code>blister</code> ou <code>cartela</code></td><td><code>BLISTER-TL-06-2-0007_02</code></td></tr>
+    <tr><td>Caixa</td><td>Contém <code>caixa</code> ou <code>box</code></td><td><code>CAIXA 520X320X170 TRIPLEX</code></td></tr>
+  </tbody>
+</table>
+
+<p>
+  Com vários blisters, o GDE escolhe o mais similar ao nome do produto.
+  Nomes com “tampa” são penalizados. Se ambíguo, o supervisor pode selecionar.
+</p>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>5. O que o GDE grava localmente</h2>
+
+<pre>ProductType  { id: produto.id, name, code: "PROD_{id}" }
+BoxType      { id: caixa.id,   name, code: "BOX_{id}" }
+BlisterType  { id: blister.id, name, code: "BLISTER_{id}",
+               slots, limitPerBox, boxTypeId }
+Op           { id, code: numero, FKs, quantityToProduce,
+               OpBox / OpBoxBlister planejados }</pre>
+
+<p>
+  Quando exige supervisor, a UI recebe <code>requiresSupervisorConfig: true</code>
+  (sem gravar a OP). Após auth de liderança, o GDE cria tudo com os valores informados.
+</p>
+
+<pre>// Entrada do diálogo (interno GDE — não vai ao JERP)
+{
+  "externalOpId": 430505,
+  "slots": 6,
+  "limitPerBox": 8,
+  "managerEmail": "lideranca@empresa.com",
+  "managerPassword": "********",
+  "selectedBlisterPackagingId": 47087
+}</pre>
+
+<!-- ============================================================ -->
+<h2>6. O que solicitar ao JERP</h2>
+
+<div class="ok-box">
+  <strong>Pedido principal:</strong> a API de OP deve devolver, em cada embalagem blister/cartela,
+  <code>slots</code> e <code>limitePorCaixa</code> como inteiros &gt; 0, vindos do cadastro mestre de embalagens —
+  de forma permanente e consistente.
+</div>
+
+<h3>6.1 Já necessário hoje</h3>
+<ol>
+  <li>OP com <code>id</code>, <code>numero</code>, <code>quantidadeAProduzir &gt; 0</code>.</li>
+  <li><code>produto.id</code> (e preferencialmente <code>produto.nome</code>).</li>
+  <li>≥ 2 embalagens: uma blister/cartela e uma caixa/box identificáveis pelo nome.</li>
+  <li>Cada embalagem com <code>id</code>, <code>nome</code>, <code>quantidadeAlocada ≥ 1</code>.</li>
+</ol>
+
+<h3>6.2 Necessário para auto-cadastro pleno</h3>
+
+<table>
+  <thead>
+    <tr><th>Campo JERP</th><th>No GDE</th><th>Significado</th><th>Exemplo</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>embalagens[].slots</code></td><td>BlisterType.slots</td><td>Peças por blister</td><td>6</td></tr>
+    <tr><td><code>embalagens[].limitePorCaixa</code></td><td>BlisterType.limitPerBox</td><td>Blisters por caixa</td><td>8</td></tr>
+  </tbody>
+</table>
+
+<h3>6.3 Qualidade de dados (recomendado)</h3>
+<ul>
+  <li>Nomes estáveis com BLISTER/CARTELA ou CAIXA/BOX explícitos.</li>
+  <li>Blister de produto distinguível de tampa/acessório.</li>
+  <li>Mesmo <code>embalagem.id</code> → mesma capacidade entre OPs (salvo mudança real).</li>
+  <li>Produto novo: sem esses campos, o diálogo de supervisão é inevitável.</li>
+</ul>
+
+<h3>6.4 Checklist de solicitação</h3>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Item</th><th>Prioridade</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>Expor <code>slots</code> (integer &gt; 0) no blister da resposta da OP</td><td><span class="badge badge-alta">ALTA</span></td></tr>
+    <tr><td>2</td><td>Expor <code>limitePorCaixa</code> (integer &gt; 0) no blister da resposta da OP</td><td><span class="badge badge-alta">ALTA</span></td></tr>
+    <tr><td>3</td><td>Preencher esses campos no cadastro mestre para todos os produtos ativos</td><td><span class="badge badge-alta">ALTA</span></td></tr>
+    <tr><td>4</td><td>Padronizar nomenclatura BLISTER/CARTELA e CAIXA/BOX</td><td><span class="badge badge-media">MÉDIA</span></td></tr>
+    <tr><td>5</td><td>Garantir IDs estáveis de produto e embalagens</td><td><span class="badge badge-media">MÉDIA</span></td></tr>
+    <tr><td>6</td><td>Documentar o contrato JSON da OP (tipos, obrigatoriedade, exemplos)</td><td><span class="badge badge-media">MÉDIA</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>7. Limitações conhecidas</h2>
+
+<ol>
+  <li>Sem <code>slots</code>/<code>limitePorCaixa</code> e sem histórico → cadastro automático não completa.</li>
+  <li>Valores do diálogo de supervisão ficam só no GDE; não sincronizam de volta ao JERP.</li>
+  <li>Histórico pode reutilizar capacidade antiga se a embalagem mudar e o JERP não enviar os novos campos.</li>
+  <li>Classificação blister/caixa depende do texto do nome; fora do padrão, falha a identificação.</li>
+  <li>O módulo de visão (YOLO) não participa deste cadastro; classes visuais são treinadas à parte.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>8. Resumo executivo</h2>
+
+<div class="highlight">
+  <ul style="margin:0;">
+    <li>O cadastro ocorre na <strong>primeira abertura</strong> de uma OP inexistente no banco local.</li>
+    <li><strong>Produto e caixa</strong> já são criados automaticamente a partir do JERP.</li>
+    <li>O blister precisa de capacidade: banco local → JERP → histórico → ou supervisão.</li>
+    <li>Para eliminar o diálogo em produtos novos, o JERP deve <strong>sempre</strong> enviar
+      <code>slots</code> e <code>limitePorCaixa</code> nas embalagens de blister da API de OP.</li>
+  </ul>
+</div>
+
+<footer>
+  GDE Inspeção de Embalagem × JERP — Cadastro de Peças · Versão 1.1 · 17/07/2026<br/>
+  Escopo: dados mestres de embalagem na abertura de OP. Não inclui apontamento de produção nem inspeção visual.
+</footer>
+
+</body>
+</html>

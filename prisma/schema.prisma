@@ -41,35 +41,38 @@ model ProductType {
 }
 
 model Op {
-  id                Int         @id
+  id                Int               @id
   code              String
   boxTypeId         Int
   blisterTypeId     Int
   productTypeId     Int
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   finishedAt        DateTime?
   quantityToProduce Int
-  status            OpStatus    @default(PENDING)
-  blister           BlisterType @relation(fields: [blisterTypeId], references: [id])
-  box               BoxType     @relation(fields: [boxTypeId], references: [id])
-  product           ProductType @relation(fields: [productTypeId], references: [id])
+  status            OpStatus          @default(PENDING)
+  blister           BlisterType       @relation(fields: [blisterTypeId], references: [id])
+  box               BoxType           @relation(fields: [boxTypeId], references: [id])
+  product           ProductType       @relation(fields: [productTypeId], references: [id])
   OpBox             OpBox[]
+  OpOccurrences     OpOccurrence[]
+  InspectionImages  InspectionImage[]
 }
 
 model OpBox {
-  id                 String         @id @default(cuid())
+  id                 String            @id @default(cuid())
   opId               Int
   code               String
-  createdAt          DateTime       @default(now())
+  createdAt          DateTime          @default(now())
   packedAt           DateTime?
   breakAuthorizerId  Int?
   barCode            String?
   barCodeGeneratedAt DateTime?
-  status             OpBoxStatus    @default(PENDING)
-  breakAuthorizer    Manager?       @relation(fields: [breakAuthorizerId], references: [id])
-  op                 Op             @relation(fields: [opId], references: [id], onDelete: Cascade)
+  status             OpBoxStatus       @default(PENDING)
+  breakAuthorizer    Manager?          @relation(fields: [breakAuthorizerId], references: [id])
+  op                 Op                @relation(fields: [opId], references: [id], onDelete: Cascade)
   OpBoxBlister       OpBoxBlister[]
+  InspectionImages   InspectionImage[]
 }
 
 model OpBoxBlister {
@@ -105,21 +108,36 @@ enum OpBoxStatus {
   PACKAGED_W_BREAK
 }
 
-
 model User {
-  id              String            @id @default(uuid())
-  name            String
-  email           String            @unique
-  password        String
-  role            UserRole          @default(OPERADOR)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  OpActivityLogs  OpActivityLog[]
+  id                     String         @id @default(uuid())
+  name                   String
+  email                  String         @unique
+  password               String
+  role                   UserRole       @default(OPERADOR)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  OpActivityLogs         OpActivityLog[]
+  OccurrencesResponsible OpOccurrence[] @relation("OccurrenceResponsible")
+  OccurrencesResolved    OpOccurrence[] @relation("OccurrenceResolver")
 }
 
 enum UserRole {
   SUPERVISOR
   OPERADOR
+  AUDITOR
+}
+
+enum OccurrenceStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum DetectionStatus {
+  VALID
+  INVALID
+  TIMEOUT
+  ERROR
 }
 
 enum ActivityActionType {
@@ -130,22 +148,93 @@ enum ActivityActionType {
   STATUS_CHANGED
   OP_STARTED
   OP_COMPLETED
+  DETECTION_INVALID
+  DETECTION_TIMEOUT
+  OCCURRENCE_OPENED
+  OCCURRENCE_CLOSED
 }
 
 model OpActivityLog {
-  id          String              @id @default(uuid())
-  opId        Int
-  userId      String
-  user        User                @relation(fields: [userId], references: [id])
-  actionType  ActivityActionType
-  description String
-  details     Json?
-  boxId       String?
-  productId   Int?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id              String              @id @default(uuid())
+  opId            Int
+  userId          String
+  user            User                @relation(fields: [userId], references: [id])
+  actionType      ActivityActionType
+  description     String
+  details         Json?
+  boxId           String?
+  productId       Int?
+  occurrenceId    String?
+  occurrence      OpOccurrence?       @relation(fields: [occurrenceId], references: [id])
+  detectionStatus DetectionStatus?
+  imageFilename   String?
+  storagePath     String?
+  confidence      Float?
+  deviceId        String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  InspectionImage InspectionImage[]
 
   @@index([opId])
   @@index([userId])
   @@index([createdAt])
+  @@index([detectionStatus])
+  @@index([occurrenceId])
+}
+
+/// Ocorrência formal de qualidade (numerada por OP).
+model OpOccurrence {
+  id             String            @id @default(uuid())
+  opId           Int
+  op             Op                @relation(fields: [opId], references: [id], onDelete: Cascade)
+  number         Int
+  status         OccurrenceStatus  @default(OPEN)
+  title          String
+  description    String
+  responsibleId  String?
+  responsible    User?             @relation("OccurrenceResponsible", fields: [responsibleId], references: [id])
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedBy     User?             @relation("OccurrenceResolver", fields: [resolvedById], references: [id])
+  resolution     String?
+  details        Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  activities     OpActivityLog[]
+  images         InspectionImage[]
+
+  @@unique([opId, number])
+  @@index([opId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Catálogo de imagens de inspeção (vínculo OP ↔ MinIO central).
+/// Workers remotos sobem para o mesmo bucket; o histórico lê MinIO, não o disco local de cada worker.
+model InspectionImage {
+  id              String           @id @default(uuid())
+  opId            Int
+  op              Op               @relation(fields: [opId], references: [id], onDelete: Cascade)
+  opBoxId         String?
+  opBox           OpBox?           @relation(fields: [opBoxId], references: [id], onDelete: SetNull)
+  occurrenceId    String?
+  occurrence      OpOccurrence?    @relation(fields: [occurrenceId], references: [id], onDelete: SetNull)
+  activityLogId   String?
+  activityLog     OpActivityLog?   @relation(fields: [activityLogId], references: [id], onDelete: SetNull)
+  filename        String
+  /// Prefixo de pasta no MinIO / disco, tipicamente YYYY-MM-DD
+  storagePath     String
+  detectionStatus DetectionStatus
+  detectionStep   String
+  confidence      Float?
+  defectLabels    String[]         @default([])
+  deviceId        String?
+  workerId        String?
+  capturedAt      DateTime
+  createdAt       DateTime         @default(now())
+
+  @@index([opId])
+  @@index([detectionStatus])
+  @@index([capturedAt])
+  @@index([occurrenceId])
 }

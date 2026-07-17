@@ -58,19 +58,94 @@ async function findInternalOpByRouteId(id: string) {
   });
 }
 
-export async function syncAndGetOpToProduceById(id: string) {
-  let externalOpRed = await getOpFromId(id);
-  if (externalOpRed.isLeft()) {
-    externalOpRed = await getOpFromCode(id);
+/**
+ * Resolve a OP no JERP privilegiando o id interno.
+ * O JERP pode ter mais de uma linha com o mesmo `numero` (ex.: 79701 →
+ * 447871 e 447872). Buscar só por código devolve uma delas (não determinística
+ * para o GDE) e pode reconciliar a OP local com o restante da OP irmã.
+ */
+async function resolveJerpOpForSync(
+  id: string
+): Promise<
+  | { ok: true; externalOp: OpJerpDto; lookedUpBy: "id" | "code" }
+  | { ok: false; errorMessage: string }
+> {
+  const byId = await getOpFromId(id);
+  if (byId.isRight()) {
+    return { ok: true, externalOp: byId.get(), lookedUpBy: "id" };
   }
 
-  if (externalOpRed.isRight()) {
-    const externalOp = externalOpRed.get();
+  const byCode = await getOpFromCode(id);
+  if (byCode.isRight()) {
+    return { ok: true, externalOp: byCode.get(), lookedUpBy: "code" };
+  }
+
+  return {
+    ok: false,
+    errorMessage: byId.getLeft().error || "Falha ao obter OP no JERP",
+  };
+}
+
+async function findInternalOpMatchingJerp(externalOp: OpJerpDto) {
+  const byId = await db.op.findUnique({ where: { id: externalOp.id } });
+  if (byId) return byId;
+
+  // Fallback por número — risco se o JERP tiver números duplicados.
+  return db.op.findFirst({
+    where: { code: `${externalOp.numero}` },
+  });
+}
+
+/**
+ * Garante que o restante usado na reconciliação pertence ao mesmo id JERP
+ * da OP local. Se a busca por código trouxe uma OP irmã (mesmo numero, outro
+ * id), reconsulta pelo id interno.
+ */
+async function resolveJerpRemainingForInternalOp(
+  internalOp: Op,
+  externalOp: OpJerpDto
+): Promise<{ externalOp: OpJerpDto; jerpRemaining: number }> {
+  if (externalOp.id === internalOp.id) {
+    return {
+      externalOp,
+      jerpRemaining: externalOp.quantidadeAProduzir ?? 0,
+    };
+  }
+
+  logger.warn({
+    message:
+      "JERP devolveu OP com mesmo número mas id diferente do interno — reconciliação usará o id local.",
+    internalOpId: internalOp.id,
+    internalOpCode: internalOp.code,
+    jerpReturnedId: externalOp.id,
+    jerpReturnedNumero: externalOp.numero,
+    jerpReturnedRemaining: externalOp.quantidadeAProduzir,
+  });
+
+  const byInternalId = await getOpFromId(String(internalOp.id));
+  if (byInternalId.isRight()) {
+    const matched = byInternalId.get();
+    return {
+      externalOp: matched,
+      jerpRemaining: matched.quantidadeAProduzir ?? 0,
+    };
+  }
+
+  // Sem fallback seguro: não aplicar restante da OP irmã.
+  throw new Error(
+    `JERP id ${externalOp.id} (número ${externalOp.numero}) não corresponde à OP local ${internalOp.id}. ` +
+      `Não é seguro reconciliar com o restante da OP irmã.`
+  );
+}
+
+export async function syncAndGetOpToProduceById(id: string) {
+  const resolved = await resolveJerpOpForSync(id);
+
+  if (resolved.ok) {
+    let externalOp = resolved.externalOp;
     validateOpJerpToProduce(externalOp!);
 
-    let internalOp = await db.op.findFirst({
-      where: { code: `${externalOp!.numero}` },
-    });
+    let internalOp = await findInternalOpMatchingJerp(externalOp!);
 
     let requiresSupervisorConfig = false;
     let isNewOp = false;
@@ -118,7 +193,13 @@ export async function syncAndGetOpToProduceById(id: string) {
         const session = await getServerSession(authOptions);
         const userId =
           (session?.user as { id?: string } | undefined)?.id ?? null;
-        const jerpRemaining = externalOp!.quantidadeAProduzir ?? 0;
+
+        const matched = await resolveJerpRemainingForInternalOp(
+          internalOp,
+          externalOp!
+        );
+        externalOp = matched.externalOp;
+        const jerpRemaining = matched.jerpRemaining;
 
         const reconciliation = await reconcileOpWithJerp(
           internalOp.id,
@@ -175,7 +256,7 @@ export async function syncAndGetOpToProduceById(id: string) {
     } as OpInspectionDto;
   }
 
-  throw Error(externalOpRed.getLeft().error);
+  throw Error(resolved.errorMessage);
 }
 
 type BlisterConfigOverride = {

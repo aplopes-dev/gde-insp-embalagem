@@ -266,9 +266,10 @@ export default function PackagingInspection({
     if (status === "INVALID") {
       const reason = detection.payload?.reason;
       setPieceCorrectionReason(reason);
+      const detectedQty = Number(receivedCount) || 0;
       setInspection({
         itemId: receivedItemId,
-        count: 0,
+        count: reason === "OVER_QUANTITY" ? detectedQty : 0,
         code: receivedCode,
       });
       if (
@@ -278,9 +279,16 @@ export default function PackagingInspection({
         box &&
         blisterCodes[targetBlister]
       ) {
+        const expectedQty = blisters[targetBlister].quantity;
+        if (reason === "OVER_QUANTITY") {
+          setVisorMessage(
+            `QUANTIDADE ACIMA DO ESPERADO (${detectedQty}/${expectedQty}). REMOVA PEÇAS EXTRAS.`,
+            "red"
+          );
+        }
         requestPieceCorrection({
           itemId: data.productType.name,
-          quantity: blisters[targetBlister].quantity,
+          quantity: expectedQty,
           fileName: `OP_${data.opId}_BOX_${box.id}_BL_${blisterCodes[targetBlister]}`,
           model: data.productType.name,
         });
@@ -469,6 +477,18 @@ export default function PackagingInspection({
         sendValidation({ itemId, quantity, fileName, model });
         break;
       case InspectionEnum.QUANTITY_INVALID:
+        if (inspection.count > expectedQuantity) {
+          setPieceCorrectionReason("OVER_QUANTITY");
+          setVisorMessage(
+            `QUANTIDADE ACIMA DO ESPERADO (${inspection.count}/${expectedQuantity}). REMOVA PEÇAS EXTRAS.`,
+            "red"
+          );
+        } else if (inspection.count < expectedQuantity) {
+          setVisorMessage(
+            `QUANTIDADE ABAIXO DO ESPERADO (${inspection.count}/${expectedQuantity}).`,
+            "yellow"
+          );
+        }
         requestPieceCorrection({ itemId, quantity, fileName, model });
         break;
       case InspectionEnum.VALID:
@@ -507,6 +527,9 @@ export default function PackagingInspection({
     }
     if (pieceCorrectionReason === "NON_CONFORMING") {
       return "Foi detectada uma peça não conforme. Corrija a peça no blister e confirme quando a inspeção estiver correta.";
+    }
+    if (pieceCorrectionReason === "OVER_QUANTITY") {
+      return "Foram detectadas mais peças do que o esperado neste blister. Remova as peças extras e confirme quando a quantidade estiver correta. A embalagem não será permitida com excesso.";
     }
     return "Foi detectada uma peça incorreta na inspeção. Corrija e confirme quando estiver pronto para continuar.";
   }

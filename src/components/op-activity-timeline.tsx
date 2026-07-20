@@ -95,27 +95,27 @@ export function OpActivityTimeline({ activities }: OpActivityTimelineProps) {
     switch (actionType) {
       case "BOX_INSPECTION_APPROVED":
       case "OCCURRENCE_CLOSED":
-        return "bg-green-50 border-green-200";
+        return "bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800";
       case "BOX_INSPECTION_REJECTED":
       case "DETECTION_INVALID":
-        return "bg-red-50 border-red-200";
+        return "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800";
       case "DETECTION_TIMEOUT":
       case "OCCURRENCE_OPENED":
-        return "bg-orange-50 border-orange-200";
+        return "bg-orange-50 border-orange-200 dark:bg-orange-950/40 dark:border-orange-800";
       case "PRODUCT_CREATED":
       case "PRODUCT_AUTHORIZED":
-        return "bg-blue-50 border-blue-200";
+        return "bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800";
       case "STATUS_CHANGED":
-        return "bg-yellow-50 border-yellow-200";
+        return "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/40 dark:border-yellow-800";
       default:
-        return "bg-gray-50 border-gray-200";
+        return "bg-gray-50 border-gray-200 dark:bg-gray-900/60 dark:border-gray-700";
     }
   };
 
   if (activities.length === 0) {
     return (
       <Card className="p-8 text-center">
-        <p className="text-gray-500">Nenhuma atividade registrada</p>
+        <p className="text-gray-500 dark:text-gray-400">Nenhuma atividade registrada</p>
       </Card>
     );
   }
@@ -125,49 +125,59 @@ export function OpActivityTimeline({ activities }: OpActivityTimelineProps) {
       {activities.map((activity) => (
         <Card
           key={activity.id}
-          className={`p-4 border-l-4 ${getActionColor(activity.actionType)}`}
+          className={`p-4 border-l-4 text-gray-900 dark:text-gray-100 ${getActionColor(activity.actionType)}`}
         >
           <div className="flex items-start gap-4">
             <div className="mt-1">{getActionIcon(activity.actionType)}</div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm">
+                <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                   {format(new Date(activity.createdAt), "HH:mm:ss", {
                     locale: ptBR,
                   })}
                 </span>
-                <Badge variant="outline" className="text-xs">
+                <Badge
+                  variant="outline"
+                  className="text-xs text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                >
                   {getActionLabel(activity.actionType)}
                 </Badge>
                 {activity.detectionStatus && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge
+                    variant="secondary"
+                    className="text-xs text-gray-800 dark:text-gray-100"
+                  >
                     {activity.detectionStatus}
                   </Badge>
                 )}
               </div>
 
               <div className="mt-2 text-sm">
-                <p className="font-medium">
+                <p className="font-medium text-gray-900 dark:text-gray-100">
                   {activity.user.name}
                   {activity.user.role === "SUPERVISOR" && (
-                    <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                    <span className="ml-2 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 px-2 py-1 rounded">
                       Supervisor
                     </span>
                   )}
                   {activity.user.role === "AUDITOR" && (
-                    <span className="ml-2 text-xs bg-slate-100 text-slate-800 px-2 py-1 rounded">
+                    <span className="ml-2 text-xs bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-2 py-1 rounded">
                       Auditor
                     </span>
                   )}
                 </p>
-                <p className="text-gray-600 text-xs">{activity.user.email}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-xs">
+                  {activity.user.email}
+                </p>
               </div>
 
-              <p className="mt-2 text-sm text-gray-700">{activity.description}</p>
+              <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">
+                {activity.description}
+              </p>
 
               {activity.details != null && (
-                <div className="mt-2 text-xs text-gray-600 bg-white bg-opacity-50 p-2 rounded">
+                <div className="mt-2 text-xs text-gray-800 dark:text-gray-200 bg-white/80 dark:bg-black/30 p-2 rounded border border-gray-200 dark:border-gray-700">
                   <pre className="whitespace-pre-wrap break-words">
                     {JSON.stringify(activity.details, null, 2)}
                   </pre>
@@ -175,26 +185,26 @@ export function OpActivityTimeline({ activities }: OpActivityTimelineProps) {
               )}
 
               {activity.boxId && (
-                <p className="mt-2 text-xs text-gray-600">
+                <p className="mt-2 text-xs text-gray-700 dark:text-gray-300">
                   <span className="font-semibold">Caixa:</span> {activity.boxId}
                 </p>
               )}
 
               {activity.productId != null && (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-700 dark:text-gray-300">
                   <span className="font-semibold">Peça ID:</span>{" "}
                   {activity.productId}
                 </p>
               )}
 
               {activity.imageFilename && activity.storagePath && (
-                <p className="mt-2 text-xs text-gray-600">
+                <p className="mt-2 text-xs text-gray-700 dark:text-gray-300">
                   <span className="font-semibold">Imagem:</span>{" "}
                   {activity.storagePath}/{activity.imageFilename}
                 </p>
               )}
 
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 {format(new Date(activity.createdAt), "dd/MM/yyyy HH:mm:ss", {
                   locale: ptBR,
                 })}

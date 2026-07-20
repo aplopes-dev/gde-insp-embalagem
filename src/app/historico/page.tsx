@@ -10,33 +10,69 @@ import { Button } from "@/components/ui/button";
 import { History } from "lucide-react";
 import db from "@/providers/database";
 import { HistoricoSearchForm } from "./_components/historico-search-form";
+import { HistoricoPagination } from "./_components/historico-pagination";
+import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+function buildOpWhere(
+  q: string,
+  status: string
+): Prisma.OpWhereInput {
+  const where: Prisma.OpWhereInput = {};
+
+  if (status === "PENDING" || status === "COMPLETED") {
+    where.status = status;
+  }
+
+  if (q) {
+    const or: Prisma.OpWhereInput[] = [
+      { code: { equals: q, mode: "insensitive" } },
+      { code: { contains: q, mode: "insensitive" } },
+    ];
+
+    if (/^\d+$/.test(q)) {
+      const id = Number.parseInt(q, 10);
+      if (Number.isFinite(id)) {
+        or.push({ id });
+      }
+    }
+
+    where.OR = or;
+  }
+
+  return where;
+}
 
 export default async function HistoricoPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; status?: string };
+  searchParams?: { q?: string; status?: string; page?: string; limit?: string };
 }) {
   const q = searchParams?.q?.trim() || "";
   const status = searchParams?.status?.trim() || "";
+  const limit = Math.min(
+    MAX_LIMIT,
+    Math.max(1, Number.parseInt(searchParams?.limit || "", 10) || DEFAULT_LIMIT)
+  );
+  const pageRaw = Math.max(
+    1,
+    Number.parseInt(searchParams?.page || "", 10) || 1
+  );
+
+  const where = buildOpWhere(q, status);
+  const total = await db.op.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const page = Math.min(pageRaw, totalPages);
 
   const ops = await db.op.findMany({
-    where: {
-      ...(status === "PENDING" || status === "COMPLETED"
-        ? { status: status as "PENDING" | "COMPLETED" }
-        : {}),
-      ...(q
-        ? {
-            OR: [
-              { code: { contains: q, mode: "insensitive" } },
-              ...(Number.isFinite(Number(q)) ? [{ id: Number(q) }] : []),
-            ],
-          }
-        : {}),
-    },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    skip: (page - 1) * limit,
+    take: limit,
     include: {
       product: { select: { name: true, code: true } },
       _count: {
@@ -48,13 +84,16 @@ export default async function HistoricoPage({
     },
   });
 
-  const activityCounts = await db.opActivityLog.groupBy({
-    by: ["opId"],
-    _count: { _all: true },
-    where: {
-      opId: { in: ops.map((op) => op.id) },
-    },
-  });
+  const activityCounts =
+    ops.length === 0
+      ? []
+      : await db.opActivityLog.groupBy({
+          by: ["opId"],
+          _count: { _all: true },
+          where: {
+            opId: { in: ops.map((op) => op.id) },
+          },
+        });
 
   const activityByOp = new Map(
     activityCounts.map((row) => [row.opId, row._count._all])
@@ -79,7 +118,8 @@ export default async function HistoricoPage({
       {ops.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-600 dark:text-gray-400">
-            Nenhuma OP encontrada.
+            Nenhuma OP encontrada
+            {q || status ? " para os filtros informados" : ""}.
           </CardContent>
         </Card>
       ) : (
@@ -144,6 +184,14 @@ export default async function HistoricoPage({
           ))}
         </div>
       )}
+
+      <HistoricoPagination
+        page={page}
+        limit={limit}
+        total={total}
+        q={q}
+        status={status}
+      />
     </>
   );
 }

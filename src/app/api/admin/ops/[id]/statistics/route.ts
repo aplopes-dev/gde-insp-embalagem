@@ -88,7 +88,9 @@ export async function GET(
     });
 
     const supervisors = userDetails.filter((u) => u.role === "SUPERVISOR");
-    const operators = userDetails.filter((u) => u.role === "OPERADOR");
+    const operators = userDetails.filter(
+      (u) => u.role === "OPERADOR" || u.role === "AUDITOR"
+    );
 
     // Calcular taxa de aprovação
     const totalInspections = approvalsCount + rejectionsCount;

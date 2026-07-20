@@ -6,11 +6,13 @@ import {
   type AppRole,
   canAccessAdmin,
   canAccessHistorico,
+  canOperateInspection,
   hasRole,
   isAppRole,
   isAuditor,
   isOperador,
   isSupervisor,
+  INSPECTION_FLOOR_ROLES,
 } from "@/lib/rbac-roles";
 
 export {
@@ -18,11 +20,13 @@ export {
   type AppRole,
   canAccessAdmin,
   canAccessHistorico,
+  canOperateInspection,
   hasRole,
   isAppRole,
   isAuditor,
   isOperador,
   isSupervisor,
+  INSPECTION_FLOOR_ROLES,
 };
 
 export type RequireRoleSuccess = {

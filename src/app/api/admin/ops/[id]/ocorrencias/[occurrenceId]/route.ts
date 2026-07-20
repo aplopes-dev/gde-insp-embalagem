@@ -8,18 +8,18 @@ import {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { opId: string; id: string } }
+  { params }: { params: { id: string; occurrenceId: string } }
 ) {
   const gate = await requireRole(["SUPERVISOR"]);
   if (!gate.ok) return gate.response;
 
-  const opId = Number.parseInt(params.opId, 10);
+  const opId = Number.parseInt(params.id, 10);
   if (Number.isNaN(opId)) {
     return NextResponse.json({ error: "OP inválida" }, { status: 400 });
   }
 
   const data = await db.opOccurrence.findFirst({
-    where: { id: params.id, opId },
+    where: { id: params.occurrenceId, opId },
     include: {
       responsible: { select: { id: true, name: true, email: true } },
       resolvedBy: { select: { id: true, name: true, email: true } },
@@ -43,12 +43,12 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { opId: string; id: string } }
+  { params }: { params: { id: string; occurrenceId: string } }
 ) {
   const gate = await requireRole(["SUPERVISOR"]);
   if (!gate.ok) return gate.response;
 
-  const opId = Number.parseInt(params.opId, 10);
+  const opId = Number.parseInt(params.id, 10);
   if (Number.isNaN(opId)) {
     return NextResponse.json({ error: "OP inválida" }, { status: 400 });
   }
@@ -69,14 +69,14 @@ export async function PATCH(
   try {
     if (action === "close") {
       await closeOccurrence({
-        occurrenceId: params.id,
+        occurrenceId: params.occurrenceId,
         opId,
         closedByUserId: user.id,
         resolution: String(body.resolution || ""),
       });
     } else {
       await updateOccurrence({
-        occurrenceId: params.id,
+        occurrenceId: params.occurrenceId,
         opId,
         updatedByUserId: user.id,
         title: body.title,
@@ -88,7 +88,7 @@ export async function PATCH(
     }
 
     const full = await db.opOccurrence.findFirst({
-      where: { id: params.id, opId },
+      where: { id: params.occurrenceId, opId },
       include: {
         responsible: { select: { id: true, name: true, email: true } },
         resolvedBy: { select: { id: true, name: true, email: true } },

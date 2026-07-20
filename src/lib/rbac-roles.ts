@@ -33,3 +33,14 @@ export function canAccessHistorico(role: unknown): boolean {
 export function canAccessAdmin(role: unknown): boolean {
   return isSupervisor(role);
 }
+
+/**
+ * Chão de fábrica / inspeção: OPERADOR, SUPERVISOR e AUDITOR.
+ * AUDITOR tem as mesmas operações de embalagem que OPERADOR, mais o histórico.
+ */
+export function canOperateInspection(role: unknown): boolean {
+  return isOperador(role) || isSupervisor(role) || isAuditor(role);
+}
+
+/** Roles que contam como mão-de-obra de inspeção (stats / logs). */
+export const INSPECTION_FLOOR_ROLES = ["OPERADOR", "AUDITOR"] as const;

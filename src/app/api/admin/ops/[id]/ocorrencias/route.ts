@@ -5,12 +5,12 @@ import { createOccurrence } from "@/usecases/occurrence/create-occurrence";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { opId: string } }
+  { params }: { params: { id: string } }
 ) {
   const gate = await requireRole(["SUPERVISOR"]);
   if (!gate.ok) return gate.response;
 
-  const opId = Number.parseInt(params.opId, 10);
+  const opId = Number.parseInt(params.id, 10);
   if (Number.isNaN(opId)) {
     return NextResponse.json({ error: "OP inválida" }, { status: 400 });
   }
@@ -30,12 +30,12 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { opId: string } }
+  { params }: { params: { id: string } }
 ) {
   const gate = await requireRole(["SUPERVISOR"]);
   if (!gate.ok) return gate.response;
 
-  const opId = Number.parseInt(params.opId, 10);
+  const opId = Number.parseInt(params.id, 10);
   if (Number.isNaN(opId)) {
     return NextResponse.json({ error: "OP inválida" }, { status: 400 });
   }

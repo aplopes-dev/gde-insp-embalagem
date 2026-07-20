@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const gate = await requireRole(["OPERADOR", "SUPERVISOR"]);
+    const gate = await requireRole(["OPERADOR", "SUPERVISOR", "AUDITOR"]);
     if (!gate.ok) return gate.response;
 
     const user = gate.email

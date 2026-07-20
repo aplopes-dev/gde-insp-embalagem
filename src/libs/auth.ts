@@ -83,27 +83,23 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         // @ts-ignore
         token.role = user.role;
-        token.roleCheckedAt = Date.now();
-      } else if (token.email) {
-        // Revalida role no banco periodicamente (revogação de AUDITOR/SUPERVISOR).
-        const ROLE_REFRESH_MS = 5 * 60 * 1000;
-        const lastChecked = Number(token.roleCheckedAt || 0);
-        if (Date.now() - lastChecked >= ROLE_REFRESH_MS) {
-          try {
-            const fresh = await db.user.findUnique({
-              where: { email: token.email as string },
-              select: { id: true, role: true, name: true },
-            });
-            if (fresh) {
-              token.id = fresh.id;
-              token.name = fresh.name;
-              // @ts-ignore
-              token.role = fresh.role;
-            }
-          } catch (error) {
-            console.error("[Auth] Falha ao revalidar role:", error);
+      }
+
+      // Sempre revalida role no banco (promoção/revogação de AUDITOR sem esperar 5 min).
+      if (token.email) {
+        try {
+          const fresh = await db.user.findUnique({
+            where: { email: token.email as string },
+            select: { id: true, role: true, name: true },
+          });
+          if (fresh) {
+            token.id = fresh.id;
+            token.name = fresh.name;
+            // @ts-ignore
+            token.role = fresh.role;
           }
-          token.roleCheckedAt = Date.now();
+        } catch (error) {
+          console.error("[Auth] Falha ao revalidar role:", error);
         }
       }
       return token;

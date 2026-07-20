@@ -78,7 +78,7 @@ export async function GET(
     const inspectionTimes: { [userId: string]: number[] } = {};
 
     activityLogs.forEach((log) => {
-      if (log.user.role === "OPERADOR") {
+      if (log.user.role === "OPERADOR" || log.user.role === "AUDITOR") {
         if (!operatorStats.has(log.user.id)) {
           operatorStats.set(log.user.id, {
             userId: log.user.id,
@@ -136,7 +136,7 @@ export async function GET(
     const opsPerOperator = new Map<string, Set<number>>();
 
     activityLogs.forEach((log) => {
-      if (log.user.role === "OPERADOR") {
+      if (log.user.role === "OPERADOR" || log.user.role === "AUDITOR") {
         if (!opsPerOperator.has(log.user.id)) {
           opsPerOperator.set(log.user.id, new Set());
         }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { canAccessAdmin, canAccessHistorico, isAuditor } from "@/lib/rbac-roles";
+import { canAccessAdmin, canAccessHistorico } from "@/lib/rbac-roles";
 
 const PUBLIC_PATHS = ["/login", "/api/auth", "/favicon.ico"];
 
@@ -28,11 +28,12 @@ export async function middleware(req: NextRequest) {
 
   if (token && pathname === "/login") {
     const url = req.nextUrl.clone();
-    url.pathname = isAuditor(role) ? "/historico" : "/";
+    // AUDITOR também opera inspeção — home padrão como OPERADOR.
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
-  // Histórico: exclusivo AUDITOR
+  // Histórico: exclusivo AUDITOR (extra face ao OPERADOR)
   if (pathname.startsWith("/historico") && !canAccessHistorico(role)) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
@@ -43,13 +44,6 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/admin") && !canAccessAdmin(role)) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  // AUDITOR não opera inspeção; redireciona para o histórico
-  if (isAuditor(role) && (pathname === "/" || pathname.startsWith("/op"))) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/historico";
     return NextResponse.redirect(url);
   }
 

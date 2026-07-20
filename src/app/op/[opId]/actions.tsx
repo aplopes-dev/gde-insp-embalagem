@@ -939,7 +939,7 @@ export async function persistInspectionDetectionEvent(input: {
     where: { email },
     select: { id: true, role: true },
   });
-  if (!user || (user.role !== "OPERADOR" && user.role !== "SUPERVISOR")) {
+  if (!user || (user.role !== "OPERADOR" && user.role !== "SUPERVISOR" && user.role !== "AUDITOR")) {
     return { ok: false as const, error: "Sem permissão" };
   }
 

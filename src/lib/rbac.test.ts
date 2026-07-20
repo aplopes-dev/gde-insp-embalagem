@@ -1,6 +1,7 @@
 import {
   canAccessAdmin,
   canAccessHistorico,
+  canOperateInspection,
   hasRole,
   isAppRole,
   isAuditor,
@@ -46,6 +47,15 @@ describe("rbac", () => {
       expect(canAccessAdmin("SUPERVISOR")).toBe(true);
       expect(canAccessAdmin("AUDITOR")).toBe(false);
       expect(canAccessAdmin("OPERADOR")).toBe(false);
+    });
+  });
+
+  describe("inspection floor", () => {
+    it("OPERADOR, SUPERVISOR and AUDITOR can operate inspection", () => {
+      expect(canOperateInspection("OPERADOR")).toBe(true);
+      expect(canOperateInspection("SUPERVISOR")).toBe(true);
+      expect(canOperateInspection("AUDITOR")).toBe(true);
+      expect(canOperateInspection("ADMIN")).toBe(false);
     });
   });
 

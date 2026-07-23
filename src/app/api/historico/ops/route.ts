@@ -14,15 +14,21 @@ function buildOpWhere(
   }
 
   if (q) {
-    const or: Prisma.OpWhereInput[] = [
-      { code: { equals: q, mode: "insensitive" } },
-      { code: { contains: q, mode: "insensitive" } },
-    ];
+    // Filtro principal: ID interno da OP. Código (número) fica como fallback.
     if (/^\d+$/.test(q)) {
       const id = Number.parseInt(q, 10);
-      if (Number.isFinite(id)) or.push({ id });
+      if (Number.isFinite(id)) {
+        where.OR = [
+          { id },
+          { code: { equals: q, mode: "insensitive" } },
+        ];
+      }
+    } else {
+      where.OR = [
+        { code: { equals: q, mode: "insensitive" } },
+        { code: { contains: q, mode: "insensitive" } },
+      ];
     }
-    where.OR = or;
   }
 
   return where;

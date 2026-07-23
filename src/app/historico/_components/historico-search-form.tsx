@@ -43,10 +43,10 @@ export function HistoricoSearchForm({
     <form onSubmit={submit} className="flex flex-wrap gap-2 items-end">
       <div className="flex-1 min-w-[180px]">
         <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
-          Buscar OP
+          ID da OP
         </label>
         <Input
-          placeholder="Código (ex.: 80257) ou ID interno"
+          placeholder="ID (ex.: 430213) ou código"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

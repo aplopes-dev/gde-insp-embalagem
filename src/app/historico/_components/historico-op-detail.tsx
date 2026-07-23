@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OpActivityTimeline } from "@/components/op-activity-timeline";
-import { Download } from "lucide-react";
+import { Download, FileText, Loader2 } from "lucide-react";
 
 type OpHeader = {
   id: number;
@@ -110,6 +110,8 @@ export function HistoricoOpDetail({
   const [actionFilter, setActionFilter] = useState("");
   const [detectionFilter, setDetectionFilter] = useState("");
   const [boxFilter, setBoxFilter] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const packedImages = useMemo(() => {
     const items: {
@@ -185,6 +187,37 @@ export function HistoricoOpDetail({
     URL.revokeObjectURL(url);
   }
 
+  async function exportPdf() {
+    setPdfError(null);
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/historico/ops/${op.id}/report?format=pdf`);
+      if (!res.ok) {
+        let message = `Falha ao gerar PDF (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body?.error) message = String(body.error);
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `historico-op-${op.code}-recon.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPdfError(
+        err instanceof Error ? err.message : "Falha ao gerar PDF do relatório"
+      );
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -258,17 +291,37 @@ export function HistoricoOpDetail({
             <TabsTrigger value="ocorrencias">Ocorrências</TabsTrigger>
             <TabsTrigger value="caixas">Caixas</TabsTrigger>
           </TabsList>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={exportCsv}
-          >
-            <Download className="w-4 h-4" />
-            Exportar CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={exportPdf}
+              disabled={pdfLoading}
+            >
+              {pdfLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              {pdfLoading ? "A gerar PDF…" : "Gerar PDF"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={exportCsv}
+            >
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </Button>
+          </div>
         </div>
+        {pdfError ? (
+          <p className="text-sm text-red-600 dark:text-red-400 mb-2">{pdfError}</p>
+        ) : null}
 
         <TabsContent value="timeline" className="mt-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">

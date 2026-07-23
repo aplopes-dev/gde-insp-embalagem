@@ -29,19 +29,21 @@ function buildOpWhere(
   }
 
   if (q) {
-    const or: Prisma.OpWhereInput[] = [
-      { code: { equals: q, mode: "insensitive" } },
-      { code: { contains: q, mode: "insensitive" } },
-    ];
-
+    // Filtro principal: ID interno da OP. Código (número) fica como fallback.
     if (/^\d+$/.test(q)) {
       const id = Number.parseInt(q, 10);
       if (Number.isFinite(id)) {
-        or.push({ id });
+        where.OR = [
+          { id },
+          { code: { equals: q, mode: "insensitive" } },
+        ];
       }
+    } else {
+      where.OR = [
+        { code: { equals: q, mode: "insensitive" } },
+        { code: { contains: q, mode: "insensitive" } },
+      ];
     }
-
-    where.OR = or;
   }
 
   return where;
@@ -127,9 +129,9 @@ export default async function HistoricoPage({
           {ops.map((op) => (
             <Card key={op.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle className="text-lg">{op.code}</CardTitle>
+                <CardTitle className="text-lg">OP ID {op.id}</CardTitle>
                 <CardDescription>
-                  ID: {op.id}
+                  Código: {op.code}
                   {op.product?.name ? ` · ${op.product.name}` : ""}
                 </CardDescription>
               </CardHeader>

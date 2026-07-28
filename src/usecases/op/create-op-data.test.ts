@@ -1,4 +1,9 @@
-import { createOpData, createOpBoxesData, createOpBoxBlistersData } from "./create-op-data";
+import {
+  createOpData,
+  createOpBoxesData,
+  createOpBoxBlistersData,
+  maxPackedOpBoxCode,
+} from "./create-op-data";
 
 describe("createOpData", () => {
   it("deve criar uma OP válida", () => {
@@ -73,6 +78,52 @@ describe("createOpBoxesData", () => {
     expect(boxes.length).toBe(2);
     expect(boxes[0].code).toBe("25");
     expect(boxes[1].code).toBe("26");
+  });
+
+  it("após quebra, recria pendentes na sequência das embaladas (não salta pendentes)", () => {
+    // Cenário OP 80257: caixas 1–8 embaladas, 9–19 ainda pendentes no snapshot.
+    const maxCode = maxPackedOpBoxCode([
+      ...Array.from({ length: 8 }, (_, i) => ({
+        code: String(i + 1),
+        packedAt: new Date(),
+      })),
+      ...Array.from({ length: 11 }, (_, i) => ({
+        code: String(i + 9),
+        packedAt: null,
+      })),
+    ]);
+
+    expect(maxCode).toBe(8);
+
+    const boxes = createOpBoxesData({
+      quantityToProduce: 835,
+      blisterSlots: 6,
+      blisterPerBox: 13,
+      boxGap: maxCode,
+    });
+
+    expect(boxes[0].code).toBe("9");
+    expect(boxes.map((b) => b.code)).not.toContain("20");
+  });
+});
+
+describe("maxPackedOpBoxCode", () => {
+  it("ignora caixas pendentes ao calcular o gap", () => {
+    expect(
+      maxPackedOpBoxCode([
+        { code: "8", packedAt: new Date() },
+        { code: "19", packedAt: null },
+      ])
+    ).toBe(8);
+  });
+
+  it("retorna 0 quando não há caixas embaladas", () => {
+    expect(
+      maxPackedOpBoxCode([
+        { code: "1", packedAt: null },
+        { code: "2", packedAt: null },
+      ])
+    ).toBe(0);
   });
 });
 

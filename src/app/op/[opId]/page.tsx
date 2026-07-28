@@ -22,7 +22,7 @@ import {
   objectInspection,
 } from "@/shared/services/object-inspection";
 import { blisterQrMatchesOp } from "@/shared/services/blister-qr-code";
-import { sumPlannedBoxQuantity } from "@/usecases/op/find-next-pending-op-box";
+import { sumPlannedBoxQuantity, sortOpBoxBlisters } from "@/usecases/op/find-next-pending-op-box";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
@@ -229,7 +229,7 @@ export default function PackagingInspection({
       }, 0);
 
     setBlisterCodes(blisterCodesInUse);
-    setBlisters(boxData.OpBoxBlister);
+    setBlisters(sortOpBoxBlisters(boxData.OpBoxBlister));
     setQuantityInBox(itemQuantity);
     setCheckedQuantity(checkQuantity);
     setActiveObjectType("box");
@@ -933,8 +933,16 @@ export default function PackagingInspection({
                         <div className="mt-2">
                           <h3 className="font-bold uppercase">Caixa</h3>
                           <div className="mb-2 text-sm xl:text-base">
-                            <strong>Sequência:</strong> Caixa {box?.code} de{" "}
+                            <strong>Sequência:</strong> Caixa{" "}
+                            {data.totalBoxes - data.pendingBoxes + 1} de{" "}
                             {data.totalBoxes}
+                            {box?.code &&
+                            String(data.totalBoxes - data.pendingBoxes + 1) !==
+                              box.code ? (
+                              <span className="ml-1 text-muted-foreground">
+                                (código {box.code})
+                              </span>
+                            ) : null}
                             {quantityInBox <
                             data.blisterType.slots *
                               data.blisterType.limitPerBox ? (

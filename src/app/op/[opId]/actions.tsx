@@ -22,7 +22,11 @@ import {
   reconcileOpQuantityWithJerp,
   resolvePendingQuantity,
 } from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
-import { createOpBoxesData, createOpData } from "@/usecases/op/create-op-data";
+import {
+  createOpBoxesData,
+  createOpData,
+  maxPackedOpBoxCode,
+} from "@/usecases/op/create-op-data";
 import { findNextPendingOpBox } from "@/usecases/op/find-next-pending-op-box";
 import {
   getAuthoritativeBoxPackedSummary,
@@ -692,12 +696,10 @@ export async function recalculateBoxesFromOpAndItemQuantity(
     return db.op.findUnique({ where: { id: opId } });
   }
 
-  // Numeração sem duplicidade. Continua a partir do maior `code` já
-  // existente (inclusive de caixas embaladas), evitando reuso após deleções.
-  const maxCode = op.OpBox.reduce(
-    (max, b) => Math.max(max, Number(b.code) || 0),
-    0
-  );
+  // Continua a partir do maior `code` das caixas já embaladas.
+  // Pendentes são apagadas acima e não entram no gap — senão a numeração
+  // salta (ex.: após caixa 8 com pendentes 9–19, próximo seria 20 em vez de 9).
+  const maxCode = maxPackedOpBoxCode(op.OpBox);
 
   const boxes = createOpBoxesData({
     quantityToProduce,

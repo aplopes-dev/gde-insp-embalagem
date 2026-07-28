@@ -46,6 +46,21 @@ export function createOpBoxesData(boxesConfig: OpBoxesConfig): OpBox[] {
   }));
 }
 
+/**
+ * Maior `code` numérico entre caixas já embaladas.
+ * Usado ao recriar pendentes após quebra/reconciliação: as pendentes
+ * serão apagadas, então não podem entrar no gap (senão a numeração salta,
+ * ex.: 8 → 20 quando existiam pendentes 9–19).
+ */
+export function maxPackedOpBoxCode(
+  boxes: Array<{ code: string; packedAt?: Date | string | null }>
+): number {
+  return boxes.reduce((max, b) => {
+    if (b.packedAt == null) return max;
+    return Math.max(max, Number(b.code) || 0);
+  }, 0);
+}
+
 
 export function createOpBoxBlistersData(blistersConfig: OpBlisterConfig): OpBlister[] {
   const { quantityToProduce, blisterSlots, blisterPerBox, boxIndex, boxesToProduce } = blistersConfig;

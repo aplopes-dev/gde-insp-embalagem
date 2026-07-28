@@ -1,14 +1,15 @@
 "use server"
 
 import db from "@/providers/database";
+import { sortOpBoxBlisters } from "@/usecases/op/find-next-pending-op-box";
 
 export async function getOpBoxWithBlistersById(id: string) {
-  return db.opBox.findUnique({
+  const box = await db.opBox.findUnique({
     where: {
       id,
     },
     include: {
-      OpBoxBlister: true,
+      OpBoxBlister: { orderBy: { id: "asc" } },
       op: {
         select: {
           code: true,
@@ -22,4 +23,11 @@ export async function getOpBoxWithBlistersById(id: string) {
       }
     },
   });
+
+  if (!box) return box;
+
+  return {
+    ...box,
+    OpBoxBlister: sortOpBoxBlisters(box.OpBoxBlister),
+  };
 }

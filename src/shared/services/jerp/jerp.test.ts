@@ -1,10 +1,11 @@
 jest.mock('@/app/op/[opId]/actions', () => ({
-  saveTagId: jest.fn(),
+  saveTagId: jest.fn().mockResolvedValue(true),
+  getBoxBarCode: jest.fn().mockResolvedValue(null),
 }));
 
 import axios from 'axios';
 import { getOpFromCode, getOpFromId, getOpFromRef, generateBarcode } from '.';
-import { saveTagId } from '@/app/op/[opId]/actions';
+import { saveTagId, getBoxBarCode } from '@/app/op/[opId]/actions';
 
 const JERP_API = process.env.JERP_API;
 
@@ -13,6 +14,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 jest.mock('@/libs/logger', () => ({
   info: jest.fn(),
+  warn: jest.fn(),
   error: jest.fn(),
 }));
 
@@ -177,6 +179,9 @@ describe('getOpFromRef', () => {
 describe('generateBarcode', () => {
   it('envia quantidadeApontada e embalagens com barcode ao JERP', async () => {
     jest.resetAllMocks();
+    (getBoxBarCode as jest.Mock).mockResolvedValue(null);
+    (saveTagId as jest.Mock).mockResolvedValue(true);
+
     const packedBlisters = [
       { code: '70856001', quantity: 3 },
       { code: '70856002', quantity: 3 },
@@ -216,5 +221,26 @@ describe('generateBarcode', () => {
       expect.any(Object)
     );
     expect(saveTagId).toHaveBeenCalledWith('box-1', '432424');
+  });
+
+  it('não chama JERP se a caixa já possui barcode (idempotência)', async () => {
+    jest.resetAllMocks();
+    (getBoxBarCode as jest.Mock).mockResolvedValue('1850924');
+
+    const result = await generateBarcode(
+      438999,
+      'box-1',
+      84,
+      'operador@teste.com',
+      [{ code: '07830900056', quantity: 12 }]
+    );
+
+    expect(result.isRight()).toBe(true);
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+    expect(saveTagId).not.toHaveBeenCalled();
+    if (result.isRight()) {
+      expect(result.get().idBarras).toBe(1850924);
+      expect(result.get().message).toMatch(/já gerada/i);
+    }
   });
 });

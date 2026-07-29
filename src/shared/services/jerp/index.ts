@@ -1,4 +1,4 @@
-import { saveTagId } from "@/app/op/[opId]/actions";
+import { getBoxBarCode, saveTagId } from "@/app/op/[opId]/actions";
 import logger from "@/libs/logger";
 import { ApiResponseError, handleApiResponseError } from "@/shared/utils/errorHandler";
 import { OpJerpDto } from "@/types/dtos/op-jerp-dto";
@@ -66,6 +66,26 @@ export async function generateBarcode(
   if (!opBoxId) throw new Error("ID da caixa é obrigatório para gerar etiqueta")
 
   try {
+    // Idempotência: se a caixa já tem barcode, NÃO cria novo apontamento no JERP.
+    const existingBarCode = await getBoxBarCode(opBoxId);
+    if (existingBarCode) {
+      logger.info({
+        message: "Etiqueta já existente — reutilizando barcode sem novo apontamento JERP",
+        opId: id,
+        boxId: opBoxId,
+        idBarras: existingBarCode,
+      });
+      return makeRight({
+        message: "Etiqueta já gerada para esta caixa.",
+        id,
+        quantidadeApontada: quantity,
+        idBarras: Number(existingBarCode),
+        quantidadePendente: 0,
+        descricao: null,
+        pdfBase64: null,
+      });
+    }
+
     const embalagens = buildJerpEmbalagemApontamento(packedBlisters);
 
     const payload = {
@@ -90,7 +110,28 @@ export async function generateBarcode(
       { headers: getJerpHeaders() }
     );
 
-    await saveTagId(opBoxId, `${response.data.idBarras}`);
+    const saved = await saveTagId(opBoxId, `${response.data.idBarras}`);
+    if (!saved) {
+      // Race: outro pedido gravou primeiro. Devolve o barcode persistido e
+      // regista o apontamento JERP órfão para auditoria/estorno manual.
+      const kept = await getBoxBarCode(opBoxId);
+      logger.error({
+        message:
+          "Apontamento JERP órfão: caixa já tinha barcode após race de geração.",
+        opId: id,
+        boxId: opBoxId,
+        orphanedIdBarras: response.data.idBarras,
+        keptBarCode: kept,
+      });
+      return makeRight({
+        ...response.data,
+        idBarras: Number(kept ?? response.data.idBarras),
+        message:
+          "Etiqueta já existia (corrida entre pedidos). Verifique apontamento órfão no JERP.",
+        pdfBase64: response.data.pdfBase64 ?? null,
+      });
+    }
+
     return makeRight(response.data);
   } catch (error: any) {
     return makeLeft(handleApiResponseError(error, `Falha ao obter código de barras para OP: ${id}`));

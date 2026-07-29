@@ -84,7 +84,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Apontamento no JERP usando quantidade e blisters persistidos.
+    // Idempotência antecipada (além de generateBarcode): evita log/auditoria
+    // enganosa de "nova etiqueta" quando já existe barcode.
+    const existingBox = await db.opBox.findUnique({
+      where: { id: boxId },
+      select: { barCode: true },
+    });
+    const alreadyGenerated = Boolean(existingBox?.barCode);
+
+    // 2. Apontamento no JERP usando quantidade e blisters persistidos
+    //    (ou reutilização se já existir barcode).
     const tagDataReq = await generateBarcode(
       opId,
       boxId,
@@ -123,6 +132,7 @@ export async function POST(req: NextRequest) {
     // 3. Auditoria: registra a geração da etiqueta
     //    devolvido pela integração (JERP). O `pdfBase64` fica de fora por ser o
     //    binário da etiqueta (não é informação da OP) e evitar inflar o log.
+    //    Se alreadyGenerated, regista reutilização (sem novo apontamento).
     try {
       const userId = await resolveUserId(userName);
       if (userId) {
@@ -137,10 +147,14 @@ export async function POST(req: NextRequest) {
             opId,
             userId,
             actionType: "STATUS_CHANGED",
-            description: `Etiqueta gerada: ${tag.quantidadeApontada} peças, código ${tag.idBarras}.${divergenceNote}`,
+            description: alreadyGenerated
+              ? `Etiqueta reutilizada (sem novo apontamento): ${tag.quantidadeApontada} peças, código ${tag.idBarras}.${divergenceNote}`
+              : `Etiqueta gerada: ${tag.quantidadeApontada} peças, código ${tag.idBarras}.${divergenceNote}`,
             boxId,
             details: {
-              event: "BARCODE_GENERATED",
+              event: alreadyGenerated
+                ? "BARCODE_REUSED"
+                : "BARCODE_GENERATED",
               authoritativeQuantity,
               clientQuantity,
               quantidadeApontada: tag.quantidadeApontada,

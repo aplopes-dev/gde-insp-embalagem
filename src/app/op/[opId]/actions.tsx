@@ -29,6 +29,10 @@ import {
 } from "@/usecases/op/create-op-data";
 import { findNextPendingOpBox } from "@/usecases/op/find-next-pending-op-box";
 import {
+  findConflictingPackedBlisterCodes,
+  findDuplicateCodesInBatch,
+} from "@/usecases/op/assert-blister-codes-unique-in-op";
+import {
   getAuthoritativeBoxPackedSummary,
   type AuthoritativeBoxPackedSummary,
 } from "@/usecases/op-jerp/get-authoritative-box-packed-summary";
@@ -382,9 +386,15 @@ async function fetchOpDetails(internalOp: Op) {
         _sum: { quantity: true },
         where: { packedAt: { not: null }, opBox: { opId: internalOp.id } },
       }),
+      // Apenas QR já embalados — usado no cliente para bloquear reutilização.
+      // Placeholders GEN_* e blisters pendentes não entram nesta lista.
       db.opBoxBlister.findMany({
         select: { code: true },
-        where: { opBox: { opId: internalOp.id } },
+        where: {
+          packedAt: { not: null },
+          opBox: { opId: internalOp.id },
+          NOT: { code: { startsWith: "GEN_" } },
+        },
       }),
     ]),
     findNextPendingOpBox(internalOp.id),
@@ -430,6 +440,34 @@ export async function persistBoxStatusWithBlisters(
     };
   }
   const userId = ( session.user as any ).id;
+
+  const box = await db.opBox.findUnique({
+    where: { id: opBoxId },
+    select: { opId: true },
+  });
+  if (!box) {
+    throw new Error("Caixa não encontrada para persistência.");
+  }
+
+  const packedCodes = blisters
+    .filter((bl) => bl.packedAt)
+    .map((bl) => bl.code);
+  const duplicatesInBox = findDuplicateCodesInBatch(packedCodes);
+  if (duplicatesInBox.length > 0) {
+    throw new Error(
+      `QR de blister repetido na mesma caixa: ${duplicatesInBox.join(", ")}`
+    );
+  }
+  const conflicts = await findConflictingPackedBlisterCodes(
+    box.opId,
+    opBoxId,
+    packedCodes
+  );
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Blister já embalado noutra caixa desta OP: ${conflicts.join(", ")}`
+    );
+  }
 
   const queryCollection: any[] = blisters.map((bl) =>
     db.opBoxBlister.update({
@@ -526,6 +564,26 @@ export async function persistWithOpBreak(
   authorizerUserId: string | null
 ) {
   const { id } = boxDto;
+  const packedCodes = blisters
+    .filter((bl) => bl.packedAt)
+    .map((bl) => bl.code);
+  const duplicatesInBox = findDuplicateCodesInBatch(packedCodes);
+  if (duplicatesInBox.length > 0) {
+    throw new Error(
+      `QR de blister repetido na mesma caixa: ${duplicatesInBox.join(", ")}`
+    );
+  }
+  const conflicts = await findConflictingPackedBlisterCodes(
+    opId,
+    id,
+    packedCodes
+  );
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Blister já embalado noutra caixa desta OP: ${conflicts.join(", ")}`
+    );
+  }
+
   const blistersToRemove = blisters
     .filter((bl) => !bl.packedAt)
     .map((bl) => bl.id) as string[];
@@ -849,21 +907,46 @@ export async function createOpAfterSupervisorConfig(
 }
 
 
-export async function saveTagId(opBoxId: string, barCode: string) {
+/**
+ * Grava o barcode só se a caixa ainda não tiver um.
+ * Evita sobrescrever num race de dois apontamentos JERP consecutivos.
+ * @returns true se gravou, false se a caixa já tinha barcode.
+ */
+export async function saveTagId(opBoxId: string, barCode: string): Promise<boolean> {
   try {
-    await db.opBox.update({
+    const result = await db.opBox.updateMany({
+      where: {
+        id: opBoxId,
+        barCode: null,
+      },
       data: {
         barCode,
         barCodeGeneratedAt: new Date(),
       },
-
-      where: {
-        id: opBoxId,
-      },
     });
+    if (result.count === 0) {
+      logger.warn({
+        message:
+          "Barcode JERP ignorado: caixa já possui etiqueta (idempotência).",
+        opBoxId,
+        barCode,
+      });
+      return false;
+    }
+    return true;
   } catch (error) {
-    console.log(error);
+    logger.error({ message: "Falha ao gravar barcode da caixa", opBoxId, error });
+    return false;
   }
+}
+
+/** Lê o barcode já persistido na caixa (para resposta idempotente). */
+export async function getBoxBarCode(opBoxId: string): Promise<string | null> {
+  const box = await db.opBox.findUnique({
+    where: { id: opBoxId },
+    select: { barCode: true },
+  });
+  return box?.barCode ?? null;
 }
 
 

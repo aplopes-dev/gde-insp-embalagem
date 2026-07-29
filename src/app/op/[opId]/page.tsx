@@ -112,10 +112,12 @@ export default function PackagingInspection({
   const pieceCorrectionDialogOpenRef = useRef(false);
 
   const [activeObjectType, setActiveObjectType] = useState<ValidableType>();
-  const [blisterCodes, setBlisterCodes] = useState<string[]>([]);
+  /** QR já embalados nesta OP (conjunto cumulativo — nunca sobrescrever por índice). */
+  const [usedBlisterCodes, setUsedBlisterCodes] = useState<string[]>([]);
   const pendingValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastValidationKeyRef = useRef<string>("");
   const lastValidationSentAtRef = useRef<number>(0);
+  const printTagInFlightRef = useRef(false);
 
   const { socket } = useSocketDetection({
     deviceId,
@@ -228,12 +230,18 @@ export default function PackagingInspection({
         return total + blister.quantity;
       }, 0);
 
-    setBlisterCodes(blisterCodesInUse);
+    setUsedBlisterCodes(blisterCodesInUse);
     setBlisters(sortOpBoxBlisters(boxData.OpBoxBlister));
     setQuantityInBox(itemQuantity);
     setCheckedQuantity(checkQuantity);
     setActiveObjectType("box");
     setBox({ ...boxData, status: InspectionStatus.PENDING });
+  }
+
+  /** Código QR do blister atualmente sob inspeção (quantidade / alerta). */
+  function currentBlisterCode(): string | undefined {
+    if (targetBlister === undefined) return undefined;
+    return blisters[targetBlister]?.code || undefined;
   }
 
   function handleDetectionUpdate(detection: DetectionDto) {
@@ -281,12 +289,12 @@ export default function PackagingInspection({
         targetBlister !== undefined &&
         data &&
         box &&
-        blisterCodes[targetBlister]
+        currentBlisterCode()
       ) {
         requestPieceCorrection({
           itemId: data.productType.name,
           quantity: blisters[targetBlister].quantity,
-          fileName: `OP_${data.opId}_BOX_${box.id}_BL_${blisterCodes[targetBlister]}`,
+          fileName: `OP_${data.opId}_BOX_${box.id}_BL_${currentBlisterCode()}`,
           model: data.productType.name,
         });
       }
@@ -313,7 +321,7 @@ export default function PackagingInspection({
   function resolveDetectionImageFilename(detection: DetectionDto): string | undefined {
     const code =
       detection.payload?.code ||
-      (targetBlister !== undefined ? blisterCodes[targetBlister] : undefined);
+      currentBlisterCode();
     if (!data?.opId || !box?.id || !code) return undefined;
     return `OP_${data.opId}_BOX_${box.id}_BL_${code}`;
   }
@@ -476,7 +484,7 @@ export default function PackagingInspection({
               setVisorMessage("CÓDIGO QR INVÁLIDO. VERIFIQUE O BLISTER.", "red");
             }
             sendValidation({ itemId, quantity });
-          } else if (blisterCodes.includes(inspection.code)) {
+          } else if (usedBlisterCodes.includes(inspection.code)) {
             setVisorMessage(
               "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code,
               "red"
@@ -509,7 +517,7 @@ export default function PackagingInspection({
     let quantity: number = expectedQuantity;
     let model: string | undefined = data?.productType.name;
     let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${
-      blisterCodes[targetBlister!]
+      currentBlisterCode() || ""
     }`;
 
     switch (inspectionData) {
@@ -664,10 +672,6 @@ export default function PackagingInspection({
 
         setActiveObjectType("product");
 
-        const newCodes = [...blisterCodes];
-        newCodes[targetBlister!] = inspection.code;
-        setBlisterCodes([...newCodes]);
-
         let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${inspection.code}`;
 
         setStep(2);
@@ -693,6 +697,14 @@ export default function PackagingInspection({
 
     setCheckedQuantity(checkedQuantity + inspection.count);
     setBlisters(updatedBlisters);
+
+    // Acumular QR embalados — NUNCA sobrescrever por índice (bug OP 78309 / lote 1850924).
+    const packedCode = updatedBlisters[index]?.code || inspection.code;
+    if (packedCode) {
+      setUsedBlisterCodes((prev) =>
+        prev.includes(packedCode) ? prev : [...prev, packedCode]
+      );
+    }
 
     if (blisters[index + 1]) {
       setTargetBlister(index + 1);
@@ -737,6 +749,11 @@ export default function PackagingInspection({
   };
 
   async function printTag(boxId: string) {
+    if (printTagInFlightRef.current) {
+      setVisorMessage("GERAÇÃO DE ETIQUETA JÁ EM ANDAMENTO...", "yellow");
+      return;
+    }
+    printTagInFlightRef.current = true;
     setVisorMessage("CONFERINDO QUANTIDADE INSPECIONADA...", "black");
 
     try {
@@ -780,6 +797,8 @@ export default function PackagingInspection({
       }
     } catch (error: any) {
       setVisorMessage(error?.message || "FALHA AO GERAR ETIQUETA!", "red");
+    } finally {
+      printTagInFlightRef.current = false;
     }
   }
 
@@ -835,7 +854,7 @@ export default function PackagingInspection({
     if (quantity <= blisters[index].quantity) {
       const itemId = data?.productType.name;
       let fileName: string = `OP_${data?.opId}_BOX_${box?.id}_BL_${
-        blisterCodes[targetBlister!]
+        currentBlisterCode() || ""
       }`;
 
       const newBlisters = [...blisters.slice(0, index + 1)];

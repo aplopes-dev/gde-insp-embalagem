@@ -29,9 +29,13 @@ import {
 } from "@/usecases/op/create-op-data";
 import { findNextPendingOpBox } from "@/usecases/op/find-next-pending-op-box";
 import {
+  claimNextPendingOpBox,
+} from "@/usecases/op/claim-next-pending-op-box";
+import {
   findConflictingPackedBlisterCodes,
   findDuplicateCodesInBatch,
 } from "@/usecases/op/assert-blister-codes-unique-in-op";
+import { assertOpBoxBlistersMutable } from "@/usecases/op/assert-op-box-blisters-mutable";
 import {
   getAuthoritativeBoxPackedSummary,
   type AuthoritativeBoxPackedSummary,
@@ -66,6 +70,11 @@ async function findInternalOpByRouteId(id: string) {
 }
 
 export async function syncAndGetOpToProduceById(id: string) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user
+    ? ((session.user as { id?: string }).id ?? null)
+    : null;
+
   let externalOpRed = await getOpFromId(id);
   if (externalOpRed.isLeft()) {
     externalOpRed = await getOpFromCode(id);
@@ -127,7 +136,7 @@ export async function syncAndGetOpToProduceById(id: string) {
       }
     }
 
-    const details = await fetchOpDetails(internalOp);
+    const details = await fetchOpDetails(internalOp, userId);
     return {
       ...details,
       requiresSupervisorConfig,
@@ -138,7 +147,7 @@ export async function syncAndGetOpToProduceById(id: string) {
 
   const internalOp = await findInternalOpByRouteId(id);
   if (internalOp) {
-    const details = await fetchOpDetails(internalOp);
+    const details = await fetchOpDetails(internalOp, userId);
     return {
       ...details,
       requiresSupervisorConfig: false,
@@ -374,7 +383,7 @@ async function createBoxTypeFromJerp(embalagem: { id: number; nome: string }): P
 
 
 
-async function fetchOpDetails(internalOp: Op) {
+async function fetchOpDetails(internalOp: Op, userId?: string | null) {
   const [transaction, nextBox] = await Promise.all([
     db.$transaction([
       db.opBox.count({ where: { opId: internalOp.id } }),
@@ -397,7 +406,9 @@ async function fetchOpDetails(internalOp: Op) {
         },
       }),
     ]),
-    findNextPendingOpBox(internalOp.id),
+    userId
+      ? claimNextPendingOpBox(internalOp.id, userId)
+      : findNextPendingOpBox(internalOp.id),
   ]);
 
   const {
@@ -440,6 +451,8 @@ export async function persistBoxStatusWithBlisters(
     };
   }
   const userId = ( session.user as any ).id;
+
+  await assertOpBoxBlistersMutable(opBoxId);
 
   const box = await db.opBox.findUnique({
     where: { id: opBoxId },
@@ -487,6 +500,8 @@ export async function persistBoxStatusWithBlisters(
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED,
+        inspectionLockedByUserId: null,
+        inspectionLockedAt: null,
       },
       where: {
         id: opBoxId,
@@ -564,6 +579,8 @@ export async function persistWithOpBreak(
   authorizerUserId: string | null
 ) {
   const { id } = boxDto;
+  await assertOpBoxBlistersMutable(id);
+
   const packedCodes = blisters
     .filter((bl) => bl.packedAt)
     .map((bl) => bl.code);
@@ -619,6 +636,8 @@ export async function persistWithOpBreak(
       data: {
         packedAt: new Date(),
         status: OpBoxStatus.PACKAGED_W_BREAK,
+        inspectionLockedByUserId: null,
+        inspectionLockedAt: null,
       },
       where: {
         id,

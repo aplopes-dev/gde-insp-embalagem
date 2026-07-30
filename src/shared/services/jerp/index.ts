@@ -7,6 +7,8 @@ import {
   BlisterApontamentoSource,
   buildJerpEmbalagemApontamento,
 } from "@/usecases/op-jerp/build-jerp-embalagem-apontamento";
+import { compareApontamentoBarcodeSets } from "@/usecases/op-jerp/compare-apontamento-barcode-sets";
+import { getGeneratedBarcodeEmbalagensForBox } from "@/usecases/op-jerp/get-generated-barcode-embalagens";
 import axios from "axios";
 import { Either, makeLeft, makeRight } from '@/shared/utils/either';
 
@@ -67,8 +69,42 @@ export async function generateBarcode(
 
   try {
     // Idempotência: se a caixa já tem barcode, NÃO cria novo apontamento no JERP.
+    // Só reutiliza se os QRs atuais forem os mesmos do apontamento original —
+    // evita divergência silenciosa (OP 80569 / lote 1851454).
     const existingBarCode = await getBoxBarCode(opBoxId);
     if (existingBarCode) {
+      const originalCodes = await getGeneratedBarcodeEmbalagensForBox(opBoxId);
+      if (originalCodes) {
+        const currentCodes = packedBlisters.map((b) => b.code);
+        const comparison = compareApontamentoBarcodeSets(originalCodes, currentCodes);
+        if (!comparison.equal) {
+          logger.error({
+            message:
+              "Reuso de etiqueta bloqueado: QRs atuais divergem do apontamento original.",
+            opId: id,
+            boxId: opBoxId,
+            idBarras: existingBarCode,
+            onlyInOriginal: comparison.onlyInOriginal,
+            onlyInCurrent: comparison.onlyInCurrent,
+          });
+          return makeLeft({
+            status: 409,
+            error:
+              "Divergência entre os QR codes atuais da caixa e os do apontamento original desta etiqueta.",
+            errorData: {
+              message:
+                `A caixa já tem o lote ${existingBarCode}, mas os blisters embalados agora não são os mesmos que foram apontados no JERP. ` +
+                `Não reutilize esta etiqueta. Acione o supervisor (estorno/correção). ` +
+                `Originais ausentes agora: ${comparison.onlyInOriginal.join(", ") || "—"}; ` +
+                `atuais não apontados: ${comparison.onlyInCurrent.join(", ") || "—"}.`,
+              idBarras: existingBarCode,
+              onlyInOriginal: comparison.onlyInOriginal,
+              onlyInCurrent: comparison.onlyInCurrent,
+            },
+          });
+        }
+      }
+
       logger.info({
         message: "Etiqueta já existente — reutilizando barcode sem novo apontamento JERP",
         opId: id,
@@ -112,8 +148,8 @@ export async function generateBarcode(
 
     const saved = await saveTagId(opBoxId, `${response.data.idBarras}`);
     if (!saved) {
-      // Race: outro pedido gravou primeiro. Devolve o barcode persistido e
-      // regista o apontamento JERP órfão para auditoria/estorno manual.
+      // Race: outro pedido gravou primeiro. Não devolver sucesso silencioso —
+      // o apontamento deste pedido ficou órfão no JERP e precisa de estorno.
       const kept = await getBoxBarCode(opBoxId);
       logger.error({
         message:
@@ -123,12 +159,17 @@ export async function generateBarcode(
         orphanedIdBarras: response.data.idBarras,
         keptBarCode: kept,
       });
-      return makeRight({
-        ...response.data,
-        idBarras: Number(kept ?? response.data.idBarras),
-        message:
-          "Etiqueta já existia (corrida entre pedidos). Verifique apontamento órfão no JERP.",
-        pdfBase64: response.data.pdfBase64 ?? null,
+      return makeLeft({
+        status: 409,
+        error:
+          "Corrida na geração de etiqueta: outro apontamento já gravou o lote nesta caixa.",
+        errorData: {
+          message:
+            `A caixa já possui o lote ${kept ?? "—"}. Este pedido criou o apontamento órfão ` +
+            `${response.data.idBarras} no JERP — verifique estorno manual.`,
+          keptBarCode: kept,
+          orphanedIdBarras: response.data.idBarras,
+        },
       });
     }
 

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Resumo — Divergência lote 1851454 / OP 80569</title>
+  <style>
+    @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.4;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    h1 {
+      font-size: 15pt;
+      margin: 0 0 6px 0;
+      color: #0f172a;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 6px;
+    }
+    h2 {
+      font-size: 12pt;
+      margin: 16px 0 6px 0;
+      color: #0f172a;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 3px;
+      page-break-after: avoid;
+    }
+    .meta { color: #475569; font-size: 9.5pt; margin-bottom: 12px; }
+    .box {
+      background: #f8fafc;
+      border-left: 4px solid #b45309;
+      padding: 10px 12px;
+      margin: 10px 0 14px 0;
+    }
+    .ok-box {
+      background: #f0fdf4;
+      border-left: 4px solid #166534;
+      padding: 10px 12px;
+      margin: 10px 0 14px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 6px 0 12px 0;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 5px 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; }
+    .mono { font-family: ui-monospace, Consolas, monospace; font-size: 8.5pt; }
+    .qr {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 8.5pt;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      margin: 4px 0 10px 0;
+      word-break: break-all;
+    }
+    .bad { color: #b91c1c; font-weight: 600; }
+    .ok { color: #166534; font-weight: 600; }
+    .warn { color: #b45309; font-weight: 600; }
+    ol, ul { margin: 4px 0 10px 18px; padding: 0; }
+    li { margin: 3px 0; }
+    .footer {
+      margin-top: 18px;
+      font-size: 8.5pt;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+    }
+    .cmp td:nth-child(2) { background: #fef2f2; }
+    .cmp td:nth-child(3) { background: #f0fdf4; }
+  </style>
+</head>
+<body>
+
+  <h1>Resumo — OP 80569 / Lote 1851454</h1>
+  <p class="meta">
+    <strong>Assunto:</strong> QRs divergentes no JERP × sistema e blisters “já lidos” que ainda precisam ser embalados<br />
+    <strong>Data:</strong> 30/07/2026 &nbsp;|&nbsp; <strong>Incidente:</strong> 29/07/2026 &nbsp;|&nbsp; <strong>Sistema:</strong> GDE Inspeção de Embalagem
+  </p>
+
+  <div class="box">
+    <strong>Em uma frase:</strong> Dois operadores usaram a mesma caixa; o JERP gravou um conjunto de QRs no lote
+    <span class="mono">1851454</span> e o sistema ficou com outro. Esses QRs “fantasmas” no JERP aparecem como
+    <em>já lidos</em>, embora não estejam embalados no GDE — e por isso a etiqueta 1851454 diverge do que o sistema mostra.
+  </div>
+
+  <h2>1. O que aconteceu</h2>
+  <ol>
+    <li><strong>Emerson</strong> (12:47) apontou no JERP os QRs <span class="mono">00046–00054</span> e gerou o lote <span class="mono">1851454</span>.</li>
+    <li><strong>Elizeu</strong> (12:48) embalou outros QRs <span class="mono">00136–00144</span> na <em>mesma</em> caixa; o sistema só reutilizou a etiqueta (<code>BARCODE_REUSED</code>), sem novo apontamento.</li>
+    <li>Resultado: JERP ficou com os QRs do Emerson; GDE ficou com os do Elizeu. Os QRs do Emerson sumiram do banco local.</li>
+  </ol>
+
+  <h2>2. Por que o lote 1851454 devolve QRs divergentes</h2>
+  <table class="cmp">
+    <tr>
+      <th></th>
+      <th>JERP — lote 1851454</th>
+      <th>GDE — caixa 7 (hoje)</th>
+    </tr>
+    <tr>
+      <td>Lote / etiqueta</td>
+      <td class="mono">1851454</td>
+      <td class="mono">1852404</td>
+    </tr>
+    <tr>
+      <td>QR codes</td>
+      <td class="mono">00046 … 00054</td>
+      <td class="mono">00136 … 00144</td>
+    </tr>
+    <tr>
+      <td>Operador origem</td>
+      <td>Emerson</td>
+      <td>Elizeu</td>
+    </tr>
+    <tr>
+      <td>Alinhado?</td>
+      <td colspan="2" class="bad">Não — conjuntos diferentes para a “mesma” caixa física / etiqueta antiga</td>
+    </tr>
+  </table>
+
+  <p>Quem consulta o <strong>1851454</strong> no JERP vê os QRs do Emerson. Quem olha a caixa no GDE vê os QRs do Elizeu (agora sob o lote <strong>1852404</strong>). Daí a divergência.</p>
+
+  <p class="mono qr">JERP 1851454: 08056900054, 00053, 00052, 00051, 00050, 00049, 00048, 00047, 00046</p>
+  <p class="mono qr">GDE caixa 7 / 1852404: 08056900136, 00137, 00138, 00139, 00140, 00141, 00142, 00143, 00144</p>
+
+  <h2>3. Por que blisters que ainda precisam ser embalados aparecem como “já lidos”</h2>
+  <p>
+    Os QRs <span class="mono">08056900046</span> … <span class="mono">08056900054</span> (ex.: <strong>08056900053</strong>)
+    foram apontados no JERP no lote 1851454, mas <strong>não existem mais no GDE</strong> (foram sobrescritos).
+  </p>
+  <table>
+    <tr><th>Onde</th><th>Situação desses 9 QRs</th></tr>
+    <tr><td>GDE (banco)</td><td><span class="bad">Ausentes</span> — não estão em nenhuma caixa</td></tr>
+    <tr><td>JERP</td><td><span class="warn">Já apontados</span> no lote 1851454 → aparecem como <em>já lidos / já consumidos</em></td></tr>
+    <tr><td>Físico</td><td>Podem ainda precisar ser embalados de verdade</td></tr>
+  </table>
+  <p>
+    O bloqueio “já lido” vem do <strong>JERP</strong>, não da lista local de blisters embalados do GDE.
+    Enquanto o 1851454 não for estornado, esses QRs continuam “presos”.
+  </p>
+
+  <h2>4. Estado atual (30/07/2026)</h2>
+  <table>
+    <tr><th>Item</th><th>Valor</th></tr>
+    <tr><td>OP</td><td class="mono">80569</td> (id 452360)</td></tr>
+    <tr><td>Caixa 7 no GDE</td><td>Lote <span class="mono">1852404</span> + QRs <span class="mono">00136–00144</span> <span class="ok">(alinhado)</span></td></tr>
+    <tr><td>Lote antigo no JERP</td><td><span class="mono">1851454</span> com QRs <span class="mono">00046–00054</span> <span class="bad">(ainda ativo — estornar)</span></td></tr>
+    <tr><td>Restante JERP</td><td><span class="warn">75</span> (deveria voltar a <strong>111</strong> após estornar 1851454)</td></tr>
+    <tr><td>Peças embaladas no GDE</td><td>589</td></tr>
+  </table>
+
+  <div class="ok-box">
+    <strong>Já feito no GDE:</strong> caixa 7 atualizada de 1851454 → 1852404, com os QRs corretos do sistema.
+    Proteções novas no software (lock por operador, freeze após etiqueta, rejeição de reuso com QRs diferentes).
+  </div>
+
+  <h2>5. O que falta para fechar</h2>
+  <ol>
+    <li><strong>Estornar no JERP</strong> o lote/etiqueta <span class="mono">1851454</span> da OP 80569.</li>
+    <li>Confirmar que <code>quantidadeAProduzir</code> volta para <strong>111</strong>.</li>
+    <li>Com isso, os QRs <span class="mono">00046–00054</span> deixam de aparecer como já lidos e podem ser embalados numa caixa nova.</li>
+    <li><strong>Reimprimir</strong> a etiqueta física da caixa 7 com o lote <span class="mono">1852404</span>.</li>
+  </ol>
+
+  <h2>6. Conclusão</h2>
+  <p>
+    A divergência do <strong>1851454</strong> e os blisters “já lidos” (como o <strong>08056900053</strong>) têm a mesma causa:
+    apontamento JERP com QRs que o GDE já não tem. A correção definitiva no JERP é o <strong>estorno do 1851454</strong>;
+    no GDE a caixa correta já está no lote <strong>1852404</strong>.
+  </p>
+
+  <p class="footer">
+    Documento gerado em 30/07/2026 a partir dos dados do ambiente GDE (PostgreSQL + OpActivityLog + API JERP).
+    Relatório detalhado anterior: relatorio-op-80569-lote-1851454.pdf
+  </p>
+
+</body>
+</html>

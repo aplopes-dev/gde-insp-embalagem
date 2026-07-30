@@ -3,9 +3,14 @@ jest.mock('@/app/op/[opId]/actions', () => ({
   getBoxBarCode: jest.fn().mockResolvedValue(null),
 }));
 
+jest.mock('@/usecases/op-jerp/get-generated-barcode-embalagens', () => ({
+  getGeneratedBarcodeEmbalagensForBox: jest.fn().mockResolvedValue(null),
+}));
+
 import axios from 'axios';
 import { getOpFromCode, getOpFromId, getOpFromRef, generateBarcode } from '.';
 import { saveTagId, getBoxBarCode } from '@/app/op/[opId]/actions';
+import { getGeneratedBarcodeEmbalagensForBox } from '@/usecases/op-jerp/get-generated-barcode-embalagens';
 
 const JERP_API = process.env.JERP_API;
 
@@ -226,6 +231,9 @@ describe('generateBarcode', () => {
   it('não chama JERP se a caixa já possui barcode (idempotência)', async () => {
     jest.resetAllMocks();
     (getBoxBarCode as jest.Mock).mockResolvedValue('1850924');
+    (getGeneratedBarcodeEmbalagensForBox as jest.Mock).mockResolvedValue([
+      '07830900056',
+    ]);
 
     const result = await generateBarcode(
       438999,
@@ -241,6 +249,66 @@ describe('generateBarcode', () => {
     if (result.isRight()) {
       expect(result.get().idBarras).toBe(1850924);
       expect(result.get().message).toMatch(/já gerada/i);
+    }
+  });
+
+  it('bloqueia reuso quando QRs atuais divergem do apontamento original', async () => {
+    jest.resetAllMocks();
+    (getBoxBarCode as jest.Mock).mockResolvedValue('1851454');
+    (getGeneratedBarcodeEmbalagensForBox as jest.Mock).mockResolvedValue([
+      '08056900054',
+      '08056900046',
+    ]);
+
+    const result = await generateBarcode(
+      452360,
+      'box-7',
+      36,
+      'elizeu@gde.com.br',
+      [
+        { code: '08056900136', quantity: 4 },
+        { code: '08056900144', quantity: 4 },
+      ]
+    );
+
+    expect(result.isLeft()).toBe(true);
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+    if (result.isLeft()) {
+      expect(result.getLeft().status).toBe(409);
+      expect(result.getLeft().error).toMatch(/divergência/i);
+    }
+  });
+
+  it('falha com 409 quando saveTagId perde a corrida (apontamento órfão)', async () => {
+    jest.resetAllMocks();
+    (getBoxBarCode as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('1851454');
+    (saveTagId as jest.Mock).mockResolvedValue(false);
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        message: 'OK',
+        id: 452360,
+        quantidadeApontada: 36,
+        idBarras: 1851499,
+        quantidadePendente: 0,
+        descricao: null,
+        pdfBase64: null,
+      },
+    });
+
+    const result = await generateBarcode(
+      452360,
+      'box-7',
+      36,
+      'operador@teste.com',
+      [{ code: '08056900136', quantity: 4 }]
+    );
+
+    expect(result.isLeft()).toBe(true);
+    if (result.isLeft()) {
+      expect(result.getLeft().status).toBe(409);
+      expect(result.getLeft().errorData?.orphanedIdBarras).toBe(1851499);
     }
   });
 });

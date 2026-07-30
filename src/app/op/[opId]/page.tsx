@@ -179,7 +179,12 @@ export default function PackagingInspection({
     if (opData.finishedAt) {
       setVisorMessage("OP FINALIZADA!", "blue");
     } else if (!opData.nextBox) {
-      setVisorMessage("NÃO EXISTEM CAIXAS PENDENTES!", "blue");
+      setVisorMessage(
+        opData.pendingBoxes > 0
+          ? "TODAS AS CAIXAS PENDENTES ESTÃO EM USO POR OUTRO OPERADOR. AGUARDE OU TROQUE DE POSTO."
+          : "NÃO EXISTEM CAIXAS PENDENTES!",
+        opData.pendingBoxes > 0 ? "yellow" : "blue"
+      );
     } else {
       mountInspecionState(opData.nextBox!, opData.blisterCodes);
 

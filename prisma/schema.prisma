@@ -60,19 +60,24 @@ model Op {
 }
 
 model OpBox {
-  id                 String            @id @default(cuid())
-  opId               Int
-  code               String
-  createdAt          DateTime          @default(now())
-  packedAt           DateTime?
-  breakAuthorizerId  Int?
-  barCode            String?
-  barCodeGeneratedAt DateTime?
-  status             OpBoxStatus       @default(PENDING)
-  breakAuthorizer    Manager?          @relation(fields: [breakAuthorizerId], references: [id])
-  op                 Op                @relation(fields: [opId], references: [id], onDelete: Cascade)
-  OpBoxBlister       OpBoxBlister[]
-  InspectionImages   InspectionImage[]
+  id                        String            @id @default(cuid())
+  opId                      Int
+  code                      String
+  createdAt                 DateTime          @default(now())
+  packedAt                  DateTime?
+  breakAuthorizerId         Int?
+  barCode                   String?
+  barCodeGeneratedAt        DateTime?
+  /// Operador que reservou a caixa para inspeção (evita dois postos na mesma boxId).
+  inspectionLockedByUserId  String?
+  inspectionLockedAt        DateTime?
+  status                    OpBoxStatus       @default(PENDING)
+  breakAuthorizer           Manager?          @relation(fields: [breakAuthorizerId], references: [id])
+  op                        Op                @relation(fields: [opId], references: [id], onDelete: Cascade)
+  OpBoxBlister              OpBoxBlister[]
+  InspectionImages          InspectionImage[]
+
+  @@index([opId, packedAt, inspectionLockedByUserId])
 }
 
 model OpBoxBlister {

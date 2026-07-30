@@ -104,6 +104,38 @@ export async function POST(req: NextRequest) {
 
     if (!tagDataReq.isRight()) {
       const data = tagDataReq.getLeft();
+      if (data.status === 409) {
+        try {
+          const userId = await resolveUserId(userName);
+          if (userId) {
+            await db.opActivityLog.create({
+              data: {
+                opId,
+                userId,
+                actionType: "STATUS_CHANGED",
+                description:
+                  data.errorData?.message ||
+                  data.error ||
+                  "Reuso de etiqueta bloqueado por divergência de QRs.",
+                boxId,
+                details: {
+                  event: "BARCODE_REUSE_REJECTED",
+                  authoritativeQuantity,
+                  clientQuantity,
+                  embalagens: apontamentoEmbalagens,
+                  error: data.error,
+                  errorData: data.errorData ?? null,
+                },
+              },
+            });
+          }
+        } catch (logError) {
+          logger.error({
+            message: "Falha ao registrar auditoria de reuso rejeitado.",
+            error: logError,
+          });
+        }
+      }
       return NextResponse.json(data, { status: data.status });
     }
 

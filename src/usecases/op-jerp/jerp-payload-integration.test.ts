@@ -1,5 +1,10 @@
 jest.mock("@/app/op/[opId]/actions", () => ({
-  saveTagId: jest.fn(),
+  saveTagId: jest.fn().mockResolvedValue(true),
+  getBoxBarCode: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock("@/usecases/op-jerp/get-generated-barcode-embalagens", () => ({
+  getGeneratedBarcodeEmbalagensForBox: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock("@/libs/logger", () => ({

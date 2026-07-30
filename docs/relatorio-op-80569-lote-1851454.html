@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Relatório — OP 80569 / Lote 1851454 — Divergência de QR codes</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    h1 {
+      font-size: 16pt;
+      margin: 0 0 4px 0;
+      color: #0f172a;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+    }
+    h2 {
+      font-size: 12.5pt;
+      margin: 22px 0 8px 0;
+      color: #0f172a;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 11pt;
+      margin: 14px 0 6px 0;
+      color: #1e293b;
+      page-break-after: avoid;
+    }
+    p { margin: 6px 0; }
+    .meta {
+      color: #475569;
+      font-size: 9.5pt;
+      margin-bottom: 16px;
+    }
+    .resumo {
+      background: #f8fafc;
+      border-left: 4px solid #b45309;
+      padding: 12px 14px;
+      margin: 12px 0 18px 0;
+    }
+    .resumo strong { color: #92400e; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 14px 0;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 5px 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    code, .mono {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 8.5pt;
+    }
+    .qr-list {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 8.5pt;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
+      margin: 6px 0 12px 0;
+      word-break: break-all;
+    }
+    .ok { color: #166534; font-weight: 600; }
+    .bad { color: #b91c1c; font-weight: 600; }
+    .warn { color: #b45309; font-weight: 600; }
+    ul, ol { margin: 6px 0 10px 18px; padding: 0; }
+    li { margin: 3px 0; }
+    .timeline {
+      border-left: 3px solid #94a3b8;
+      padding-left: 12px;
+      margin: 8px 0 14px 0;
+    }
+    .timeline .step {
+      margin: 0 0 10px 0;
+      page-break-inside: avoid;
+    }
+    .timeline .when {
+      font-weight: 600;
+      color: #334155;
+      font-size: 9.5pt;
+    }
+    .footer-note {
+      margin-top: 24px;
+      font-size: 8.5pt;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+    }
+    .cmp td:nth-child(2) { background: #fef2f2; }
+    .cmp td:nth-child(3) { background: #f0fdf4; }
+    .prevent li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+  <h1>Relatório de divergência — OP 80569 / Lote 1851454</h1>
+  <p class="meta">
+    <strong>Sistema:</strong> GDE Inspeção de Embalagem<br />
+    <strong>Data do incidente:</strong> 29/07/2026<br />
+    <strong>Data do relatório:</strong> 30/07/2026<br />
+    <strong>Fontes:</strong> PostgreSQL (Op / OpBox / OpBoxBlister) + OpActivityLog + API JERP
+  </p>
+
+  <div class="resumo">
+    <p><strong>Em resumo:</strong> Dois operadores trabalharam na <em>mesma caixa</em> da OP 80569 quase ao mesmo tempo.
+    Emerson apontou no JERP um conjunto de 9 QR codes e gerou a etiqueta (lote <strong>1851454</strong>).
+    Em seguida, Elizeu embalou <em>outros</em> 9 QR codes nessa mesma caixa; o sistema só reutilizou a etiqueta já existente
+    (<code>BARCODE_REUSED</code>) e <strong>não</strong> enviou novo apontamento.
+    Resultado: o JERP ficou com os QRs do Emerson; o sistema local ficou com os QRs do Elizeu — divergência permanente no lote.</p>
+  </div>
+
+  <h2>1. Identificação</h2>
+  <table>
+    <tr><th>Campo</th><th>Valor</th></tr>
+    <tr><td>Código OP (JERP)</td><td><span class="mono">80569</span></td></tr>
+    <tr><td>ID interno</td><td><span class="mono">452360</span></td></tr>
+    <tr><td>Status local</td><td>PENDING</td></tr>
+    <tr><td>Produto</td><td>TL-02-1-0006_02 (id 46254)</td></tr>
+    <tr><td>Blister</td><td>BLISTER-TL-02-1-0006_00 — 4 peças/blister, 9 blisters/caixa</td></tr>
+    <tr><td>Caixa física</td><td>CAIXA 549X370X193 TRIPLEX</td></tr>
+    <tr><td>Quantidade planejada</td><td>700 peças</td></tr>
+    <tr><td>Embalado local / restante JERP</td><td>589 / 111</td></tr>
+    <tr><td>Lote (idBarras) sob análise</td><td><span class="mono">1851454</span> — caixa nº 7</td></tr>
+    <tr><td>Box ID interno</td><td><span class="mono">cms5wpzsf05pbex9810yc83ou</span></td></tr>
+  </table>
+
+  <h2>2. O que ocorreu (cronologia)</h2>
+  <div class="timeline">
+    <div class="step">
+      <div class="when">29/07/2026 — 12:47:17 (UTC) — Emerson (emerson@gde.com.br)</div>
+      <p>Evento <code>BARCODE_GENERATED</code>. Apontamento real no JERP com 36 peças.
+      JERP respondeu: <em>“Apontamento realizado!!!”</em>, <code>idBarras = 1851454</code>, pendente 448.</p>
+      <p>QRs enviados ao JERP:</p>
+      <div class="qr-list">08056900054, 08056900053, 08056900052, 08056900051, 08056900050, 08056900049, 08056900048, 08056900047, 08056900046</div>
+    </div>
+    <div class="step">
+      <div class="when">29/07/2026 — 12:48:24 (UTC) — Elizeu (elizeu.cardoso@gde.com.br)</div>
+      <p>Evento <code>BARCODE_REUSED</code>. A caixa <em>já tinha</em> barcode. O sistema <strong>não</strong> criou novo apontamento;
+      apenas reutilizou o lote 1851454. Mensagem: <em>“Etiqueta já gerada para esta caixa.”</em></p>
+      <p>QRs que o Elizeu tinha embalado (gravados hoje na caixa 7):</p>
+      <div class="qr-list">08056900136, 08056900137, 08056900138, 08056900139, 08056900140, 08056900141, 08056900142, 08056900143, 08056900144</div>
+    </div>
+  </div>
+
+  <p>
+    A etiqueta foi gerada às <strong>12:47:17</strong> (<code>barCodeGeneratedAt</code>), mas a caixa só foi marcada como embalada às
+    <strong>12:48:22</strong> (<code>packedAt</code>) — cerca de 64 segundos depois, já com o segundo conjunto de QRs.
+  </p>
+
+  <h2>3. Comparação JERP × Sistema</h2>
+  <table class="cmp">
+    <tr>
+      <th></th>
+      <th>JERP (apontamento do lote 1851454)</th>
+      <th>Sistema local (caixa 7 hoje)</th>
+    </tr>
+    <tr>
+      <td>Operador</td>
+      <td>Emerson</td>
+      <td>Elizeu (fecho)</td>
+    </tr>
+    <tr>
+      <td>QR codes</td>
+      <td class="mono">00046 … 00054</td>
+      <td class="mono">00136 … 00144</td>
+    </tr>
+    <tr>
+      <td>Quantidade</td>
+      <td>36</td>
+      <td>36</td>
+    </tr>
+    <tr>
+      <td>Existem no banco local?</td>
+      <td><span class="bad">Não</span> (0 ocorrências)</td>
+      <td><span class="ok">Sim</span> (caixa 7)</td>
+    </tr>
+    <tr>
+      <td>Foram apontados no JERP?</td>
+      <td><span class="ok">Sim</span> (criaram o lote)</td>
+      <td><span class="bad">Não</span> (só REUSED)</td>
+    </tr>
+  </table>
+
+  <p><strong>Consequência:</strong> quem consultar o lote 1851454 no JERP verá os QRs do Emerson;
+  quem consultar a mesma etiqueta no GDE verá os QRs do Elizeu. Os QRs do Emerson sumiram do banco local
+  e não foram reapontados em nenhum outro lote. Os QRs do Elizeu nunca entraram no JERP.</p>
+
+  <h2>4. Causa raiz</h2>
+  <ol>
+    <li><strong>Dois operadores na mesma caixa (mesmo <code>boxId</code>)</strong> em janela de ~1 minuto.</li>
+    <li>O primeiro pedido (Emerson) fez apontamento no JERP e gravou <code>OpBox.barCode = 1851454</code>.</li>
+    <li>O segundo pedido (Elizeu) encontrou barcode já preenchido e, por desenho de <em>idempotência</em>,
+      reutilizou a etiqueta <strong>sem</strong> comparar se os QRs atuais eram os mesmos do apontamento original.</li>
+    <li>A persistência dos blisters do Elizeu sobrescreveu / substituiu os QRs do Emerson no banco local.</li>
+  </ol>
+  <p>Não se trata de erro de formato de QR nem de falha da API JERP em si — é uma
+  <strong>corrida operacional + falta de trava / validação de conteúdo na reutilização de etiqueta</strong>.</p>
+
+  <h2>5. O que fazer agora (correção deste caso)</h2>
+  <ol>
+    <li>Confirmar fisicamente o que está na caixa com etiqueta <strong>1851454</strong> (quais blisters/QRs).</li>
+    <li>Se a caixa física tiver os QRs do <strong>Emerson</strong> (00046–00054): alinhar o banco local a esses QRs
+      (ou aceitar o JERP como fonte da verdade para esse lote).</li>
+    <li>Se a caixa física tiver os QRs do <strong>Elizeu</strong> (00136–00144): tratar o apontamento JERP como
+      inconsistente — avaliar estorno no JERP + novo apontamento correto, ou ajuste acordado com o time JERP/PCP.</li>
+    <li>Localizar o destino físico dos QRs “órfãos” (o conjunto que não ficou na etiqueta).</li>
+    <li>Não reimprimir / regenerar etiqueta sem alinhamento prévio com JERP.</li>
+  </ol>
+
+  <h2>6. Como evitar que ocorra novamente</h2>
+  <h3>6.1 Controles de sistema (prioridade alta)</h3>
+  <ul class="prevent">
+    <li><strong>Lock exclusivo da caixa em inspeção</strong> — ao abrir uma caixa, registrar operador + sessão;
+      bloquear segundo operador na mesma <code>boxId</code> (mensagem clara: “Caixa em uso por X”).</li>
+    <li><strong>Não gerar etiqueta antes de <code>packedAt</code></strong> — só permitir apontamento quando a caixa estiver
+      efetivamente fechada; impedir printTag com embalagem ainda em andamento por outro fluxo.</li>
+    <li><strong>Na reutilização de barcode (<code>BARCODE_REUSED</code>)</strong> — comparar o conjunto atual de QRs
+      com o conjunto do log <code>BARCODE_GENERATED</code> original. Se diferirem, <span class="bad">falhar com erro</span>
+      (não devolver a etiqueta silenciosamente).</li>
+    <li><strong>Congelar blisters após apontamento</strong> — se <code>barCode</code> já existe, impedir alteração/substituição
+      dos <code>OpBoxBlister.code</code> dessa caixa (exceto fluxo admin/supervisor explícito).</li>
+    <li><strong>Alerta de divergência</strong> — job ou tela de reconciliação: QRs do log de apontamento ≠ QRs atuais da caixa
+      com mesmo <code>idBarras</code>.</li>
+  </ul>
+
+  <h3>6.2 Controles operacionais</h3>
+  <ul class="prevent">
+    <li>Uma OP / uma caixa ativa por posto: evitar dois óculos/estações na mesma caixa.</li>
+    <li>Treinar operadores: se a etiqueta já saiu, não continuar embalar outros blisters na mesma caixa do sistema.</li>
+    <li>Em caso de dúvida, supervisor encerra/estorna antes de nova tentativa — não “forçar” segunda impressão.</li>
+  </ul>
+
+  <h3>6.3 Melhorias de auditoria</h3>
+  <ul class="prevent">
+    <li>Gravar no log de reuso o hash/lista dos QRs atuais vs. os do apontamento original (já ajuda o diagnóstico).</li>
+    <li>Notificação (e-mail/Slack) quando ocorrer <code>BARCODE_REUSED</code> com conjuntos diferentes.</li>
+  </ul>
+
+  <h2>7. Snapshot da OP 80569 (caixas com lote)</h2>
+  <table>
+    <tr><th>Cx</th><th>Lote</th><th>Status</th><th>Qtd</th><th>QRs (local)</th></tr>
+    <tr><td>1</td><td>1851207</td><td>PACKAGED</td><td>36</td><td>00010–00018</td></tr>
+    <tr><td>2</td><td>1851309</td><td>PACKAGED</td><td>36</td><td>00073–00081</td></tr>
+    <tr><td>3</td><td>1851316</td><td>PACKAGED</td><td>36</td><td>00100–00108</td></tr>
+    <tr><td>4</td><td>1851340</td><td>PACKAGED</td><td>36</td><td>00118–00126</td></tr>
+    <tr><td>5</td><td>1851442</td><td>PACKAGED</td><td>36</td><td>00109–00117</td></tr>
+    <tr><td>6</td><td>1851453</td><td>PACKAGED</td><td>36</td><td>00055–00063</td></tr>
+    <tr><td><strong>7</strong></td><td><strong>1851454</strong></td><td>PACKAGED</td><td>36</td><td><strong>00136–00144 (≠ JERP)</strong></td></tr>
+    <tr><td>8</td><td>1851459</td><td>PACKAGED</td><td>36</td><td>00082–00090</td></tr>
+    <tr><td>9</td><td>1851464</td><td>PACKAGED</td><td>36</td><td>00028–00036</td></tr>
+    <tr><td>10</td><td>1851491</td><td>PACKAGED_W_BREAK</td><td>32</td><td>00145–00153</td></tr>
+    <tr><td>11</td><td>1851499</td><td>PACKAGED_W_BREAK</td><td>28</td><td>00064–00072</td></tr>
+    <tr><td>12</td><td>1851527</td><td>PACKAGED_W_BREAK</td><td>25</td><td>00091–00099</td></tr>
+    <tr><td>13</td><td>1851591</td><td>PACKAGED</td><td>36</td><td>00154–00162</td></tr>
+    <tr><td>14</td><td>1851599</td><td>PACKAGED</td><td>36</td><td>00019–00027</td></tr>
+    <tr><td>15</td><td>1851607</td><td>PACKAGED</td><td>36</td><td>00127–00135</td></tr>
+    <tr><td>16</td><td>1851610</td><td>PACKAGED</td><td>36</td><td>00037–00045</td></tr>
+    <tr><td>17</td><td>1851685</td><td>PACKAGED</td><td>36</td><td>00001–00009</td></tr>
+    <tr><td>18–21</td><td>—</td><td>PENDING</td><td>111</td><td>GEN_*</td></tr>
+  </table>
+
+  <h2>8. Conclusão</h2>
+  <p>
+    A divergência do lote <strong>1851454</strong> foi causada por <strong>dois operadores na mesma caixa</strong>:
+    o primeiro apontou no JERP; o segundo sobrescreveu os QRs locais e recebeu a etiqueta já gerada sem nova validação.
+    A correção deste lote exige conferência física + alinhamento com o JERP.
+    Para não repetir, o sistema deve <strong>trancar a caixa por operador</strong>, <strong>congelar blisters após apontamento</strong>
+    e <strong>rejeitar reuso de etiqueta quando os QRs forem diferentes</strong>.
+  </p>
+
+  <p class="footer-note">
+    Documento gerado automaticamente a partir dos dados do ambiente GDE em 30/07/2026.
+    Evidências: OpActivityLog ids e5df9b0c-… (BARCODE_GENERATED) e 6c4a06b0-… (BARCODE_REUSED).
+  </p>
+
+</body>
+</html>

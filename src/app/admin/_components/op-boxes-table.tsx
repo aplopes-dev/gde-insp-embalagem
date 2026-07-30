@@ -40,11 +40,13 @@ interface OpBox {
   createdAt: string;
   packedAt?: string;
   barCode?: string;
+  op?: { code: string };
 }
 
 export function OpBoxesTable() {
   const filterFields: FilterField[] = [
-    { key: "code", label: "Código", type: "text" },
+    { key: "code", label: "Código da caixa", type: "text" },
+    { key: "barCode", label: "Lote / barcode", type: "text" },
     {
       key: "status",
       label: "Status",
@@ -55,7 +57,8 @@ export function OpBoxesTable() {
         { value: "PACKAGED_W_BREAK", label: "Embalado com Quebra" },
       ],
     },
-    { key: "opId", label: "OP ID", type: "number" },
+    { key: "opId", label: "OP ID (interno)", type: "number" },
+    { key: "opCode", label: "Número da OP", type: "text" },
   ];
   const [opBoxes, setOpBoxes] = useState<OpBox[]>([]);
   const [filteredOpBoxes, setFilteredOpBoxes] = useState<OpBox[]>([]);
@@ -65,8 +68,10 @@ export function OpBoxesTable() {
   const [filters, setFilters] = useState<Record<string, string | number>>({
     search: "",
     code: "",
+    barCode: "",
     status: "",
     opId: "",
+    opCode: "",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -86,16 +91,29 @@ export function OpBoxesTable() {
     const filtered = opBoxes.filter((opBox) => {
       const searchLower = (filters.search || "").toString().toLowerCase();
       const codeLower = (filters.code || "").toString().toLowerCase();
+      const barCodeLower = (filters.barCode || "").toString().toLowerCase();
       const status = (filters.status || "").toString();
       const opId = filters.opId ? parseInt(filters.opId.toString()) : null;
+      const opCodeLower = (filters.opCode || "").toString().toLowerCase();
+      const opNumero = (opBox.op?.code || "").toLowerCase();
+      const barCode = (opBox.barCode || "").toLowerCase();
+
+      const matchesSearch =
+        searchLower === "" ||
+        opBox.code.toLowerCase().includes(searchLower) ||
+        opBox.status.toLowerCase().includes(searchLower) ||
+        opBox.id.toLowerCase().includes(searchLower) ||
+        barCode.includes(searchLower) ||
+        String(opBox.opId).includes(searchLower) ||
+        opNumero.includes(searchLower);
 
       return (
-        (searchLower === "" ||
-          opBox.code.toLowerCase().includes(searchLower) ||
-          opBox.status.toLowerCase().includes(searchLower)) &&
+        matchesSearch &&
         (codeLower === "" || opBox.code.toLowerCase().includes(codeLower)) &&
+        (barCodeLower === "" || barCode.includes(barCodeLower)) &&
         (status === "" || opBox.status === status) &&
-        (opId === null || opBox.opId === opId)
+        (opId === null || Number.isNaN(opId) || opBox.opId === opId) &&
+        (opCodeLower === "" || opNumero.includes(opCodeLower))
       );
     });
     setFilteredOpBoxes(filtered);
@@ -104,7 +122,19 @@ export function OpBoxesTable() {
   async function fetchOpBoxes() {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/op-boxes");
+      const params = new URLSearchParams();
+      const opId = filters.opId ? String(filters.opId) : "";
+      const opCode = filters.opCode ? String(filters.opCode).trim() : "";
+      const barCode = filters.barCode ? String(filters.barCode).trim() : "";
+      const search = filters.search ? String(filters.search).trim() : "";
+      if (opId) params.set("opId", opId);
+      if (opCode) params.set("opCode", opCode);
+      if (barCode) params.set("barCode", barCode);
+      if (search) params.set("search", search);
+      const qs = params.toString();
+      const response = await fetch(
+        qs ? `/api/admin/op-boxes?${qs}` : "/api/admin/op-boxes"
+      );
       if (!response.ok) throw new Error("Erro ao carregar caixas");
       const data = await response.json();
       setOpBoxes(data);
@@ -259,12 +289,34 @@ export function OpBoxesTable() {
   }
 
   function handleClearFilters() {
-    setFilters({
+    const empty = {
       search: "",
       code: "",
+      barCode: "",
       status: "",
       opId: "",
-    });
+      opCode: "",
+    };
+    setFilters(empty);
+    setLoading(true);
+    fetch("/api/admin/op-boxes")
+      .then((r) => {
+        if (!r.ok) throw new Error("Erro ao carregar caixas");
+        return r.json();
+      })
+      .then(setOpBoxes)
+      .catch((error: Error) =>
+        toast({
+          title: "Erro",
+          description: error.message,
+          variant: "destructive",
+        })
+      )
+      .finally(() => setLoading(false));
+  }
+
+  function handleApplyServerFilters() {
+    fetchOpBoxes();
   }
 
   if (loading) {
@@ -286,8 +338,9 @@ export function OpBoxesTable() {
           filters={filters}
           onFilterChange={handleFilterChange}
           onClearAll={handleClearFilters}
-          placeholder="Pesquisar por código ou status..."
+          placeholder="Pesquisar por lote, nº OP, código, barcode..."
           onCreateClick={handleCreateNew}
+          onApplyClick={handleApplyServerFilters}
         />
 
         <div className="overflow-x-auto">
@@ -296,6 +349,7 @@ export function OpBoxesTable() {
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>OP ID</TableHead>
+                <TableHead>Nº OP</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Código de Barras</TableHead>
@@ -307,7 +361,7 @@ export function OpBoxesTable() {
             <TableBody>
               {filteredOpBoxes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     {Object.values(filters).some((v) => v !== "" && v !== 0)
                       ? "Nenhuma caixa encontrada com esse filtro"
                       : "Nenhuma caixa encontrada"}
@@ -320,6 +374,9 @@ export function OpBoxesTable() {
                       {opBox.id}
                     </TableCell>
                     <TableCell>{opBox.opId}</TableCell>
+                    <TableCell className="font-mono">
+                      {opBox.op?.code || "-"}
+                    </TableCell>
                     <TableCell className="font-mono">{opBox.code}</TableCell>
                     <TableCell>
                       <span

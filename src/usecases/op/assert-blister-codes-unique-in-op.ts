@@ -14,13 +14,13 @@ export async function findConflictingPackedBlisterCodes(
   opBoxId: string,
   codes: ReadonlyArray<string | null | undefined>
 ): Promise<string[]> {
-  const realCodes = [
-    ...new Set(
+  const realCodes = Array.from(
+    new Set(
       codes
         .map((c) => c?.trim())
         .filter((c): c is string => Boolean(c) && !isPlaceholderBlisterCode(c))
-    ),
-  ];
+    )
+  );
 
   if (realCodes.length === 0) return [];
 
@@ -34,7 +34,7 @@ export async function findConflictingPackedBlisterCodes(
     select: { code: true },
   });
 
-  return [...new Set(conflicts.map((c) => c.code))];
+  return Array.from(new Set(conflicts.map((c) => c.code)));
 }
 
 /** Detecta o mesmo QR repetido mais do que uma vez na própria caixa. */
@@ -47,5 +47,7 @@ export function findDuplicateCodesInBatch(
     if (!code || isPlaceholderBlisterCode(code)) continue;
     seen.set(code, (seen.get(code) ?? 0) + 1);
   }
-  return [...seen.entries()].filter(([, n]) => n > 1).map(([code]) => code);
+  return Array.from(seen.entries())
+    .filter(([, n]) => n > 1)
+    .map(([code]) => code);
 }

@@ -33,12 +33,47 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const opIdParam = searchParams.get("opId");
+    const opCodeParam = searchParams.get("opCode")?.trim();
+    const barCodeParam = searchParams.get("barCode")?.trim();
+    const searchParam = searchParams.get("search")?.trim();
     const opId = opIdParam ? parseInt(opIdParam, 10) : null;
 
     const opBoxes = await db.opBox.findMany({
-      where: opId && !Number.isNaN(opId) ? { opId } : undefined,
+      where: {
+        ...(opId && !Number.isNaN(opId) ? { opId } : {}),
+        ...(opCodeParam ? { op: { code: opCodeParam } } : {}),
+        ...(barCodeParam
+          ? { barCode: { contains: barCodeParam, mode: "insensitive" } }
+          : {}),
+        ...(searchParam
+          ? {
+              OR: [
+                { code: { contains: searchParam, mode: "insensitive" } },
+                { barCode: { contains: searchParam, mode: "insensitive" } },
+                { id: { contains: searchParam, mode: "insensitive" } },
+                { op: { code: { contains: searchParam, mode: "insensitive" } } },
+                ...(searchParam.toUpperCase() === "PENDING" ||
+                searchParam.toUpperCase() === "PACKAGED" ||
+                searchParam.toUpperCase() === "PACKAGED_W_BREAK"
+                  ? [
+                      {
+                        status: searchParam.toUpperCase() as
+                          | "PENDING"
+                          | "PACKAGED"
+                          | "PACKAGED_W_BREAK",
+                      },
+                    ]
+                  : []),
+                ...(/^\d+$/.test(searchParam)
+                  ? [{ opId: parseInt(searchParam, 10) }]
+                  : []),
+              ],
+            }
+          : {}),
+      },
       include: {
         OpBoxBlister: { select: { id: true, quantity: true, code: true } },
+        op: { select: { code: true } },
       },
       orderBy: [{ opId: "asc" }, { code: "asc" }],
     });

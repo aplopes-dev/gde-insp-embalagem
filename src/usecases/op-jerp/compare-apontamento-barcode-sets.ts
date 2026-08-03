@@ -9,7 +9,7 @@ export function normalizeApontamentoBarcodes(
     new Set(
       codes
         .map((c) => c?.trim())
-        .filter((c): c is string => Boolean(c) && !/^GEN_/i.test(c))
+        .filter((c): c is string => !!c && !/^GEN_/i.test(c))
     )
   ).sort();
 }

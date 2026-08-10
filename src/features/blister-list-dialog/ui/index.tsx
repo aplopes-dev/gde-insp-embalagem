@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { formatLogImageDatePath } from "@/lib/log-image-date";
 import { getOpBoxWithBlistersById } from "../actions";
 
 const ImageModal = ({
@@ -69,13 +70,8 @@ const BlisterListDialog = ({
     setImageModalOpen(true);
   };
 
-  const formatDateISO = (date: Date) => {
-    // Convert the date to ISO string
-    const isoString = date.toISOString();
-    // Split at the "T" character to get the date part
-    const formattedDate = isoString.split("T")[0];
-    return formattedDate;
-  };
+  /** Pasta MinIO/disco = data local do worker (BRT), não UTC. */
+  const formatDateISO = (date: Date) => formatLogImageDatePath(date);
 
   return (
     <>

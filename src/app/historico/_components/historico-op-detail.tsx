@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OpActivityTimeline } from "@/components/op-activity-timeline";
 import { Download, FileText, Loader2 } from "lucide-react";
+import { formatLogImageDatePath } from "@/lib/log-image-date";
 
 type OpHeader = {
   id: number;
@@ -77,11 +78,7 @@ type CatalogImage = {
 };
 
 function formatDateISO(value: string | Date): string {
-  const d = typeof value === "string" ? new Date(value) : value;
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatLogImageDatePath(value);
 }
 
 function statusBadgeClass(status: string): string {

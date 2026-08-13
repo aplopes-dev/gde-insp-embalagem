@@ -121,6 +121,7 @@ export default function PackagingInspection({
 
   const { socket } = useSocketDetection({
     deviceId,
+    opId: data?.opId != null ? String(data.opId) : opId,
     onDetectionUpdate: handleDetectionUpdate,
     onActionHandler: handleActionHandler,
   });

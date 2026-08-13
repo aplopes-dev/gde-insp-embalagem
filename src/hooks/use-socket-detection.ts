@@ -22,21 +22,29 @@ export function useSocketDetection({
 }: UseSocketProps) {
   const myDeviceId = deviceIdProp || DEFAULT_DEVICE_ID;
 
+  const myOpId = opId?.trim() ?? "";
+
   const detectionRef = useRef(onDetectionUpdate);
   const actionRef = useRef(onActionHandler);
   const heartbeatRef = useRef(onHeartbeat);
+  const opIdRef = useRef(myOpId);
 
   useEffect(() => { detectionRef.current = onDetectionUpdate; }, [onDetectionUpdate]);
   useEffect(() => { actionRef.current    = onActionHandler;   }, [onActionHandler]);
   useEffect(() => { heartbeatRef.current = onHeartbeat;       }, [onHeartbeat]);
+  useEffect(() => { opIdRef.current = myOpId; }, [myOpId]);
 
   useEffect(() => {
     const socket = getSocket();
     const deviceId = myDeviceId;
+    const filterOpId = myOpId;
 
     const handleConnect = () => {
       if (deviceId) {
         socket.emit("joinDevice", { device_id: deviceId });
+      }
+      if (filterOpId) {
+        socket.emit("joinOp", { op_id: filterOpId });
       }
     };
 
@@ -62,20 +70,24 @@ export function useSocketDetection({
     socket.on("actionHandler", handleAction);
     socket.on("heartbeat", handleHeartbeat);
 
-    if (socket.connected && deviceId) {
-      socket.emit("joinDevice", { device_id: deviceId });
+    if (socket.connected) {
+      if (deviceId) socket.emit("joinDevice", { device_id: deviceId });
+      if (filterOpId) socket.emit("joinOp", { op_id: filterOpId });
     }
 
     return () => {
-      if (deviceId) {
-        socket.emit("leaveDevice", { device_id: deviceId });
-      }
+      if (deviceId) socket.emit("leaveDevice", { device_id: deviceId });
+      if (filterOpId) socket.emit("leaveOp", { op_id: filterOpId });
       socket.off("connect", handleConnect);
       socket.off("detectionUpdate", handleDetection);
       socket.off("actionHandler", handleAction);
       socket.off("heartbeat", handleHeartbeat);
     };
+<<<<<<< HEAD
   }, [myDeviceId, opId]);
+=======
+  }, [myDeviceId, myOpId]);
+>>>>>>> 8b03209 (fix/duas_abas_concorrentes)
 
   return { socket: getSocket() };
 }

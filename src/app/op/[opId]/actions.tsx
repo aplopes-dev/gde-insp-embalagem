@@ -55,8 +55,6 @@ import {
 } from "../../../types/op-box-inspection-dto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/auth";
-import { connectRabbitMQ } from "@/libs/rabbitmq";
-
 async function findInternalOpByRouteId(id: string) {
   const numericId = Number(id);
   return db.op.findFirst({
@@ -510,21 +508,6 @@ export async function persistBoxStatusWithBlisters(
   );
 
   await db.$transaction(queryCollection);
-
-  // Publica direto na fila RabbitMQ (evita fetch interno sem cookie → 401)
-  if (userId) {
-    try {
-      const payload = {
-        boxId: opBoxId,
-        blisters,
-        userId,
-      };
-      const channel = await connectRabbitMQ();
-      channel.sendToQueue('fila_recebimento', Buffer.from(JSON.stringify(payload)), { persistent: true });
-    } catch (error) {
-      // Silenciosamente falha se não conseguir enviar para RabbitMQ
-    }
-  }
 
   return { userId };
 }

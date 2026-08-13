@@ -16,6 +16,7 @@ import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSocketDetection } from "@/hooks/use-socket-detection";
+import { useInspectionSessionLock } from "@/hooks/use-inspection-session-lock";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
 import {
   InspectionEnum,
@@ -78,6 +79,13 @@ export default function PackagingInspection({
   const deviceIdFromQuery = searchParams.get("deviceId")?.trim();
   const deviceIdFromEnv = process.env.NEXT_PUBLIC_DEVICE_ID?.trim();
   const deviceId = deviceIdFromQuery || deviceIdFromEnv || undefined;
+  const resolvedOpId = String(opId).trim();
+
+  const { isLeader, isChecking: isLockChecking } = useInspectionSessionLock(
+    deviceId,
+    resolvedOpId
+  );
+  const isLeaderRef = useRef(isLeader);
 
   const [data, setData] = useState<OpInspectionDto>();
   const [displayMessage, setDisplayMessage] = useState("");
@@ -115,9 +123,14 @@ export default function PackagingInspection({
   /** QR já embalados nesta OP (conjunto cumulativo — nunca sobrescrever por índice). */
   const [usedBlisterCodes, setUsedBlisterCodes] = useState<string[]>([]);
   const pendingValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCommandOpRef = useRef<string | null>(null);
   const lastValidationKeyRef = useRef<string>("");
   const lastValidationSentAtRef = useRef<number>(0);
   const printTagInFlightRef = useRef(false);
+
+  useEffect(() => {
+    isLeaderRef.current = isLeader;
+  }, [isLeader]);
 
   const { socket } = useSocketDetection({
     deviceId,
@@ -127,13 +140,23 @@ export default function PackagingInspection({
   });
   const { sendSocketEvent } = useSocketEmmiter();
 
-  function sendWithDelay(message: any, delay: number = 2000) {
+  function cancelPendingValidation() {
     if (pendingValidationTimerRef.current) {
       clearTimeout(pendingValidationTimerRef.current);
-    }
-    pendingValidationTimerRef.current = setTimeout(() => {
-      sendMessageToRabbitMq(message);
       pendingValidationTimerRef.current = null;
+    }
+    pendingCommandOpRef.current = null;
+  }
+
+  function sendWithDelay(message: { op_id?: string | number }, delay: number = 2000) {
+    cancelPendingValidation();
+    const messageOpId = String(message.op_id ?? "");
+    pendingCommandOpRef.current = messageOpId;
+    pendingValidationTimerRef.current = setTimeout(() => {
+      pendingValidationTimerRef.current = null;
+      if (pendingCommandOpRef.current !== messageOpId) return;
+      if (!isLeaderRef.current) return;
+      sendMessageToRabbitMq(message);
     }, delay);
   }
 
@@ -207,14 +230,25 @@ export default function PackagingInspection({
   };
 
   useEffect(() => {
-    socket && loadData();
-  }, [socket]);
+    if (!socket || isLockChecking) return;
+    if (!isLeader) {
+      cancelPendingValidation();
+      setLoading(false);
+      return;
+    }
+    loadData();
+  }, [socket, isLeader, isLockChecking]);
 
   useEffect(() => {
-    return () => {
-      if (pendingValidationTimerRef.current) {
-        clearTimeout(pendingValidationTimerRef.current);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        cancelPendingValidation();
       }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      cancelPendingValidation();
     };
   }, []);
 
@@ -251,6 +285,13 @@ export default function PackagingInspection({
   }
 
   function handleDetectionUpdate(detection: DetectionDto) {
+    if (
+      detection.op_id &&
+      String(detection.op_id) !== resolvedOpId
+    ) {
+      return;
+    }
+
     const receivedCount = detection.payload?.count;
     const receivedItemId = detection.payload?.item_id;
     const receivedCode = detection.payload?.code;
@@ -598,6 +639,8 @@ export default function PackagingInspection({
     },
     opts?: { opId?: number | string }
   ) {
+    if (!isLeaderRef.current) return;
+
     const validationKey = JSON.stringify(validation);
     const now = Date.now();
     const sameValidation = validationKey === lastValidationKeyRef.current;
@@ -626,13 +669,14 @@ export default function PackagingInspection({
     if (data?.opCode) payload.opCode = data.opCode;
 
     if (!deviceId) {
-      console.error(
-        "sendValidation: falta deviceId na URL (?deviceId=…). Comando não enviado ao worker."
+      setVisorMessage(
+        "FALTA deviceId NA URL (?deviceId=…). COMANDO NÃO ENVIADO AO WORKER.",
+        "red"
       );
       return;
     }
     if (!resolvedOpId) {
-      console.error("sendValidation: op_id inválido. Comando não enviado ao worker.");
+      setVisorMessage("OP INVÁLIDA. COMANDO NÃO ENVIADO AO WORKER.", "red");
       return;
     }
 
@@ -908,9 +952,20 @@ export default function PackagingInspection({
       <div className="h-screen w-full flex flex-col">
         <Header />
 
-        {loading ? (
+        {isLockChecking || loading ? (
           <div className="absolute w-full h-full flex justify-center items-center z-10">
             <Loader2 className="h-24 w-24 animate-spin" />
+          </div>
+        ) : !isLeader ? (
+          <div className="container flex flex-col items-center mt-16 gap-6 px-4">
+            <h2 className="text-xl text-center font-semibold">
+              Outra aba já está usando este óculos para inspeção
+            </h2>
+            <p className="text-muted-foreground text-center max-w-lg">
+              Mantenha apenas uma janela aberta por óculos. Várias abas (mesmo OP
+              ou OPs diferentes) enviam comandos conflitantes ao worker.
+            </p>
+            <Button onClick={() => redirectAction("/")}>Voltar ao início</Button>
           </div>
         ) : (
           <>

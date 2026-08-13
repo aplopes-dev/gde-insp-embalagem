@@ -148,7 +148,16 @@ export default function PackagingInspection({
     pendingCommandOpRef.current = null;
   }
 
-  function sendWithDelay(message: { op_id?: string | number }, delay: number = 2000) {
+  function sendWithDelay(
+    message: {
+      op_id?: string | number;
+      device_id?: string;
+      action?: string;
+      step?: string;
+      payload?: Record<string, unknown>;
+    },
+    delay: number = 2000
+  ) {
     cancelPendingValidation();
     const messageOpId = String(message.op_id ?? "");
     pendingCommandOpRef.current = messageOpId;

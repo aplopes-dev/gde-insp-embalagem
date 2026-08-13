@@ -51,11 +51,12 @@ export function useSocketDetection({
     const handleDetection = (data: DetectionDto) => {
       if (deviceId && data.device_id !== deviceId) return;
       // Ignora resultados de outra OP no mesmo óculos (evita "MODELO DE BLISTER INVÁLIDO").
+      const currentOpId = opIdRef.current;
       if (
-        opId &&
+        currentOpId &&
         data.op_id != null &&
         String(data.op_id).trim() !== "" &&
-        String(data.op_id).trim() !== String(opId).trim()
+        String(data.op_id).trim() !== currentOpId
       ) {
         return;
       }
@@ -83,11 +84,7 @@ export function useSocketDetection({
       socket.off("actionHandler", handleAction);
       socket.off("heartbeat", handleHeartbeat);
     };
-<<<<<<< HEAD
-  }, [myDeviceId, opId]);
-=======
   }, [myDeviceId, myOpId]);
->>>>>>> 8b03209 (fix/duas_abas_concorrentes)
 
   return { socket: getSocket() };
 }

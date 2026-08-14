@@ -14,7 +14,7 @@ import {
 } from "@/shared/services/rabbitmq";
 import { ObjectValidation, ValidableType } from "@/types/validation";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useInspectionSessionLock } from "@/hooks/use-inspection-session-lock";
 import { useSocketEmmiter } from "@/hooks/use-socket-emmiter";
@@ -23,7 +23,7 @@ import {
   objectInspection,
 } from "@/shared/services/object-inspection";
 import { blisterQrMatchesOp } from "@/shared/services/blister-qr-code";
-import { sumPlannedBoxQuantity, sortOpBoxBlisters } from "@/usecases/op/find-next-pending-op-box";
+import { sumPlannedBoxQuantity, sortOpBoxBlisters } from "@/usecases/op/op-box-blister-order";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
@@ -67,7 +67,7 @@ type PendingQuantityValidation = {
   model?: string;
 };
 
-export default function PackagingInspection({
+function PackagingInspection({
   params: { opId },
 }: {
   params: { opId: string };
@@ -1186,5 +1186,23 @@ export default function PackagingInspection({
         )}
       </div>
     </RequireAuth>
+  );
+}
+
+export default function PackagingInspectionPage({
+  params,
+}: {
+  params: { opId: string };
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="absolute w-full h-full flex justify-center items-center z-10">
+          <Loader2 className="h-24 w-24 animate-spin" />
+        </div>
+      }
+    >
+      <PackagingInspection params={params} />
+    </Suspense>
   );
 }

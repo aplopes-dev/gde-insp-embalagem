@@ -22,6 +22,32 @@ describe("useInspectionSessionLock", () => {
     expect(result.current.isLeader).toBe(true);
   });
 
+  it("não quebra quando crypto.randomUUID não existe (HTTP / RealWear)", async () => {
+    const original = crypto.randomUUID;
+    Object.defineProperty(crypto, "randomUUID", {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const { result } = renderHook(() =>
+        useInspectionSessionLock("realwear_01", "457901")
+      );
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+
+      expect(result.current.isChecking).toBe(false);
+      expect(result.current.isLeader).toBe(true);
+    } finally {
+      Object.defineProperty(crypto, "randomUUID", {
+        configurable: true,
+        value: original,
+      });
+    }
+  });
+
   it("marca aba secundária como não-líder via localStorage", async () => {
     const deviceId = "realwear_03";
     const key = `gde:inspection-lock:${deviceId}`;

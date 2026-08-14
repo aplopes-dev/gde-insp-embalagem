@@ -8,14 +8,25 @@ function lockStorageKey(deviceId: string) {
   return `gde:inspection-lock:${deviceId}`;
 }
 
-function getTabId(): string {
-  if (typeof sessionStorage === "undefined") return "ssr";
-  let id = sessionStorage.getItem(TAB_ID_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(TAB_ID_KEY, id);
+function createTabId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
   }
-  return id;
+  return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getTabId(): string {
+  if (typeof window === "undefined") return "ssr";
+  try {
+    let id = sessionStorage.getItem(TAB_ID_KEY);
+    if (!id) {
+      id = createTabId();
+      sessionStorage.setItem(TAB_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return createTabId();
+  }
 }
 
 /**
@@ -26,10 +37,13 @@ function getTabId(): string {
 export function useInspectionSessionLock(deviceId?: string, _opId?: string) {
   const [isLeader, setIsLeader] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const tabIdRef = useRef(getTabId());
+  const tabIdRef = useRef("");
   const releaseLockRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    if (!tabIdRef.current) {
+      tabIdRef.current = getTabId();
+    }
     if (!deviceId) {
       setIsLeader(true);
       setIsChecking(false);

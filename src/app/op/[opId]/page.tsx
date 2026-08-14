@@ -212,9 +212,12 @@ function PackagingInspection({
     if (opData.finishedAt) {
       setVisorMessage("OP FINALIZADA!", "blue");
     } else if (!opData.nextBox) {
+      const waitingCode = opData.waitingForBoxCode
+        ? ` (${opData.waitingForBoxCode})`
+        : "";
       setVisorMessage(
         opData.pendingBoxes > 0
-          ? "TODAS AS CAIXAS PENDENTES ESTÃO EM USO POR OUTRO OPERADOR. AGUARDE OU TROQUE DE POSTO."
+          ? `A PRÓXIMA CAIXA${waitingCode} ESTÁ EM USO POR OUTRO OPERADOR. AGUARDE — NÃO AVANCE A SEQUÊNCIA.`
           : "NÃO EXISTEM CAIXAS PENDENTES!",
         opData.pendingBoxes > 0 ? "yellow" : "blue"
       );

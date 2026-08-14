@@ -433,6 +433,10 @@ async function fetchOpDetails(internalOp: Op, userId?: string | null) {
     totalBoxes: transaction[0],
     pendingBoxes: transaction[1],
     nextBox: nextBox || undefined,
+    waitingForBoxCode:
+      !nextBox && transaction[1] > 0
+        ? (await findNextPendingOpBox(internalOp.id))?.code
+        : undefined,
   } as OpInspectionDto;
 }
 

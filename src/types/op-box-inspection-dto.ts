@@ -13,6 +13,8 @@ export type OpInspectionDto = {
   totalBoxes: number;
   pendingBoxes: number;
   nextBox?: OpBoxInspectionDto;
+  /** Código da próxima caixa da sequência quando está reservada noutro posto. */
+  waitingForBoxCode?: string;
   createdAt: Date;
   finishedAt?: Date;
   blisterCodes: string[];

@@ -24,6 +24,7 @@ import {
 } from "@/shared/services/object-inspection";
 import { blisterQrMatchesOp } from "@/shared/services/blister-qr-code";
 import { sumPlannedBoxQuantity, sortOpBoxBlisters } from "@/usecases/op/op-box-blister-order";
+import { INSPECTION_LOCK_HEARTBEAT_MS } from "@/usecases/op/inspection-lock-timing";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
@@ -217,7 +218,7 @@ function PackagingInspection({
         : "";
       setVisorMessage(
         opData.pendingBoxes > 0
-          ? `A PRÓXIMA CAIXA${waitingCode} ESTÁ EM USO POR OUTRO OPERADOR. AGUARDE — NÃO AVANCE A SEQUÊNCIA.`
+          ? `A CAIXA${waitingCode} ESTÁ EM USO POR OUTRO OPERADOR. AGUARDE — NÃO SALTE CAIXAS PARA A FRENTE.`
           : "NÃO EXISTEM CAIXAS PENDENTES!",
         opData.pendingBoxes > 0 ? "yellow" : "blue"
       );
@@ -263,6 +264,54 @@ function PackagingInspection({
       cancelPendingValidation();
     };
   }, []);
+
+  /** Lock da caixa só enquanto esta tela de inspeção estiver carregada. */
+  useEffect(() => {
+    if (!box?.id || !isLeader) return;
+    const boxId = box.id;
+    const url = `/api/op-boxes/${boxId}/inspection-lock`;
+
+    const postLock = (action: "renew" | "release") => {
+      const body = JSON.stringify({ action });
+      if (action === "release" && typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
+        return;
+      }
+      void fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        credentials: "include",
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    postLock("renew");
+    const interval = window.setInterval(
+      () => postLock("renew"),
+      INSPECTION_LOCK_HEARTBEAT_MS
+    );
+    const onPageHide = () => postLock("release");
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("pagehide", onPageHide);
+      postLock("release");
+    };
+  }, [box?.id, isLeader]);
+
+  /** Se a menor caixa ficou livre (inspeção noutro posto saiu), retoma sem F5. */
+  useEffect(() => {
+    if (!isLeader || loading) return;
+    if (data?.nextBox || !data?.pendingBoxes) return;
+
+    const interval = window.setInterval(() => {
+      void loadData();
+    }, 20_000);
+
+    return () => window.clearInterval(interval);
+  }, [isLeader, loading, data?.nextBox, data?.pendingBoxes]);
 
   function mountInspecionState(
     boxData: OpBoxInspectionDto,

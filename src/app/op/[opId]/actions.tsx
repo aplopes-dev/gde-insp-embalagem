@@ -29,6 +29,7 @@ import {
 } from "@/usecases/op/create-op-data";
 import { findNextPendingOpBox } from "@/usecases/op/find-next-pending-op-box";
 import {
+  assertNoSkippedPendingOpBox,
   claimNextPendingOpBox,
 } from "@/usecases/op/claim-next-pending-op-box";
 import {
@@ -458,11 +459,13 @@ export async function persistBoxStatusWithBlisters(
 
   const box = await db.opBox.findUnique({
     where: { id: opBoxId },
-    select: { opId: true },
+    select: { opId: true, code: true },
   });
   if (!box) {
     throw new Error("Caixa não encontrada para persistência.");
   }
+
+  await assertNoSkippedPendingOpBox(box.opId, opBoxId, box.code);
 
   const packedCodes = blisters
     .filter((bl) => bl.packedAt)
@@ -567,6 +570,7 @@ export async function persistWithOpBreak(
 ) {
   const { id } = boxDto;
   await assertOpBoxBlistersMutable(id);
+  await assertNoSkippedPendingOpBox(opId, id, boxDto.code);
 
   const packedCodes = blisters
     .filter((bl) => bl.packedAt)

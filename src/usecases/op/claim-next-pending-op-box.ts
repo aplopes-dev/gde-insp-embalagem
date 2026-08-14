@@ -4,9 +4,14 @@ import {
   OpBoxWithBlisters,
   sortOpBoxBlisters,
 } from "@/usecases/op/find-next-pending-op-box";
+import { INSPECTION_LOCK_TTL_MS } from "@/usecases/op/inspection-lock-timing";
 
-/** Tempo máximo de lock de inspeção sem renovação (minutos). */
-export const INSPECTION_LOCK_TTL_MS = 30 * 60 * 1000;
+export { INSPECTION_LOCK_TTL_MS, INSPECTION_LOCK_HEARTBEAT_MS } from "@/usecases/op/inspection-lock-timing";
+
+/**
+ * Lock só vale enquanto a tela de inspeção estiver carregada (heartbeat).
+ * Sem renovação, a caixa volta a ficar livre rapidamente.
+ */
 
 export type PendingBoxLock = {
   id: string;
@@ -20,6 +25,23 @@ export type SequentialClaimDecision =
   | { action: "wait"; next: PendingBoxLock }
   | { action: "claim"; next: PendingBoxLock };
 
+/** Caixa seguinte imediata (54 → 55). */
+export function isImmediateNextPending(p0Code: string, p1Code: string): boolean {
+  return (Number(p1Code) || 0) === (Number(p0Code) || 0) + 1;
+}
+
+/**
+ * Bloqueia fechar uma caixa se existir furo mais atrás (ex.: 54 pendente ao fechar 56).
+ * Permite 56 com a 55 ainda em curso noutro posto.
+ */
+export function pendingBoxesBlockingPack(
+  thisCode: string,
+  otherPendingCodes: string[]
+): string[] {
+  const n = Number(thisCode) || 0;
+  return otherPendingCodes.filter((code) => (Number(code) || 0) < n - 1);
+}
+
 function isLockHeldByOther(
   box: PendingBoxLock,
   userId: string,
@@ -31,10 +53,22 @@ function isLockHeldByOther(
   return box.inspectionLockedAt >= expireBefore;
 }
 
+function isClaimableBy(
+  box: PendingBoxLock,
+  userId: string,
+  expireBefore: Date
+): boolean {
+  return !isLockHeldByOther(box, userId, expireBefore);
+}
+
+function sortedPending(pending: PendingBoxLock[]): PendingBoxLock[] {
+  return [...pending].sort((a, b) => compareOpBoxCodeAsc(a.code, b.code));
+}
+
 /**
- * Próxima caixa é sempre a de menor `code` ainda pendente.
- * Se outro posto a estiver a embalar, espera — nunca salta para a seguinte
- * (causa do furo da caixa 54 na OP 81528).
+ * - Sempre prefere a menor caixa pendente livre (preenche furos, ex. 54).
+ * - Se a menor estiver noutro posto activo, o segundo posto pega a seguinte (55).
+ * - Não salta dois à frente (não dá 56 se 54 e 55 ainda pendentes).
  */
 export function resolveSequentialClaim(
   pending: PendingBoxLock[],
@@ -43,15 +77,42 @@ export function resolveSequentialClaim(
 ): SequentialClaimDecision {
   if (pending.length === 0) return { action: "none", next: undefined };
 
-  const next = [...pending].sort((a, b) =>
-    compareOpBoxCodeAsc(a.code, b.code)
-  )[0];
+  const ordered = sortedPending(pending);
+  const p0 = ordered[0];
+  const p1 = ordered[1];
 
-  if (isLockHeldByOther(next, userId, expireBefore)) {
-    return { action: "wait", next };
+  const own = ordered.find(
+    (box) =>
+      box.inspectionLockedByUserId === userId &&
+      box.inspectionLockedAt != null &&
+      box.inspectionLockedAt >= expireBefore
+  );
+
+  if (own) {
+    if (own.id === p0.id) return { action: "claim", next: p0 };
+    if (
+      p1 &&
+      own.id === p1.id &&
+      isLockHeldByOther(p0, userId, expireBefore) &&
+      isImmediateNextPending(p0.code, p1.code)
+    ) {
+      return { action: "claim", next: p1 };
+    }
   }
 
-  return { action: "claim", next };
+  if (isClaimableBy(p0, userId, expireBefore)) {
+    return { action: "claim", next: p0 };
+  }
+
+  if (
+    p1 &&
+    isImmediateNextPending(p0.code, p1.code) &&
+    isClaimableBy(p1, userId, expireBefore)
+  ) {
+    return { action: "claim", next: p1 };
+  }
+
+  return { action: "wait", next: p0 };
 }
 
 async function loadBoxWithBlisters(
@@ -70,13 +131,27 @@ async function loadBoxWithBlisters(
   };
 }
 
-/**
- * Reserva atomicamente a próxima caixa pendente para o operador.
- * - Só a menor caixa pendente (ordem numérica) pode ser reservada.
- * - Renova lock se essa caixa já estiver com o mesmo user.
- * - Ignora locks expirados.
- * - Se a próxima estiver com outro operador, não entrega a seguinte.
- */
+export async function assertNoSkippedPendingOpBox(
+  opId: number,
+  boxId: string,
+  boxCode: string
+): Promise<void> {
+  const others = await db.opBox.findMany({
+    where: { opId, packedAt: null, NOT: { id: boxId } },
+    select: { code: true },
+  });
+  const blocking = pendingBoxesBlockingPack(
+    boxCode,
+    others.map((b) => b.code)
+  );
+  if (blocking.length === 0) return;
+
+  const first = [...blocking].sort(compareOpBoxCodeAsc)[0];
+  throw new Error(
+    `A caixa ${first} ainda não foi embalada. Não avance à caixa ${boxCode}.`
+  );
+}
+
 export async function claimNextPendingOpBox(
   opId: number,
   userId: string,
@@ -96,8 +171,6 @@ export async function claimNextPendingOpBox(
 
   const decision = resolveSequentialClaim(pending, userId, expireBefore);
 
-  // Liberta locks deste user em caixas que não são a próxima da sequência
-  // (evita um salto antigo bloquear a ordem depois).
   await db.opBox.updateMany({
     where: {
       opId,
@@ -136,10 +209,34 @@ export async function claimNextPendingOpBox(
   return loadBoxWithBlisters(decision.next.id);
 }
 
-/** Liberta o lock após embalagem / etiqueta (opcional, packedAt já impede reuso). */
-export async function releaseOpBoxInspectionLock(opBoxId: string): Promise<void> {
+/** Renova o lock enquanto a tela de inspeção está carregada. */
+export async function renewOpBoxInspectionLock(
+  opBoxId: string,
+  userId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  const result = await db.opBox.updateMany({
+    where: {
+      id: opBoxId,
+      packedAt: null,
+      inspectionLockedByUserId: userId,
+    },
+    data: { inspectionLockedAt: now },
+  });
+  return result.count === 1;
+}
+
+/** Liberta o lock quando a inspeção deixa de estar carregada. */
+export async function releaseOpBoxInspectionLock(
+  opBoxId: string,
+  userId?: string
+): Promise<void> {
   await db.opBox.updateMany({
-    where: { id: opBoxId },
+    where: {
+      id: opBoxId,
+      packedAt: null,
+      ...(userId ? { inspectionLockedByUserId: userId } : {}),
+    },
     data: {
       inspectionLockedByUserId: null,
       inspectionLockedAt: null,

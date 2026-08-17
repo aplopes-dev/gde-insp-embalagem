@@ -15,6 +15,31 @@ import { Either, makeLeft, makeRight } from '@/shared/utils/either';
 const JERP_API = process.env.JERP_API;
 const JERP_TOKEN = process.env.JERP_TOKEN;
 
+/** Espera máxima do apontamento/etiqueta. O JERP pode ultrapassar 30s quando está lento. */
+export const JERP_APONTAMENTO_TIMEOUT_MS = resolveJerpApontamentoTimeoutMs(
+  process.env.JERP_APONTAMENTO_TIMEOUT_MS
+);
+
+export const JERP_TIMEOUT_OPERATOR_MESSAGE =
+  "O JERP está lento e não concluiu a tempo. Confira no JERP se a etiqueta já saiu antes de gerar de novo.";
+
+export function resolveJerpApontamentoTimeoutMs(raw?: string): number {
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 180_000;
+}
+
+export function isJerpTimeoutError(error: any): boolean {
+  const code = String(error?.code ?? "");
+  const message = String(error?.message ?? "");
+  const responseMessage = String(error?.response?.data?.message ?? "");
+  return (
+    code === "ECONNABORTED" ||
+    /timeout/i.test(message) ||
+    /timeout/i.test(responseMessage) ||
+    /Execution Timeout Expired/i.test(responseMessage)
+  );
+}
+
 if (!JERP_API || !JERP_TOKEN) {
   const errorMessage = "As variáveis de ambiente JERP_API e JERP_TOKEN são obrigatórias.";
   logger.error({ message: errorMessage });
@@ -143,7 +168,7 @@ export async function generateBarcode(
     const response = await axios.post(
       `${JERP_API}/ordemproducao`,
       payload,
-      { headers: getJerpHeaders() }
+      { headers: getJerpHeaders(), timeout: JERP_APONTAMENTO_TIMEOUT_MS }
     );
 
     const saved = await saveTagId(opBoxId, `${response.data.idBarras}`);
@@ -175,6 +200,25 @@ export async function generateBarcode(
 
     return makeRight(response.data);
   } catch (error: any) {
+    if (isJerpTimeoutError(error)) {
+      logger.error({
+        message: "Timeout ao apontar etiqueta no JERP",
+        opId: id,
+        boxId: opBoxId,
+        timeoutMs: JERP_APONTAMENTO_TIMEOUT_MS,
+        error: error?.message,
+        status: error?.response?.status,
+        responseData: error?.response?.data,
+      });
+      return makeLeft({
+        status: 504,
+        error: "JERP demorou demais a responder",
+        errorData: {
+          message: JERP_TIMEOUT_OPERATOR_MESSAGE,
+          code: "JERP_TIMEOUT",
+        },
+      });
+    }
     return makeLeft(handleApiResponseError(error, `Falha ao obter código de barras para OP: ${id}`));
   }
 }

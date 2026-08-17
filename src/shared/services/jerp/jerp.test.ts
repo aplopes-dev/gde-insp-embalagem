@@ -8,7 +8,16 @@ jest.mock('@/usecases/op-jerp/get-generated-barcode-embalagens', () => ({
 }));
 
 import axios from 'axios';
-import { getOpFromCode, getOpFromId, getOpFromRef, generateBarcode } from '.';
+import {
+  getOpFromCode,
+  getOpFromId,
+  getOpFromRef,
+  generateBarcode,
+  isJerpTimeoutError,
+  resolveJerpApontamentoTimeoutMs,
+  JERP_TIMEOUT_OPERATOR_MESSAGE,
+  JERP_APONTAMENTO_TIMEOUT_MS,
+} from '.';
 import { saveTagId, getBoxBarCode } from '@/app/op/[opId]/actions';
 import { getGeneratedBarcodeEmbalagensForBox } from '@/usecases/op-jerp/get-generated-barcode-embalagens';
 
@@ -223,9 +232,51 @@ describe('generateBarcode', () => {
           { barcode: '70856002' },
         ],
       },
-      expect.any(Object)
+      expect.objectContaining({
+        timeout: JERP_APONTAMENTO_TIMEOUT_MS,
+      })
     );
     expect(saveTagId).toHaveBeenCalledWith('box-1', '432424');
+  });
+
+  it('traduz timeout do JERP para aviso ao operador, sem novo apontamento local', async () => {
+    jest.resetAllMocks();
+    (getBoxBarCode as jest.Mock).mockResolvedValue(null);
+
+    const axiosError = {
+      message: 'Request failed with status code 400',
+      isAxiosError: true,
+      code: 'ERR_BAD_REQUEST',
+      config: { method: 'post', url: `${JERP_API}/ordemproducao` },
+      response: {
+        status: 400,
+        statusText: 'Bad Request',
+        data: {
+          message:
+            'Execution Timeout Expired.  The timeout period elapsed prior to completion of the operation or the server is not responding.',
+        },
+      },
+    };
+    mockedAxios.post.mockRejectedValueOnce(axiosError);
+
+    const result = await generateBarcode(
+      416442,
+      'box-76',
+      12,
+      'operador@teste.com',
+      [
+        { code: '07285900145', quantity: 6 },
+        { code: '07285900144', quantity: 6 },
+      ]
+    );
+
+    expect(result.isLeft()).toBe(true);
+    expect(saveTagId).not.toHaveBeenCalled();
+    if (result.isLeft()) {
+      expect(result.getLeft().status).toBe(504);
+      expect(result.getLeft().errorData?.code).toBe('JERP_TIMEOUT');
+      expect(result.getLeft().errorData?.message).toBe(JERP_TIMEOUT_OPERATOR_MESSAGE);
+    }
   });
 
   it('não chama JERP se a caixa já possui barcode (idempotência)', async () => {
@@ -310,5 +361,26 @@ describe('generateBarcode', () => {
       expect(result.getLeft().status).toBe(409);
       expect(result.getLeft().errorData?.orphanedIdBarras).toBe(1851499);
     }
+  });
+});
+
+describe('timeout do apontamento JERP', () => {
+  it('usa 180s por defeito e ignora valores inválidos', () => {
+    expect(resolveJerpApontamentoTimeoutMs(undefined)).toBe(180_000);
+    expect(resolveJerpApontamentoTimeoutMs('90000')).toBe(90_000);
+    expect(resolveJerpApontamentoTimeoutMs('abc')).toBe(180_000);
+    expect(resolveJerpApontamentoTimeoutMs('0')).toBe(180_000);
+  });
+
+  it('reconhece timeout SQL do JERP e abort do axios', () => {
+    expect(
+      isJerpTimeoutError({
+        response: { data: { message: 'Execution Timeout Expired. The timeout period elapsed.' } },
+      })
+    ).toBe(true);
+    expect(isJerpTimeoutError({ code: 'ECONNABORTED', message: 'timeout of 180000ms exceeded' })).toBe(
+      true
+    );
+    expect(isJerpTimeoutError({ response: { data: { message: 'QR inválido' } } })).toBe(false);
   });
 });

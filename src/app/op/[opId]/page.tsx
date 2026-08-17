@@ -877,8 +877,8 @@ function PackagingInspection({
       }
 
       setVisorMessage(
-        `IMPRIMINDO ETIQUETA — ${packedSummary.quantity} PEÇAS (${packedSummary.blisterCount} BLISTERS)...`,
-        "black"
+        `AGUARDANDO JERP — ${packedSummary.quantity} PEÇAS (${packedSummary.blisterCount} BLISTERS). PODE DEMORAR...`,
+        "yellow"
       );
 
       const response = await fetch("/api/op-jerp/barcode", {
@@ -895,7 +895,7 @@ function PackagingInspection({
 
       if (!response.ok) {
         const { error, errorData } = await response.json();
-        throw new Error(errorData.message || error);
+        throw new Error(errorData?.message || error || "Falha ao gerar etiqueta");
       } else {
         setVisorMessage("ETIQUETA GERADA COM SUCESSO!", "green");
 

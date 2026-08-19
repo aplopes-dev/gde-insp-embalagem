@@ -13,7 +13,7 @@ import {
   sendMessageToRabbitMqMobile,
 } from "@/shared/services/rabbitmq";
 import { ObjectValidation, ValidableType } from "@/types/validation";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSocketDetection } from "@/hooks/use-socket-detection";
 import { useInspectionSessionLock } from "@/hooks/use-inspection-session-lock";
@@ -60,6 +60,7 @@ const mobileColorKeysMap = new Map<string, number>([
 import ConfirmationDialog from "@/components/confirmation-dialog";
 import RequireAuth from "@/components/require-auth";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
+import { useDeviceId } from "@/hooks/use-device-id";
 
 type PendingQuantityValidation = {
   itemId?: string;
@@ -75,11 +76,7 @@ function PackagingInspection({
 }) {
   const [loading, setLoading] = useState<boolean>(true);
   const router       = useRouter();
-  const searchParams = useSearchParams();
-  // deviceId vem do ?deviceId= (página de seleção) com fallback para env build-time
-  const deviceIdFromQuery = searchParams.get("deviceId")?.trim();
-  const deviceIdFromEnv = process.env.NEXT_PUBLIC_DEVICE_ID?.trim();
-  const deviceId = deviceIdFromQuery || deviceIdFromEnv || undefined;
+  const deviceId = useDeviceId();
   const resolvedOpId = String(opId).trim();
 
   const { isLeader, isChecking: isLockChecking } = useInspectionSessionLock(

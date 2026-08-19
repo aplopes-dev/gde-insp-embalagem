@@ -3,6 +3,8 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
+import { resolveClientDeviceId } from "@/shared/utils/device-id";
+import { withDeviceQuery } from "@/shared/utils/with-device-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeModeToggle } from "@/components/theme-mode-toggle";
@@ -20,6 +22,7 @@ function LoginContent() {
   const router = useRouter();
   const search = useSearchParams();
   const callbackUrl = search.get("callbackUrl") || "/";
+  const deviceId = resolveClientDeviceId(search.get("deviceId"));
 
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
@@ -93,7 +96,7 @@ function LoginContent() {
       });
 
       if (res?.ok) {
-        router.push(callbackUrl);
+        router.push(withDeviceQuery(callbackUrl, deviceId));
       } else {
         setError("Senha incorreta. Tente novamente.");
         setPassword("");

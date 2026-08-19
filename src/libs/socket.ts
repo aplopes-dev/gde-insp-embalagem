@@ -2,24 +2,28 @@ import { io, Socket } from "socket.io-client";
 
 let _socket: Socket | null = null;
 
-function resolveSocketUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_SOCKET_URL ?? "";
-  // Se a URL configurada não usa localhost, usa direto (produção com IP/hostname correto no build).
-  if (configured && !configured.includes("localhost") && !configured.includes("127.0.0.1")) {
-    return configured;
-  }
-  // Fallback runtime: deriva o host do browser para funcionar em qualquer máquina da rede
-  // sem precisar rebuildar a imagem a cada mudança de IP.
+/**
+ * No browser, o WS tem de ser o mesmo hostname da página.
+ * Um IP fixo no build (ex. 172.30.40.27) faz a inspeção nunca arrancar se o
+ * operador abrir o site pelo cabo (192.168.1.2) ou se o Wi‑Fi Embalagem falhar.
+ */
+export function resolveSocketUrl(): string {
+  const wsPort = process.env.NEXT_PUBLIC_SOCKET_PORT ?? "3012";
   if (typeof window !== "undefined") {
-    const wsPort = process.env.NEXT_PUBLIC_SOCKET_PORT ?? "3012";
     return `${window.location.protocol}//${window.location.hostname}:${wsPort}`;
   }
-  return configured || "http://localhost:3012";
+  const configured = process.env.NEXT_PUBLIC_SOCKET_URL ?? "";
+  return configured || `http://localhost:${wsPort}`;
 }
 
 export function getSocket(): Socket {
   if (!_socket) {
-    _socket = io(resolveSocketUrl());
+    _socket = io(resolveSocketUrl(), {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: Infinity,
+    });
   }
   return _socket;
 }

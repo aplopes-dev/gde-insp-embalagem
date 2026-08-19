@@ -4,17 +4,14 @@ import { DataTableCommonActions } from "@/components/data-table/components/data-
 import { Badge } from "@/components/ui/badge";
 import { OpStatus } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
+import { useDeviceId } from "@/hooks/use-device-id";
 
 export function useBoxOpColumns(): { columns: any[] } {
   const resourcePath = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const deviceId =
-    searchParams.get("deviceId")?.trim() ||
-    process.env.NEXT_PUBLIC_DEVICE_ID?.trim() ||
-    undefined;
+  const deviceId = useDeviceId();
 
   function redirectAction(uri: string) {
     const path = `${resourcePath}${uri}`.replace(/\/{2,}/g, "/");

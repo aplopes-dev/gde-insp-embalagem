@@ -2,11 +2,8 @@ import { DetectionDto, ActionDto, HeartbeatDto } from "@/types/dtos/socket-detec
 import { useEffect, useRef } from "react";
 import { getSocket } from "@/libs/socket";
 
-// Build-time default; sobreposto por deviceId passado via prop (fluxo de seleção de óculos)
-const DEFAULT_DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID ?? "";
-
 interface UseSocketProps {
-  deviceId?: string; // override do NEXT_PUBLIC_DEVICE_ID quando vem do ?deviceId= na URL
+  deviceId?: string;
   opId?: string;
   onDetectionUpdate?: (data: DetectionDto) => void;
   onActionHandler?: (data: ActionDto) => void;
@@ -20,7 +17,7 @@ export function useSocketDetection({
   onActionHandler,
   onHeartbeat,
 }: UseSocketProps) {
-  const myDeviceId = deviceIdProp || DEFAULT_DEVICE_ID;
+  const myDeviceId = deviceIdProp?.trim() ?? "";
 
   const myOpId = opId?.trim() ?? "";
 

@@ -5,15 +5,11 @@ import { ThemeModeToggle } from "./theme-mode-toggle";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { withDeviceQuery } from "@/shared/utils/with-device-query";
+import { useDeviceId } from "@/hooks/use-device-id";
 
 function HeaderInner() {
-  const searchParams = useSearchParams();
-  const deviceId =
-    searchParams.get("deviceId")?.trim() ||
-    process.env.NEXT_PUBLIC_DEVICE_ID?.trim() ||
-    undefined;
+  const deviceId = useDeviceId();
   const homeHref = withDeviceQuery("/", deviceId);
 
   const { data, status } = useSession();
@@ -53,7 +49,7 @@ function HeaderInner() {
         <ThemeModeToggle />
         {isAuditor && (
           <Link
-            href="/historico"
+            href={withDeviceQuery("/historico", deviceId)}
             className="border px-3 py-1 rounded text-sm bg-slate-700 text-white hover:bg-slate-800 transition-colors"
             title="Histórico de ocorrências"
           >
@@ -62,7 +58,7 @@ function HeaderInner() {
         )}
         {isSupervisor && (
           <Link
-            href="/admin"
+            href={withDeviceQuery("/admin", deviceId)}
             className="border px-3 py-1 rounded text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors"
             title="Painel de administração"
           >
@@ -70,7 +66,7 @@ function HeaderInner() {
           </Link>
         )}
         {status === "authenticated" && (
-          <button className="border px-2 py-1 rounded text-sm" onClick={() => signOut({ callbackUrl: "/login" })}>
+          <button className="border px-2 py-1 rounded text-sm" onClick={() => signOut({ callbackUrl: withDeviceQuery("/login", deviceId) })}>
             Sair
           </button>
         )}

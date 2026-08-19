@@ -2,8 +2,39 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { canAccessAdmin, canAccessHistorico } from "@/lib/rbac-roles";
+import { DEVICE_ID_COOKIE, parseDeviceId } from "@/shared/utils/device-id";
 
 const PUBLIC_PATHS = ["/login", "/api/auth", "/favicon.ico"];
+
+function resolveDeviceId(req: NextRequest): string | undefined {
+  return (
+    parseDeviceId(req.nextUrl.searchParams.get("deviceId")) ||
+    parseDeviceId(req.cookies.get(DEVICE_ID_COOKIE)?.value)
+  );
+}
+
+function applyDeviceCookie(res: NextResponse, deviceId: string) {
+  res.cookies.set(DEVICE_ID_COOKIE, deviceId, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+}
+
+function redirectWithDevice(
+  req: NextRequest,
+  pathname: string,
+  searchParams?: URLSearchParams
+) {
+  const deviceId = resolveDeviceId(req);
+  const url = req.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = searchParams ? `?${searchParams.toString()}` : "";
+  if (deviceId) url.searchParams.set("deviceId", deviceId);
+  const res = NextResponse.redirect(url);
+  if (deviceId) applyDeviceCookie(res, deviceId);
+  return res;
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -15,42 +46,46 @@ export async function middleware(req: NextRequest) {
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const role = (token as { role?: unknown } | null)?.role;
+  const deviceId = resolveDeviceId(req);
 
   if (!token && !isPublic) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set(
-      "callbackUrl",
-      req.nextUrl.pathname + req.nextUrl.search
-    );
-    return NextResponse.redirect(url);
+    const callbackUrl = req.nextUrl.clone();
+    if (deviceId) callbackUrl.searchParams.set("deviceId", deviceId);
+    const loginParams = new URLSearchParams();
+    loginParams.set("callbackUrl", callbackUrl.pathname + callbackUrl.search);
+    return redirectWithDevice(req, "/login", loginParams);
   }
 
   if (token && pathname === "/login") {
-    const url = req.nextUrl.clone();
-    // AUDITOR também opera inspeção — home padrão como OPERADOR.
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    const rawCallback = req.nextUrl.searchParams.get("callbackUrl") || "/";
+    let destPath = "/";
+    let destSearch = new URLSearchParams();
+    try {
+      const cb = new URL(rawCallback, req.nextUrl.origin);
+      if (cb.origin === req.nextUrl.origin) {
+        destPath = cb.pathname || "/";
+        destSearch = cb.searchParams;
+      }
+    } catch {
+      destPath = "/";
+    }
+    return redirectWithDevice(req, destPath, destSearch);
   }
 
-  // Histórico: exclusivo AUDITOR (extra face ao OPERADOR)
   if (pathname.startsWith("/historico") && !canAccessHistorico(role)) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    return redirectWithDevice(req, "/");
   }
 
-  // Admin: exclusivo SUPERVISOR
   if (pathname.startsWith("/admin") && !canAccessAdmin(role)) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    return redirectWithDevice(req, "/");
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  const fromQuery = parseDeviceId(req.nextUrl.searchParams.get("deviceId"));
+  if (fromQuery) applyDeviceCookie(res, fromQuery);
+  return res;
 }
 
 export const config = {
-  // Aplica a todas as rotas de página (APIs ficam de fora — gate via requireRole)
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

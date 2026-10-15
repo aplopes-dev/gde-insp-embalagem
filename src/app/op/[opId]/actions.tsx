@@ -17,11 +17,8 @@ import {
   PieceRegistrationSource,
   resolvePieceRegistration,
 } from "@/usecases/op-jerp/resolve-piece-registration";
-import {
-  getPackedQuantityForOp,
-  reconcileOpQuantityWithJerp,
-  resolvePendingQuantity,
-} from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
+import { getPackedQuantityForOp } from "@/usecases/op-jerp/reconcile-op-quantity-with-jerp";
+import { resolveBreakPendingQuantity } from "@/usecases/op-jerp/resolve-break-pending-quantity";
 import {
   createOpBoxesData,
   createOpData,
@@ -66,6 +63,93 @@ async function findInternalOpByRouteId(id: string) {
       ],
     },
   });
+}
+
+/**
+ * Garante que as caixas pendentes da OP reflectem o restante JERP.
+ * Se o pendente interno divergir e não houver caixa pendente em progresso
+ * (sem lock e sem blisters já embalados), recria as pendentes a partir do JERP.
+ */
+async function ensurePendingBoxesFromJerp(
+  internalOp: Op,
+  jerpRemaining: number,
+  userId: string | null
+): Promise<Op> {
+  const pendingBoxes = await db.opBox.findMany({
+    where: { opId: internalOp.id, packedAt: null },
+    include: { OpBoxBlister: true },
+  });
+
+  const internalPending = pendingBoxes.reduce(
+    (total, box) =>
+      total + box.OpBoxBlister.reduce((sum, bl) => sum + bl.quantity, 0),
+    0
+  );
+
+  const remaining = Math.max(0, jerpRemaining);
+  const diverged = internalPending !== remaining;
+
+  if (!diverged) {
+    return internalOp;
+  }
+
+  const hasInProgressPending = pendingBoxes.some(
+    (box) =>
+      box.inspectionLockedByUserId != null ||
+      box.OpBoxBlister.some((bl) => bl.packedAt != null)
+  );
+
+  // Seguro recriar: zero pendentes, ou pendentes sem trabalho iniciado.
+  const canRecreate = !hasInProgressPending;
+
+  if (canRecreate) {
+    logger.warn({
+      message:
+        "Pendente interno diverge do JERP — recriando caixas pendentes.",
+      opId: internalOp.id,
+      internalPending,
+      jerpRemaining: remaining,
+      pendingBoxCount: pendingBoxes.length,
+    });
+
+    if (userId) {
+      try {
+        await db.opActivityLog.create({
+          data: {
+            opId: internalOp.id,
+            userId,
+            actionType: "STATUS_CHANGED",
+            description: `Reconciliação automática: pendente interno ${internalPending} vs JERP ${remaining}. Caixas pendentes recriadas.`,
+            details: {
+              event: "PENDING_BOXES_RECREATED_FROM_JERP",
+              internalPending,
+              jerpRemaining: remaining,
+              pendingBoxCount: pendingBoxes.length,
+            } as any,
+          },
+        });
+      } catch (error) {
+        logger.error({
+          message: "Falha ao registrar recriação de pendentes no log",
+          error,
+        });
+      }
+    }
+
+    await recalculateBoxesFromOpAndItemQuantity(internalOp.id, remaining);
+    const refreshed = await db.op.findUnique({ where: { id: internalOp.id } });
+    return refreshed ?? internalOp;
+  }
+
+  logger.warn({
+    message:
+      "Pendente diverge do JERP mas há caixa pendente em progresso — sem recriar.",
+    opId: internalOp.id,
+    internalPending,
+    jerpRemaining: remaining,
+  });
+
+  return internalOp;
 }
 
 export async function syncAndGetOpToProduceById(id: string) {
@@ -127,12 +211,11 @@ export async function syncAndGetOpToProduceById(id: string) {
     }
 
     if (internalOp) {
-      const pendingBoxCount = await db.opBox.count({
-        where: { opId: internalOp.id, packedAt: null },
-      });
-      if (pendingBoxCount === 0) {
-        internalOp = await reconcileOpQuantityWithJerp(internalOp, externalOp);
-      }
+      internalOp = await ensurePendingBoxesFromJerp(
+        internalOp,
+        externalOp.quantidadeAProduzir ?? 0,
+        userId
+      );
     }
 
     const details = await fetchOpDetails(internalOp, userId);
@@ -665,40 +748,35 @@ export async function persistWithOpBreak(
     // Pendente local (fonte antiga): total planejado − tudo já embalado.
     const localPending = totalToProduce - allPackedLocal;
 
-    // Pendente derivado do JERP (fonte de verdade). No momento da quebra
-    // a caixa atual ainda não foi apontada no JERP, então subtraímos o que
-    // acabou de ser embalado nela para obter o restante após esta caixa.
+    // Pendente derivado do JERP (fonte de verdade). Ver resolveBreakPendingQuantity.
     const jerpRemaining = await getJerpRemainingQuantity(opId);
-    let quantityPending = localPending;
+    const quantityPending = resolveBreakPendingQuantity({
+      localPending,
+      jerpRemaining,
+      currentBoxPacked,
+    });
 
-    if (jerpRemaining != null) {
-      quantityPending = jerpRemaining - currentBoxPacked;
-
-      if (quantityPending !== localPending) {
-        logger.warn({
-          message:
-            "Pendente interno diverge do restante do JERP na quebra (usando JERP).",
-          opId,
-          boxId: id,
-          localPending,
-          jerpRemaining,
-          currentBoxPacked,
-          quantityPending,
-        });
-        await logJerpDivergence(opId, id, authorizerUserId, {
-          event: "BREAK_PENDING_DIVERGENCE",
-          localPending,
-          jerpRemaining,
-          currentBoxPacked,
-          quantityPending,
-        });
-      }
+    if (jerpRemaining != null && quantityPending !== localPending) {
+      logger.warn({
+        message:
+          "Pendente interno diverge do restante do JERP na quebra (usando JERP).",
+        opId,
+        boxId: id,
+        localPending,
+        jerpRemaining,
+        currentBoxPacked,
+        quantityPending,
+      });
+      await logJerpDivergence(opId, id, authorizerUserId, {
+        event: "BREAK_PENDING_DIVERGENCE",
+        localPending,
+        jerpRemaining,
+        currentBoxPacked,
+        quantityPending,
+      });
     }
 
-    await recalculateBoxesFromOpAndItemQuantity(
-      opId,
-      Math.max(0, quantityPending)
-    );
+    await recalculateBoxesFromOpAndItemQuantity(opId, quantityPending);
 
     if (authorizerUserId) {
       try {

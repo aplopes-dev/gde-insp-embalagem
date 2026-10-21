@@ -44,6 +44,14 @@ export function socketUrlOverride(search: string, storage: Storage | null): stri
 }
 
 /**
+ * Grava o `?ws=` da página atual. Chamado em todas as páginas (DeviceIdKeeper): a GUI abre a
+ * página inicial e a tela de inspeção, onde o socket é criado, é outra página sem `?ws=`.
+ */
+export function rememberSocketUrlFromQuery(search: string): void {
+  if (new URLSearchParams(search).has("ws")) socketUrlOverride(search, sessionStore());
+}
+
+/**
  * No browser, o WS tem de ser o mesmo hostname da página.
  * Um IP fixo no build (ex. 172.30.40.27) faz a inspeção nunca arrancar se o
  * operador abrir o site pelo cabo (192.168.1.2) ou se o Wi‑Fi Embalagem falhar.

@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import { rememberSocketUrlFromQuery } from "@/libs/socket";
 import {
   parseDeviceId,
   persistDeviceId,
@@ -18,6 +19,7 @@ function DeviceIdKeeperInner() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    rememberSocketUrlFromQuery(`?${searchParams.toString()}`);
     const fromQuery = parseDeviceId(searchParams.get("deviceId"));
     if (fromQuery) {
       persistDeviceId(fromQuery);

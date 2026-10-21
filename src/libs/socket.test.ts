@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { resolveSocketUrl, socketUrlOverride } from "./socket";
+import { rememberSocketUrlFromQuery, resolveSocketUrl, socketUrlOverride } from "./socket";
 
 describe("resolveSocketUrl", () => {
   const originalLocation = window.location;
@@ -55,6 +55,19 @@ describe("socketUrlOverride", () => {
 
   it("ignora esquemas que não sejam http(s)", () => {
     expect(socketUrlOverride("?ws=javascript:alert(1)", window.sessionStorage)).toBeNull();
+  });
+
+  it("página inicial grava o ?ws= para a tela de inspeção (outra página)", () => {
+    rememberSocketUrlFromQuery("?deviceId=realwear_03&ws=http%3A%2F%2F192.168.3.4%3A3012");
+    expect(socketUrlOverride("?deviceId=realwear_03", window.sessionStorage)).toBe(
+      "http://192.168.3.4:3012"
+    );
+  });
+
+  it("página sem ?ws= não apaga o valor guardado", () => {
+    window.sessionStorage.setItem("gde.socketUrl", "http://192.168.3.4:3012");
+    rememberSocketUrlFromQuery("?deviceId=realwear_03");
+    expect(window.sessionStorage.getItem("gde.socketUrl")).toBe("http://192.168.3.4:3012");
   });
 
   it("guarda só a origem", () => {

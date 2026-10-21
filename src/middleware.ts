@@ -3,6 +3,11 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { canAccessAdmin, canAccessHistorico } from "@/lib/rbac-roles";
 import { DEVICE_ID_COOKIE, parseDeviceId } from "@/shared/utils/device-id";
+import {
+  SOCKET_URL_COOKIE,
+  SOCKET_URL_MAX_AGE_SEC,
+  parseSocketOrigin,
+} from "@/shared/utils/socket-url";
 
 const PUBLIC_PATHS = ["/login", "/api/auth", "/favicon.ico"];
 
@@ -21,6 +26,24 @@ function applyDeviceCookie(res: NextResponse, deviceId: string) {
   });
 }
 
+/**
+ * `?ws=` da GUI do Server 02: grava já no cookie. No redirect para o login o parâmetro
+ * deixa de estar no topo do URL e a tela de inspeção (onde nasce o socket) é outra página.
+ */
+function applySocketCookie(req: NextRequest, res: NextResponse) {
+  if (!req.nextUrl.searchParams.has("ws")) return;
+  const origin = parseSocketOrigin(req.nextUrl.searchParams.get("ws"));
+  if (origin) {
+    res.cookies.set(SOCKET_URL_COOKIE, origin, {
+      path: "/",
+      maxAge: SOCKET_URL_MAX_AGE_SEC,
+      sameSite: "lax",
+    });
+  } else {
+    res.cookies.delete(SOCKET_URL_COOKIE);
+  }
+}
+
 function redirectWithDevice(
   req: NextRequest,
   pathname: string,
@@ -33,6 +56,7 @@ function redirectWithDevice(
   if (deviceId) url.searchParams.set("deviceId", deviceId);
   const res = NextResponse.redirect(url);
   if (deviceId) applyDeviceCookie(res, deviceId);
+  applySocketCookie(req, res);
   return res;
 }
 
@@ -83,6 +107,7 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const fromQuery = parseDeviceId(req.nextUrl.searchParams.get("deviceId"));
   if (fromQuery) applyDeviceCookie(res, fromQuery);
+  applySocketCookie(req, res);
   return res;
 }
 

@@ -44,6 +44,8 @@ export type DetectionDto = {
     extra?: Record<string, unknown>;
     defect_labels?: string[];
     wrong_side_labels?: string[];
+    /** Eco do request_id do comando (worker com deduplicação). */
+    request_id?: string;
   };
   timestamp: string;
 };

@@ -25,6 +25,15 @@ import {
 import { blisterQrMatchesOp } from "@/shared/services/blister-qr-code";
 import { sumPlannedBoxQuantity, sortOpBoxBlisters } from "@/usecases/op/op-box-blister-order";
 import { INSPECTION_LOCK_HEARTBEAT_MS } from "@/usecases/op/inspection-lock-timing";
+import {
+  COMMAND_RETRY_DELAY_MS,
+  COMMAND_WATCHDOG_MS,
+  NEXT_BLISTER_DELAY_MS,
+  STEP_ADVANCE_DELAY_MS,
+  computeCommandDelay,
+  gateDetectionByRequest,
+  newRequestId,
+} from "@/usecases/op/inspection-command-flow";
 import { ActionDto, DetectionDto } from "@/types/dtos/socket-detection-dto";
 import { ObjectTypes } from "@/types/object-types";
 import { OpStatus } from "@prisma/client";
@@ -67,6 +76,14 @@ type PendingQuantityValidation = {
   quantity: number;
   fileName?: string;
   model?: string;
+};
+
+type WorkerCommand = {
+  op_id?: string | number;
+  device_id?: string;
+  action?: string;
+  step?: string;
+  payload?: Record<string, unknown>;
 };
 
 function PackagingInspection({
@@ -125,6 +142,15 @@ function PackagingInspection({
   const lastValidationKeyRef = useRef<string>("");
   const lastValidationSentAtRef = useRef<number>(0);
   const printTagInFlightRef = useRef(false);
+  /** Pedido em curso: o resultado do worker só conta se ecoar este request_id. */
+  const currentRequestIdRef = useRef<string | null>(null);
+  const requestAnsweredRef = useRef(true);
+  const lastCommandRef = useRef<{ message: WorkerCommand; key: string } | null>(null);
+  /** Só arma o watchdog depois de ver um worker que ecoa request_id (worker antigo zera a contagem a cada comando). */
+  const workerEchoesRequestIdRef = useRef(false);
+  const watchdogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** QR do último blister embalado: se voltar a aparecer, o operador ainda não o trocou. */
+  const lastPackedCodeRef = useRef<string | null>(null);
 
   useEffect(() => {
     isLeaderRef.current = isLeader;
@@ -138,32 +164,50 @@ function PackagingInspection({
   });
   const { sendSocketEvent } = useSocketEmmiter();
 
+  function clearCommandWatchdog() {
+    if (watchdogTimerRef.current) {
+      clearTimeout(watchdogTimerRef.current);
+      watchdogTimerRef.current = null;
+    }
+  }
+
   function cancelPendingValidation() {
     if (pendingValidationTimerRef.current) {
       clearTimeout(pendingValidationTimerRef.current);
       pendingValidationTimerRef.current = null;
     }
     pendingCommandOpRef.current = null;
+    clearCommandWatchdog();
   }
 
-  function sendWithDelay(
-    message: {
-      op_id?: string | number;
-      device_id?: string;
-      action?: string;
-      step?: string;
-      payload?: Record<string, unknown>;
-    },
-    delay: number = 2000
-  ) {
+  /** Resultado perdido (Wi-Fi/WebSocket): republica o mesmo pedido até haver resposta. */
+  function armCommandWatchdog(message: WorkerCommand) {
+    clearCommandWatchdog();
+    if (!COMMAND_WATCHDOG_MS || !workerEchoesRequestIdRef.current) return;
+    const requestId = message.payload?.request_id;
+    watchdogTimerRef.current = setTimeout(() => {
+      watchdogTimerRef.current = null;
+      if (requestAnsweredRef.current || currentRequestIdRef.current !== requestId) return;
+      if (!isLeaderRef.current || document.visibilityState === "hidden") return;
+      console.warn("[inspecao] sem resposta do worker — reenviando pedido", requestId);
+      sendMessageToRabbitMq(message);
+      armCommandWatchdog(message);
+    }, COMMAND_WATCHDOG_MS);
+  }
+
+  function sendWithDelay(message: WorkerCommand, delay: number, validationKey: string) {
     cancelPendingValidation();
+    lastCommandRef.current = { message, key: validationKey };
     const messageOpId = String(message.op_id ?? "");
     pendingCommandOpRef.current = messageOpId;
     pendingValidationTimerRef.current = setTimeout(() => {
       pendingValidationTimerRef.current = null;
       if (pendingCommandOpRef.current !== messageOpId) return;
       if (!isLeaderRef.current) return;
+      lastValidationKeyRef.current = validationKey;
+      lastValidationSentAtRef.current = Date.now();
       sendMessageToRabbitMq(message);
+      armCommandWatchdog(message);
     }, delay);
   }
 
@@ -235,7 +279,7 @@ function PackagingInspection({
         `CAIXA ${opData.nextBox!.code} DE ${opData.totalBoxes} — ${boxQty} PEÇAS NA ETIQUETA${partialNote}. AGUARDANDO CAIXA...`,
         "blue"
       );
-      sendValidation({ itemId, quantity, model }, { opId: opData.opId });
+      sendValidation({ itemId, quantity, model }, { opId: opData.opId, delayMs: 0 });
     }
   };
 
@@ -253,6 +297,12 @@ function PackagingInspection({
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         cancelPendingValidation();
+        return;
+      }
+      // Pedido cancelado ao esconder o separador ficava sem resposta para sempre.
+      const pending = lastCommandRef.current;
+      if (pending && !requestAnsweredRef.current && isLeaderRef.current) {
+        sendWithDelay(pending.message, 0, pending.key);
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -350,10 +400,31 @@ function PackagingInspection({
       return;
     }
 
+    const requestId = detection.payload?.request_id;
+    if (requestId) workerEchoesRequestIdRef.current = true;
+    if (
+      gateDetectionByRequest(
+        requestId,
+        currentRequestIdRef.current,
+        requestAnsweredRef.current
+      ) === "stale"
+    ) {
+      return;
+    }
+    requestAnsweredRef.current = true;
+    clearCommandWatchdog();
+
     const receivedCount = detection.payload?.count;
     const receivedItemId = detection.payload?.item_id;
     const receivedCode = detection.payload?.code;
     const { status, reason } = detection.payload ?? {};
+
+    // Contagem do blister fechou mas o QR não foi lido a tempo: tenta de novo sem gravar alerta.
+    if (reason === "QR_NOT_READ" && step === 1) {
+      setVisorMessage("QR DO BLISTER NÃO LIDO. APROXIME O CÓDIGO DA CÂMERA.", "yellow");
+      sendValidation({ itemId: data?.blisterType.name, quantity: 1 });
+      return;
+    }
 
     if (status === "INVALID" || status === "TIMEOUT") {
       void persistDetectionAlert(detection);
@@ -544,7 +615,10 @@ function PackagingInspection({
         break;
       case InspectionEnum.VALID:
         setVisorMessage("CAIXA VÁLIDA", "green");
-        setTimeout(() => nextObjectValidation(inspection, ObjectTypes.blister), 4000);
+        setTimeout(
+          () => nextObjectValidation(inspection, ObjectTypes.blister),
+          STEP_ADVANCE_DELAY_MS
+        );
         break;
     }
   }
@@ -589,6 +663,10 @@ function PackagingInspection({
               setVisorMessage("CÓDIGO QR INVÁLIDO. VERIFIQUE O BLISTER.", "red");
             }
             sendValidation({ itemId, quantity });
+          } else if (inspection.code === lastPackedCodeRef.current) {
+            // Com o avanço mais rápido, o blister acabado de embalar ainda pode estar à vista.
+            setVisorMessage("RETIRE O BLISTER EMBALADO E POSICIONE UM NOVO", "blue");
+            sendValidation({ itemId, quantity });
           } else if (usedBlisterCodes.includes(inspection.code)) {
             setVisorMessage(
               "ESTE BLISTER JÁ FOI EMBALADO, CODIGO:" + inspection.code,
@@ -601,7 +679,10 @@ function PackagingInspection({
               setPendingInspection(inspection);
               setOpenSupervisorConfigDialog(true);
             } else {
-              setTimeout(() => nextObjectValidation(inspection, ObjectTypes.product), 4000);
+              setTimeout(
+                () => nextObjectValidation(inspection, ObjectTypes.product),
+                STEP_ADVANCE_DELAY_MS
+              );
             }
           }
         }
@@ -639,7 +720,7 @@ function PackagingInspection({
         break;
       case InspectionEnum.VALID:
         setVisorMessage("BLISTER E QUANTIDADE DE ITENS VÁLIDOS", "green");
-        setTimeout(() => verifyNextBlisterOrFinalize(inspection), 4000);
+        setTimeout(() => verifyNextBlisterOrFinalize(inspection), STEP_ADVANCE_DELAY_MS);
         break;
     }
   }
@@ -664,7 +745,7 @@ function PackagingInspection({
     if (!validation) return;
 
     setVisorMessage("VERIFICANDO QUANTIDADE DE ITENS...", "blue");
-    sendValidation(validation);
+    sendValidation(validation, { delayMs: 0 });
   }
 
   function pieceCorrectionDialogMessage(): string {
@@ -695,21 +776,18 @@ function PackagingInspection({
       fileName?: string;
       model?: string;
     },
-    opts?: { opId?: number | string }
+    opts?: { opId?: number | string; delayMs?: number }
   ) {
     if (!isLeaderRef.current) return;
 
     const validationKey = JSON.stringify(validation);
-    const now = Date.now();
-    const sameValidation = validationKey === lastValidationKeyRef.current;
-    const recentlySent = now - lastValidationSentAtRef.current < 3500;
-
-    // Evita tempestade de comandos idênticos quando a inspeção permanece inválida.
-    if (sameValidation && recentlySent) {
-      return;
-    }
-    lastValidationKeyRef.current = validationKey;
-    lastValidationSentAtRef.current = now;
+    // Comando idêntico é adiado (nunca descartado): antes, um reenvio dentro de
+    // 3,5 s era perdido e a tela ficava sem comando pendente.
+    const delay = computeCommandDelay({
+      requestedDelayMs: opts?.delayMs ?? COMMAND_RETRY_DELAY_MS,
+      sameAsLast: validationKey === lastValidationKeyRef.current,
+      msSinceLastSend: Date.now() - lastValidationSentAtRef.current,
+    });
 
     console.log("-------------validation-------------");
     console.log(validation);
@@ -725,6 +803,8 @@ function PackagingInspection({
     if (validation.model != null) payload.model = validation.model;
     if (validation.fileName != null) payload.fileName = validation.fileName;
     if (data?.opCode) payload.opCode = data.opCode;
+    const requestId = newRequestId();
+    payload.request_id = requestId;
 
     if (!deviceId) {
       setVisorMessage(
@@ -738,6 +818,8 @@ function PackagingInspection({
       return;
     }
 
+    currentRequestIdRef.current = requestId;
+    requestAnsweredRef.current = false;
     sendWithDelay(
       {
         device_id: deviceId,
@@ -746,7 +828,8 @@ function PackagingInspection({
         step: "quantity",
         payload,
       },
-      3000
+      delay,
+      validationKey
     );
   }
 
@@ -763,7 +846,7 @@ function PackagingInspection({
         setStep(1);
         box && setBox({ ...box, status: InspectionStatus.VALID });
         setVisorMessage("POSICIONE UM BLISTER...", "blue");
-        sendValidation({ quantity: 1, itemId: data?.blisterType.name });
+        sendValidation({ quantity: 1, itemId: data?.blisterType.name }, { delayMs: 0 });
         break;
 
       case ObjectTypes.product:
@@ -784,12 +867,15 @@ function PackagingInspection({
 
         setStep(2);
         setVisorMessage("VERIFICANDO QUANTIDADE DE ITENS...", "blue");
-        sendValidation({
-          quantity: blisters[targetBlister!].quantity,
-          itemId: data?.productType.name,
-          fileName,
-          model: data?.productType.name,
-        });
+        sendValidation(
+          {
+            quantity: blisters[targetBlister!].quantity,
+            itemId: data?.productType.name,
+            fileName,
+            model: data?.productType.name,
+          },
+          { delayMs: 0 }
+        );
         break;
     }
   }
@@ -809,6 +895,7 @@ function PackagingInspection({
     // Acumular QR embalados — NUNCA sobrescrever por índice (bug OP 78309 / lote 1850924).
     const packedCode = updatedBlisters[index]?.code || inspection.code;
     if (packedCode) {
+      lastPackedCodeRef.current = packedCode;
       setUsedBlisterCodes((prev) =>
         prev.includes(packedCode) ? prev : [...prev, packedCode]
       );
@@ -819,7 +906,10 @@ function PackagingInspection({
       setActiveObjectType("blister");
       setStep(1);
       setVisorMessage("POSICIONE UM NOVO BLISTER", "blue");
-      sendValidation({ quantity: 1, itemId: data?.blisterType.name });
+      sendValidation(
+        { quantity: 1, itemId: data?.blisterType.name },
+        { delayMs: NEXT_BLISTER_DELAY_MS }
+      );
     } else {
       setTargetBlister(undefined);
       setActiveObjectType(undefined);
@@ -985,7 +1075,7 @@ function PackagingInspection({
       // Apenas guarda o managerId para usar depois
       setOpBrakeManagerId(managerId);
 
-      sendValidation({ itemId, quantity, fileName });
+      sendValidation({ itemId, quantity, fileName }, { delayMs: 0 });
     } else {
       setVisorMessage("QUANTIDADE DEVE SER MENOR OU IGUAL À ATUAL!", "red");
     }

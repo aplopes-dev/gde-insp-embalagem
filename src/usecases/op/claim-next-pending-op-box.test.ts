@@ -56,8 +56,12 @@ describe("pendingBoxesBlockingPack", () => {
     expect(pendingBoxesBlockingPack("56", ["55", "57"])).toEqual([]);
   });
 
-  it("bloqueia 56 com furo na 54", () => {
-    expect(pendingBoxesBlockingPack("56", ["54", "55"])).toEqual(["54"]);
+  it("permite fechar a 67 com 64, 65 e 66 em curso", () => {
+    expect(pendingBoxesBlockingPack("67", ["64", "65", "66"])).toEqual([]);
+  });
+
+  it("bloqueia a 68 enquanto a 64 continua pendente", () => {
+    expect(pendingBoxesBlockingPack("68", ["64", "65", "66"])).toEqual(["64"]);
   });
 });
 
@@ -111,6 +115,68 @@ describe("resolveSequentialClaim", () => {
     );
     expect(decision.action).toBe("claim");
     expect(decision.next?.code).toBe("54");
+  });
+
+  it("terceiro posto pega a 66 com 64 e 65 ocupadas", () => {
+    const decision = resolveSequentialClaim(
+      [
+        box("b64", "64", "user-a", activeLock),
+        box("b65", "65", "user-b", activeLock),
+        box("b66", "66"),
+        box("b67", "67"),
+      ],
+      "user-c",
+      expireBefore
+    );
+    expect(decision.action).toBe("claim");
+    expect(decision.next?.code).toBe("66");
+  });
+
+  it("quarto posto pega a 67", () => {
+    const decision = resolveSequentialClaim(
+      [
+        box("b64", "64", "user-a", activeLock),
+        box("b65", "65", "user-b", activeLock),
+        box("b66", "66", "user-c", activeLock),
+        box("b67", "67"),
+        box("b68", "68"),
+      ],
+      "user-d",
+      expireBefore
+    );
+    expect(decision.action).toBe("claim");
+    expect(decision.next?.code).toBe("67");
+  });
+
+  it("quinto posto espera a 64", () => {
+    const decision = resolveSequentialClaim(
+      [
+        box("b64", "64", "user-a", activeLock),
+        box("b65", "65", "user-b", activeLock),
+        box("b66", "66", "user-c", activeLock),
+        box("b67", "67", "user-d", activeLock),
+        box("b68", "68"),
+      ],
+      "user-e",
+      expireBefore
+    );
+    expect(decision.action).toBe("wait");
+    expect(decision.next?.code).toBe("64");
+  });
+
+  it("renova a 66 do terceiro posto", () => {
+    const decision = resolveSequentialClaim(
+      [
+        box("b64", "64", "user-a", activeLock),
+        box("b65", "65", "user-b", activeLock),
+        box("b66", "66", "user-c", activeLock),
+        box("b67", "67"),
+      ],
+      "user-c",
+      expireBefore
+    );
+    expect(decision.action).toBe("claim");
+    expect(decision.next?.code).toBe("66");
   });
 
   it("não salta a 54 activa para ir à 56", () => {

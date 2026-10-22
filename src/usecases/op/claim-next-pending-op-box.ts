@@ -25,21 +25,45 @@ export type SequentialClaimDecision =
   | { action: "wait"; next: PendingBoxLock }
   | { action: "claim"; next: PendingBoxLock };
 
+/**
+ * Postos em paralelo na mesma OP. Cada um fica com uma caixa exclusiva.
+ * Quatro óculos podem estar em 64, 65, 66 e 67 ao mesmo tempo.
+ * O quinto espera a menor caixa; não se salta um furo na numeração.
+ */
+export const MAX_PARALLEL_INSPECTIONS = 4;
+
 /** Caixa seguinte imediata (54 → 55). */
 export function isImmediateNextPending(p0Code: string, p1Code: string): boolean {
   return (Number(p1Code) || 0) === (Number(p0Code) || 0) + 1;
 }
 
 /**
- * Bloqueia fechar uma caixa se existir furo mais atrás (ex.: 54 pendente ao fechar 56).
- * Permite 56 com a 55 ainda em curso noutro posto.
+ * Janela de caixas consecutivas a partir da menor pendente (no máximo 4).
+ * Para na primeira falha de numeração (54 pendente e 56 sem a 55 não abre a 56).
+ */
+export function consecutiveClaimWindow(ordered: PendingBoxLock[]): PendingBoxLock[] {
+  if (ordered.length === 0) return [];
+  const window: PendingBoxLock[] = [ordered[0]];
+  for (let i = 1; i < ordered.length && window.length < MAX_PARALLEL_INSPECTIONS; i++) {
+    const prev = window[window.length - 1];
+    if (!isImmediateNextPending(prev.code, ordered[i].code)) break;
+    window.push(ordered[i]);
+  }
+  return window;
+}
+
+/**
+ * Bloqueia fechar uma caixa se existir pendente fora da janela de 4 postos.
+ * Permite fechar a 67 com a 64, 65 e 66 ainda em curso.
+ * Bloqueia a 68 enquanto a 64 continuar pendente.
  */
 export function pendingBoxesBlockingPack(
   thisCode: string,
   otherPendingCodes: string[]
 ): string[] {
   const n = Number(thisCode) || 0;
-  return otherPendingCodes.filter((code) => (Number(code) || 0) < n - 1);
+  const oldestAllowed = n - (MAX_PARALLEL_INSPECTIONS - 1);
+  return otherPendingCodes.filter((code) => (Number(code) || 0) < oldestAllowed);
 }
 
 function isLockHeldByOther(
@@ -67,8 +91,8 @@ function sortedPending(pending: PendingBoxLock[]): PendingBoxLock[] {
 
 /**
  * - Sempre prefere a menor caixa pendente livre (preenche furos, ex. 54).
- * - Se a menor estiver noutro posto activo, o segundo posto pega a seguinte (55).
- * - Não salta dois à frente (não dá 56 se 54 e 55 ainda pendentes).
+ * - Até 4 postos em caixas consecutivas (64, 65, 66, 67).
+ * - O quinto espera a menor; não se salta um número em falta.
  */
 export function resolveSequentialClaim(
   pending: PendingBoxLock[],
@@ -78,8 +102,7 @@ export function resolveSequentialClaim(
   if (pending.length === 0) return { action: "none", next: undefined };
 
   const ordered = sortedPending(pending);
-  const p0 = ordered[0];
-  const p1 = ordered[1];
+  const window = consecutiveClaimWindow(ordered);
 
   const own = ordered.find(
     (box) =>
@@ -89,30 +112,19 @@ export function resolveSequentialClaim(
   );
 
   if (own) {
-    if (own.id === p0.id) return { action: "claim", next: p0 };
-    if (
-      p1 &&
-      own.id === p1.id &&
-      isLockHeldByOther(p0, userId, expireBefore) &&
-      isImmediateNextPending(p0.code, p1.code)
-    ) {
-      return { action: "claim", next: p1 };
+    const index = window.findIndex((box) => box.id === own.id);
+    if (index >= 0) {
+      const earlierHeld = window
+        .slice(0, index)
+        .every((box) => isLockHeldByOther(box, userId, expireBefore));
+      if (earlierHeld) return { action: "claim", next: own };
     }
   }
 
-  if (isClaimableBy(p0, userId, expireBefore)) {
-    return { action: "claim", next: p0 };
-  }
+  const claimable = window.find((box) => isClaimableBy(box, userId, expireBefore));
+  if (claimable) return { action: "claim", next: claimable };
 
-  if (
-    p1 &&
-    isImmediateNextPending(p0.code, p1.code) &&
-    isClaimableBy(p1, userId, expireBefore)
-  ) {
-    return { action: "claim", next: p1 };
-  }
-
-  return { action: "wait", next: p0 };
+  return { action: "wait", next: ordered[0] };
 }
 
 async function loadBoxWithBlisters(
